@@ -364,6 +364,179 @@ const getPendingCount = asyncHandler(async (req, res) => {
     sendSuccess(res, 200, 'Jumlah bimbingan pending', { count });
 });
 
+/**
+ * @desc    Get sempro readiness status for mahasiswa
+ * @route   GET /api/bimbingan/sempro-status/:mahasiswaId
+ * @access  Private (mahasiswa can only check own, admin/dosen can check all)
+ * 
+ * Requirements for Sempro (SI prodi):
+ * - Minimum 5 ACC from dospem_1
+ * - Minimum 5 ACC from dospem_2
+ * - Both must be fulfilled
+ */
+const getSemproStatus = asyncHandler(async (req, res) => {
+    const { mahasiswaId } = req.params;
+    const userId = req.user._id;
+    const userRole = req.user.role;
+
+    // Authorization check
+    if (userRole === 'mahasiswa' && userId.toString() !== mahasiswaId) {
+        throw ApiError.forbidden('Anda hanya dapat melihat status Anda sendiri');
+    }
+
+    // Get mahasiswa data
+    const mahasiswa = await User.findById(mahasiswaId);
+    if (!mahasiswa || mahasiswa.role !== 'mahasiswa') {
+        throw ApiError.notFound('Mahasiswa tidak ditemukan');
+    }
+
+    // Minimum ACC required per dospem
+    const MIN_ACC_REQUIRED = 5;
+
+    // Count ACC bimbingan from dospem_1
+    const accDospem1 = await Bimbingan.countDocuments({
+        mahasiswa: mahasiswaId,
+        dosenType: 'dospem_1',
+        status: 'acc'
+    });
+
+    // Count ACC bimbingan from dospem_2
+    const accDospem2 = await Bimbingan.countDocuments({
+        mahasiswa: mahasiswaId,
+        dosenType: 'dospem_2',
+        status: 'acc'
+    });
+
+    // Count total bimbingan (any status) per dospem
+    const totalDospem1 = await Bimbingan.countDocuments({
+        mahasiswa: mahasiswaId,
+        dosenType: 'dospem_1'
+    });
+
+    const totalDospem2 = await Bimbingan.countDocuments({
+        mahasiswa: mahasiswaId,
+        dosenType: 'dospem_2'
+    });
+
+    // Check if ready for sempro
+    const dospem1Ready = accDospem1 >= MIN_ACC_REQUIRED;
+    const dospem2Ready = accDospem2 >= MIN_ACC_REQUIRED;
+    const isReady = dospem1Ready && dospem2Ready;
+
+    // Get dosen names
+    await mahasiswa.populate('dospem_1 dospem_2', 'name nim_nip');
+
+    const response = {
+        isReady,
+        minRequired: MIN_ACC_REQUIRED,
+        dospem1: {
+            dosen: mahasiswa.dospem_1 ? {
+                name: mahasiswa.dospem_1.name,
+                nim_nip: mahasiswa.dospem_1.nim_nip
+            } : null,
+            accCount: accDospem1,
+            totalBimbingan: totalDospem1,
+            required: MIN_ACC_REQUIRED,
+            needed: Math.max(0, MIN_ACC_REQUIRED - accDospem1),
+            ready: dospem1Ready
+        },
+        dospem2: {
+            dosen: mahasiswa.dospem_2 ? {
+                name: mahasiswa.dospem_2.name,
+                nim_nip: mahasiswa.dospem_2.nim_nip
+            } : null,
+            accCount: accDospem2,
+            totalBimbingan: totalDospem2,
+            required: MIN_ACC_REQUIRED,
+            needed: Math.max(0, MIN_ACC_REQUIRED - accDospem2),
+            ready: dospem2Ready
+        },
+        message: isReady
+            ? '🎉 Selamat! Anda sudah memenuhi syarat untuk mengajukan Seminar Proposal.'
+            : `Anda membutuhkan minimal ${MIN_ACC_REQUIRED} ACC dari masing-masing dosen pembimbing untuk dapat mengajukan Seminar Proposal.`
+    };
+
+    sendSuccess(res, 200, 'Status kesiapan sempro', response);
+});
+
+/**
+ * @desc    Generate Surat Persetujuan Sempro (DOCX)
+ * @route   GET /api/bimbingan/generate-surat-sempro/:mahasiswaId
+ * @access  Private (mahasiswa own, admin)
+ */
+const generateSuratSempro = asyncHandler(async (req, res) => {
+    const { mahasiswaId } = req.params;
+    const userId = req.user._id;
+    const userRole = req.user.role;
+
+    // Authorization check
+    if (userRole === 'mahasiswa' && userId.toString() !== mahasiswaId) {
+        throw ApiError.forbidden('Anda hanya dapat mengunduh surat milik Anda sendiri');
+    }
+
+    // Get mahasiswa data with dosen pembimbing
+    const mahasiswa = await User.findById(mahasiswaId).populate('dospem_1 dospem_2', 'name nim_nip');
+    if (!mahasiswa || mahasiswa.role !== 'mahasiswa') {
+        throw ApiError.notFound('Mahasiswa tidak ditemukan');
+    }
+
+    // Verify sempro requirements are met
+    const MIN_ACC_REQUIRED = 5;
+
+    const accDospem1 = await Bimbingan.countDocuments({
+        mahasiswa: mahasiswaId,
+        dosenType: 'dospem_1',
+        status: 'acc'
+    });
+
+    const accDospem2 = await Bimbingan.countDocuments({
+        mahasiswa: mahasiswaId,
+        dosenType: 'dospem_2',
+        status: 'acc'
+    });
+
+    const isReady = accDospem1 >= MIN_ACC_REQUIRED && accDospem2 >= MIN_ACC_REQUIRED;
+
+    if (!isReady) {
+        throw ApiError.badRequest(
+            'Anda belum memenuhi syarat untuk mengunduh surat persetujuan sempro. ' +
+            `Dibutuhkan minimal ${MIN_ACC_REQUIRED} ACC dari masing-masing dosen pembimbing.`
+        );
+    }
+
+    // Import document service
+    const { generateSuratPersetujuanSempro } = require('../services/documentService');
+
+    // Generate DOCX
+    const buffer = await generateSuratPersetujuanSempro({
+        mahasiswa: {
+            name: mahasiswa.name,
+            nim_nip: mahasiswa.nim_nip,
+            prodi: mahasiswa.prodi,
+            judulTA: mahasiswa.judulTA
+        },
+        dospem1: mahasiswa.dospem_1 ? {
+            name: mahasiswa.dospem_1.name,
+            nim_nip: mahasiswa.dospem_1.nim_nip
+        } : null,
+        dospem2: mahasiswa.dospem_2 ? {
+            name: mahasiswa.dospem_2.name,
+            nim_nip: mahasiswa.dospem_2.nim_nip
+        } : null
+    });
+
+    // Set response headers for file download
+    const fileName = `Surat_Persetujuan_Sempro_${mahasiswa.nim_nip}.docx`;
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Length', buffer.length);
+
+    console.log(`📄 Surat Sempro generated: ${mahasiswa.name} (${mahasiswa.nim_nip})`);
+
+    // Send buffer
+    res.send(buffer);
+});
+
 module.exports = {
     getAll,
     getById,
@@ -371,5 +544,7 @@ module.exports = {
     giveFeedback,
     addReply,
     downloadFile,
-    getPendingCount
+    getPendingCount,
+    getSemproStatus,
+    generateSuratSempro
 };

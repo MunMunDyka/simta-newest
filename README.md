@@ -185,15 +185,15 @@ npm run dev
 
 ## 🔐 Default Credentials
 
-Setelah menjalankan seeder, gunakan kredensial berikut untuk login:
+Setelah menjalankan seeder (`npm run seed`), gunakan kredensial berikut untuk login:
 
-| Role | Username | Password |
-|------|----------|----------|
-| Admin | admin | admin123 |
-| Dosen | (check seeder) | password123 |
-| Mahasiswa | (check seeder) | password123 |
+| Role | NIM/NIP | Password |
+|------|---------|----------|
+| Admin | `admin001` | `Ebt9BRADR6YGT7bniRETd0` |
 
-> ⚠️ **Catatan**: Ubah password default setelah login pertama kali!
+> ⚠️ **Catatan**: 
+> - Akun Dosen dan Mahasiswa harus dibuat melalui menu Admin → Manajemen User
+> - Ubah password default setelah login pertama kali!
 
 ---
 

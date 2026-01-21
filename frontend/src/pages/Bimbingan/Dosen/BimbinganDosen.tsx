@@ -77,6 +77,20 @@ export const BimbinganDosen = () => {
         status: string
         createdAt: string
     } | null>(null)
+    // State for bimbingan history
+    const [bimbinganHistory, setBimbinganHistory] = useState<Array<{
+        id: string
+        version: string
+        judul: string
+        fileName: string
+        fileSize: string
+        catatan: string
+        status: string
+        feedback: string
+        feedbackDate: string
+        createdAt: string
+    }>>([]);
+    const [expandedHistory, setExpandedHistory] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null)
 
 
@@ -87,22 +101,21 @@ export const BimbinganDosen = () => {
 
             try {
                 setIsLoading(true)
-                // Fetch latest bimbingan for this mahasiswa (any status)
+                // Fetch ALL bimbingan for this mahasiswa (no limit - for history)
                 const response = await api.get(`/bimbingan`, {
                     params: {
-                        mahasiswaId: mahasiswaId,
-                        limit: 1
+                        mahasiswaId: mahasiswaId
                     }
                 })
 
                 const bimbinganList = response.data.data
                 console.log('Bimbingan API Response:', bimbinganList)
                 if (bimbinganList && bimbinganList.length > 0) {
+                    // Set the latest bimbingan as primary data
                     const data = bimbinganList[0]
                     console.log('Mahasiswa data:', data.mahasiswa)
                     console.log('judulTA:', data.mahasiswa?.judulTA)
-                    console.log('Bimbingan STATUS:', data.status) // Debug status
-                    console.log('Status === menunggu ?:', data.status === 'menunggu')
+                    console.log('Bimbingan STATUS:', data.status)
                     setBimbinganData({
                         id: data._id,
                         mahasiswa: data.mahasiswa,
@@ -114,8 +127,24 @@ export const BimbinganDosen = () => {
                         status: data.status,
                         createdAt: new Date(data.createdAt).toLocaleString('id-ID')
                     })
+
+                    // Set all bimbingan as history (including current)
+                    const history = bimbinganList.map((item: { _id: string; version: string; judul: string; fileOriginalName?: string; fileName: string; fileSize?: string; catatan?: string; status: string; feedback?: string; feedbackDate?: string; createdAt: string }) => ({
+                        id: item._id,
+                        version: `V${item.version}`,
+                        judul: item.judul,
+                        fileName: item.fileOriginalName || item.fileName,
+                        fileSize: item.fileSize ? `${(parseInt(item.fileSize) / 1024 / 1024).toFixed(2)} MB` : '-',
+                        catatan: item.catatan || '',
+                        status: item.status,
+                        feedback: item.feedback || '',
+                        feedbackDate: item.feedbackDate ? new Date(item.feedbackDate).toLocaleString('id-ID') : '-',
+                        createdAt: new Date(item.createdAt).toLocaleString('id-ID')
+                    }));
+                    setBimbinganHistory(history);
                 } else {
-                    console.log('No pending bimbingan found for this mahasiswa')
+                    console.log('No bimbingan found for this mahasiswa')
+                    setBimbinganHistory([]);
                 }
             } catch (error) {
                 console.error('Failed to fetch bimbingan:', error)
@@ -670,6 +699,119 @@ export const BimbinganDosen = () => {
                                         <h3 className="text-lg font-bold text-green-800">Sudah Direview ✓</h3>
                                         <p className="text-sm text-green-600">Bimbingan ini sudah diberikan feedback. Tunggu mahasiswa untuk mengirim revisi baru.</p>
                                     </div>
+                                </div>
+                            </motion.div>
+                        )}
+
+                        {/* ===== RIWAYAT BIMBINGAN SECTION ===== */}
+                        {bimbinganHistory.length > 0 && (
+                            <motion.div variants={itemVariants} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
+                                        <Clock className="w-5 h-5 text-white" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold text-gray-800">Riwayat Bimbingan</h3>
+                                        <p className="text-sm text-gray-500">Total {bimbinganHistory.length} bimbingan</p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3">
+                                    {bimbinganHistory.map((item, index) => (
+                                        <motion.div
+                                            key={item.id}
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ delay: index * 0.05 }}
+                                            className={`border rounded-xl overflow-hidden ${item.status === 'menunggu' ? 'border-yellow-200 bg-yellow-50/50' :
+                                                    item.status === 'revisi' ? 'border-red-200 bg-red-50/50' :
+                                                        item.status === 'acc' ? 'border-green-200 bg-green-50/50' :
+                                                            'border-blue-200 bg-blue-50/50'
+                                                }`}
+                                        >
+                                            {/* Header - Clickable */}
+                                            <button
+                                                onClick={() => setExpandedHistory(expandedHistory === item.id ? null : item.id)}
+                                                className="w-full flex items-center justify-between p-4 hover:bg-white/50 transition-colors"
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${item.status === 'menunggu' ? 'bg-yellow-100' :
+                                                            item.status === 'revisi' ? 'bg-red-100' :
+                                                                item.status === 'acc' ? 'bg-green-100' :
+                                                                    'bg-blue-100'
+                                                        }`}>
+                                                        {getStatusIcon(item.status)}
+                                                    </div>
+                                                    <div className="text-left">
+                                                        <p className="font-medium text-gray-800">{item.version} - {item.judul}</p>
+                                                        <p className="text-xs text-gray-500">{item.createdAt}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <Badge className={`${item.status === 'menunggu' ? 'bg-yellow-100 text-yellow-700' :
+                                                            item.status === 'revisi' ? 'bg-red-100 text-red-700' :
+                                                                item.status === 'acc' ? 'bg-green-100 text-green-700' :
+                                                                    'bg-blue-100 text-blue-700'
+                                                        } border-0`}>
+                                                        {item.status === 'menunggu' ? 'Menunggu' :
+                                                            item.status === 'revisi' ? 'Revisi' :
+                                                                item.status === 'acc' ? 'ACC' : 'Lanjut BAB'}
+                                                    </Badge>
+                                                    <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${expandedHistory === item.id ? 'rotate-180' : ''
+                                                        }`} />
+                                                </div>
+                                            </button>
+
+                                            {/* Expanded Content */}
+                                            {expandedHistory === item.id && (
+                                                <motion.div
+                                                    initial={{ height: 0, opacity: 0 }}
+                                                    animate={{ height: 'auto', opacity: 1 }}
+                                                    exit={{ height: 0, opacity: 0 }}
+                                                    className="border-t border-gray-200 p-4 bg-white/80"
+                                                >
+                                                    <div className="space-y-3">
+                                                        {/* File Info */}
+                                                        <div className="flex items-center gap-2 text-sm">
+                                                            <FileText className="w-4 h-4 text-gray-400" />
+                                                            <span className="text-gray-600">{item.fileName}</span>
+                                                            <span className="text-gray-400">({item.fileSize})</span>
+                                                        </div>
+
+                                                        {/* Catatan Mahasiswa */}
+                                                        {item.catatan && (
+                                                            <div className="p-3 bg-blue-50 rounded-lg">
+                                                                <p className="text-xs font-medium text-blue-600 mb-1">Catatan Mahasiswa:</p>
+                                                                <p className="text-sm text-gray-700">{item.catatan}</p>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Feedback Dosen */}
+                                                        {item.feedback && (
+                                                            <div className={`p-3 rounded-lg ${item.status === 'revisi' ? 'bg-red-50' :
+                                                                    item.status === 'acc' ? 'bg-green-50' :
+                                                                        'bg-blue-50'
+                                                                }`}>
+                                                                <p className={`text-xs font-medium mb-1 ${item.status === 'revisi' ? 'text-red-600' :
+                                                                        item.status === 'acc' ? 'text-green-600' :
+                                                                            'text-blue-600'
+                                                                    }`}>Feedback Dosen ({item.feedbackDate}):</p>
+                                                                <p className="text-sm text-gray-700">{item.feedback}</p>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Status menunggu indicator */}
+                                                        {item.status === 'menunggu' && (
+                                                            <div className="flex items-center gap-2 text-yellow-600 text-sm">
+                                                                <Clock className="w-4 h-4" />
+                                                                <span>Menunggu review dari dosen</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </motion.div>
+                                            )}
+                                        </motion.div>
+                                    ))}
                                 </div>
                             </motion.div>
                         )}

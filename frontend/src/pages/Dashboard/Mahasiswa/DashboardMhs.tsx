@@ -29,6 +29,10 @@ import {
     Clock,
     GraduationCap,
     FileEdit,
+    CheckCircle,
+    XCircle,
+    Target,
+    Download,
 } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
@@ -60,6 +64,29 @@ interface BimbinganStats {
     pendingCount: number
 }
 
+// Sempro Status interface
+interface SemproStatus {
+    isReady: boolean
+    minRequired: number
+    dospem1: {
+        dosen: { name: string; nim_nip: string } | null
+        accCount: number
+        totalBimbingan: number
+        required: number
+        needed: number
+        ready: boolean
+    }
+    dospem2: {
+        dosen: { name: string; nim_nip: string } | null
+        accCount: number
+        totalBimbingan: number
+        required: number
+        needed: number
+        ready: boolean
+    }
+    message: string
+}
+
 // Menu items
 const menuItems = [
     { label: 'Dashboard', icon: LayoutDashboard, active: true, path: '/dashboard/mahasiswa' },
@@ -82,6 +109,7 @@ export const DashboardMhs = () => {
         totalBimbingan: 0,
         pendingCount: 0
     })
+    const [semproStatus, setSemproStatus] = useState<SemproStatus | null>(null)
     const [isLoading, setIsLoading] = useState(true)
 
     // Calculate deadline (dummy for now - can be set by admin later)
@@ -116,6 +144,14 @@ export const DashboardMhs = () => {
                 } catch {
                     // Bimbingan endpoint might not have data yet
                     console.log('No bimbingan data yet')
+                }
+
+                // Get sempro status
+                try {
+                    const semproResponse = await api.get(`/bimbingan/sempro-status/${userData._id}`)
+                    setSemproStatus(semproResponse.data.data)
+                } catch {
+                    console.log('Failed to fetch sempro status')
                 }
             } catch (error) {
                 console.error('Failed to fetch data:', error)
@@ -546,6 +582,161 @@ export const DashboardMhs = () => {
                                 {mahasiswaData?.judulTA || 'Judul Tugas Akhir belum diset'}
                             </motion.p>
                         </motion.div>
+
+                        {/* ===== SEMPRO STATUS CARD ===== */}
+                        {semproStatus && (
+                            <motion.div
+                                variants={itemVariants}
+                                className={`rounded-2xl p-6 shadow-sm border ${semproStatus.isReady
+                                    ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200'
+                                    : 'bg-white border-gray-100'
+                                    }`}
+                            >
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${semproStatus.isReady
+                                        ? 'bg-gradient-to-br from-green-500 to-green-600'
+                                        : 'bg-gradient-to-br from-purple-500 to-purple-600'
+                                        }`}>
+                                        <Target className="w-5 h-5 text-white" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold text-gray-800">Status Persiapan Sempro</h3>
+                                        <p className="text-sm text-gray-500">Minimal {semproStatus.minRequired} ACC per dosen pembimbing</p>
+                                    </div>
+                                    {semproStatus.isReady && (
+                                        <motion.div
+                                            className="ml-auto bg-green-500 text-white px-4 py-1.5 rounded-full text-sm font-semibold flex items-center gap-2"
+                                            animate={{ scale: [1, 1.05, 1] }}
+                                            transition={{ duration: 2, repeat: Infinity }}
+                                        >
+                                            <CheckCircle className="w-4 h-4" />
+                                            SIAP SEMPRO!
+                                        </motion.div>
+                                    )}
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* Dospem 1 Progress */}
+                                    <div className={`p-4 rounded-xl ${semproStatus.dospem1.ready
+                                        ? 'bg-green-100 border border-green-200'
+                                        : 'bg-gray-50 border border-gray-200'
+                                        }`}>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div className="flex items-center gap-2">
+                                                {semproStatus.dospem1.ready
+                                                    ? <CheckCircle className="w-5 h-5 text-green-500" />
+                                                    : <XCircle className="w-5 h-5 text-gray-400" />
+                                                }
+                                                <span className="font-medium text-gray-700">Dospem 1</span>
+                                            </div>
+                                            <span className={`text-sm font-bold ${semproStatus.dospem1.ready ? 'text-green-600' : 'text-gray-600'
+                                                }`}>
+                                                {semproStatus.dospem1.accCount}/{semproStatus.dospem1.required} ACC
+                                            </span>
+                                        </div>
+                                        <p className="text-xs text-gray-500 mb-2">
+                                            {semproStatus.dospem1.dosen?.name || 'Belum ditentukan'}
+                                        </p>
+                                        {/* Progress Bar */}
+                                        <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                                            <motion.div
+                                                className={`h-2.5 rounded-full ${semproStatus.dospem1.ready ? 'bg-green-500' : 'bg-blue-500'
+                                                    }`}
+                                                initial={{ width: 0 }}
+                                                animate={{
+                                                    width: `${Math.min(100, (semproStatus.dospem1.accCount / semproStatus.dospem1.required) * 100)}%`
+                                                }}
+                                                transition={{ duration: 1, delay: 0.3 }}
+                                            />
+                                        </div>
+                                        {!semproStatus.dospem1.ready && (
+                                            <p className="text-xs text-gray-500 mt-2">
+                                                Butuh {semproStatus.dospem1.needed} ACC lagi
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    {/* Dospem 2 Progress */}
+                                    <div className={`p-4 rounded-xl ${semproStatus.dospem2.ready
+                                        ? 'bg-green-100 border border-green-200'
+                                        : 'bg-gray-50 border border-gray-200'
+                                        }`}>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div className="flex items-center gap-2">
+                                                {semproStatus.dospem2.ready
+                                                    ? <CheckCircle className="w-5 h-5 text-green-500" />
+                                                    : <XCircle className="w-5 h-5 text-gray-400" />
+                                                }
+                                                <span className="font-medium text-gray-700">Dospem 2</span>
+                                            </div>
+                                            <span className={`text-sm font-bold ${semproStatus.dospem2.ready ? 'text-green-600' : 'text-gray-600'
+                                                }`}>
+                                                {semproStatus.dospem2.accCount}/{semproStatus.dospem2.required} ACC
+                                            </span>
+                                        </div>
+                                        <p className="text-xs text-gray-500 mb-2">
+                                            {semproStatus.dospem2.dosen?.name || 'Belum ditentukan'}
+                                        </p>
+                                        {/* Progress Bar */}
+                                        <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                                            <motion.div
+                                                className={`h-2.5 rounded-full ${semproStatus.dospem2.ready ? 'bg-green-500' : 'bg-blue-500'
+                                                    }`}
+                                                initial={{ width: 0 }}
+                                                animate={{
+                                                    width: `${Math.min(100, (semproStatus.dospem2.accCount / semproStatus.dospem2.required) * 100)}%`
+                                                }}
+                                                transition={{ duration: 1, delay: 0.5 }}
+                                            />
+                                        </div>
+                                        {!semproStatus.dospem2.ready && (
+                                            <p className="text-xs text-gray-500 mt-2">
+                                                Butuh {semproStatus.dospem2.needed} ACC lagi
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Message */}
+                                <div className={`mt-4 p-3 rounded-lg text-center ${semproStatus.isReady
+                                    ? 'bg-green-100 text-green-700'
+                                    : 'bg-blue-50 text-blue-700'
+                                    }`}>
+                                    <p className="text-sm font-medium">{semproStatus.message}</p>
+                                </div>
+
+                                {/* Download Button - Only show when ready */}
+                                {semproStatus.isReady && mahasiswaData && (
+                                    <motion.button
+                                        className="mt-4 w-full bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
+                                        whileHover={{ scale: 1.02 }}
+                                        whileTap={{ scale: 0.98 }}
+                                        onClick={async () => {
+                                            try {
+                                                const response = await api.get(
+                                                    `/bimbingan/generate-surat-sempro/${mahasiswaData._id}`,
+                                                    { responseType: 'blob' }
+                                                )
+                                                const url = window.URL.createObjectURL(new Blob([response.data]))
+                                                const link = document.createElement('a')
+                                                link.href = url
+                                                link.setAttribute('download', `Surat_Persetujuan_Sempro_${mahasiswaData.nim_nip}.docx`)
+                                                document.body.appendChild(link)
+                                                link.click()
+                                                link.remove()
+                                                window.URL.revokeObjectURL(url)
+                                            } catch (error) {
+                                                console.error('Failed to download:', error)
+                                                alert('Gagal mengunduh surat. Silakan coba lagi.')
+                                            }
+                                        }}
+                                    >
+                                        <Download className="w-5 h-5" />
+                                        Download Surat Persetujuan Sempro
+                                    </motion.button>
+                                )}
+                            </motion.div>
+                        )}
 
                         {/* Dosen Pembimbing Section */}
                         <motion.div

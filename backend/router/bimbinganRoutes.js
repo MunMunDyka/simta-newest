@@ -86,6 +86,30 @@ router.get(
 );
 
 /**
+ * @route   GET /api/bimbingan/sempro-status/:mahasiswaId
+ * @desc    Get sempro readiness status for mahasiswa
+ * @access  Private (mahasiswa own, dosen, admin)
+ */
+router.get(
+    '/sempro-status/:mahasiswaId',
+    mongoIdParam('mahasiswaId'),
+    handleValidationErrors,
+    bimbinganController.getSemproStatus
+);
+
+/**
+ * @route   GET /api/bimbingan/generate-surat-sempro/:mahasiswaId
+ * @desc    Generate and download Surat Persetujuan Sempro (DOCX)
+ * @access  Private (mahasiswa own, admin)
+ */
+router.get(
+    '/generate-surat-sempro/:mahasiswaId',
+    mongoIdParam('mahasiswaId'),
+    handleValidationErrors,
+    bimbinganController.generateSuratSempro
+);
+
+/**
  * @route   GET /api/bimbingan/download/:id
  * @desc    Download bimbingan file
  * @access  Private (mahasiswa, dosen involved, or admin)

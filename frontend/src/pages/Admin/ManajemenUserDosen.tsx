@@ -47,6 +47,11 @@ import {
     Key,
     Edit,
     Trash2,
+    Clock,
+    History,
+    CheckCircle,
+    XCircle,
+    ChevronRight,
 } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
@@ -71,6 +76,21 @@ interface MahasiswaBimbingan {
     prodi?: string
     currentProgress?: string
     judulTA?: string
+}
+
+// Bimbingan History interface
+interface BimbinganHistoryItem {
+    id: string
+    version: string
+    judul: string
+    fileName: string
+    fileSize: string
+    catatan: string
+    status: string
+    feedback: string
+    feedbackDate: string
+    createdAt: string
+    dosenType: string
 }
 
 // Menu items
@@ -99,6 +119,11 @@ export const ManajemenUserDosen = () => {
     const [newPassword, setNewPassword] = useState('')
     const [showResetModal, setShowResetModal] = useState(false)
     const [showDeleteModal, setShowDeleteModal] = useState(false)
+    // Bimbingan history states
+    const [showHistoryModal, setShowHistoryModal] = useState(false)
+    const [selectedMahasiswa, setSelectedMahasiswa] = useState<MahasiswaBimbingan | null>(null)
+    const [bimbinganHistory, setBimbinganHistory] = useState<BimbinganHistoryItem[]>([])
+    const [isLoadingHistory, setIsLoadingHistory] = useState(false)
 
     // Fetch dosen data
     const fetchDosen = async () => {
@@ -174,6 +199,55 @@ export const ManajemenUserDosen = () => {
         } catch (error: unknown) {
             const err = error as { response?: { data?: { message?: string } } }
             alert('Gagal menghapus: ' + (err.response?.data?.message || 'Unknown error'))
+        }
+    }
+
+    // View bimbingan history for a mahasiswa
+    const viewBimbinganHistory = async (mhs: MahasiswaBimbingan) => {
+        setSelectedMahasiswa(mhs)
+        setShowHistoryModal(true)
+        setIsLoadingHistory(true)
+        setBimbinganHistory([])
+
+        try {
+            // Fetch bimbingan history for this mahasiswa
+            const response = await api.get(`/bimbingan`, {
+                params: { mahasiswaId: mhs._id }
+            })
+
+            const bimbinganList = response.data.data || []
+            const history = bimbinganList.map((item: { _id: string; version: string; judul: string; fileOriginalName?: string; fileName: string; fileSize?: string; catatan?: string; status: string; feedback?: string; feedbackDate?: string; createdAt: string; dosenType?: string }) => ({
+                id: item._id,
+                version: `V${item.version}`,
+                judul: item.judul,
+                fileName: item.fileOriginalName || item.fileName,
+                fileSize: item.fileSize ? `${(parseInt(item.fileSize) / 1024 / 1024).toFixed(2)} MB` : '-',
+                catatan: item.catatan || '',
+                status: item.status,
+                feedback: item.feedback || '',
+                feedbackDate: item.feedbackDate ? new Date(item.feedbackDate).toLocaleString('id-ID') : '-',
+                createdAt: new Date(item.createdAt).toLocaleString('id-ID'),
+                dosenType: item.dosenType || 'dospem_1'
+            }))
+            setBimbinganHistory(history)
+        } catch (error) {
+            console.error('Failed to fetch bimbingan history:', error)
+        } finally {
+            setIsLoadingHistory(false)
+        }
+    }
+
+    // Get status icon helper
+    const getStatusIcon = (status: string) => {
+        switch (status) {
+            case 'revisi':
+                return <XCircle className="w-4 h-4 text-red-500" />
+            case 'acc':
+                return <CheckCircle className="w-4 h-4 text-green-500" />
+            case 'lanjut_bab':
+                return <ChevronRight className="w-4 h-4 text-blue-500" />
+            default:
+                return <Clock className="w-4 h-4 text-yellow-500" />
         }
     }
 
@@ -322,7 +396,7 @@ export const ManajemenUserDosen = () => {
                     </div>
 
                     <div className="flex items-center gap-4">
-                        
+
 
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -465,13 +539,23 @@ export const ManajemenUserDosen = () => {
                                                         <Badge className="bg-blue-100 text-blue-600">{mhs.currentProgress || 'BAB I'}</Badge>
                                                     </TableCell>
                                                     <TableCell className="text-center">
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={() => navigate(`/admin/users/mahasiswa/${mhs._id}`)}
-                                                        >
-                                                            <Eye className="w-4 h-4 mr-1" />Detail
-                                                        </Button>
+                                                        <div className="flex items-center justify-center gap-1">
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={() => viewBimbinganHistory(mhs)}
+                                                                className="text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                                                            >
+                                                                <History className="w-4 h-4 mr-1" />Riwayat
+                                                            </Button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={() => navigate(`/admin/users/mahasiswa/${mhs._id}`)}
+                                                            >
+                                                                <Eye className="w-4 h-4 mr-1" />Detail
+                                                            </Button>
+                                                        </div>
                                                     </TableCell>
                                                 </motion.tr>
                                             ))}
@@ -576,6 +660,114 @@ export const ManajemenUserDosen = () => {
                         <Button variant="outline" onClick={() => setShowDeleteModal(false)}>Batal</Button>
                         <Button onClick={handleDeactivate} className="bg-yellow-500 hover:bg-yellow-600">Nonaktifkan</Button>
                         <Button onClick={handlePermanentDelete} variant="destructive">Hapus Permanen</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Bimbingan History Modal */}
+            <Dialog open={showHistoryModal} onOpenChange={setShowHistoryModal}>
+                <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <History className="w-5 h-5 text-purple-500" />
+                            Riwayat Bimbingan
+                        </DialogTitle>
+                        <DialogDescription>
+                            {selectedMahasiswa && (
+                                <span>
+                                    Riwayat bimbingan <strong>{selectedMahasiswa.name}</strong> ({selectedMahasiswa.nim_nip})
+                                </span>
+                            )}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="flex-1 overflow-y-auto py-4">
+                        {isLoadingHistory ? (
+                            <div className="flex items-center justify-center py-8">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+                            </div>
+                        ) : bimbinganHistory.length > 0 ? (
+                            <div className="space-y-3">
+                                {bimbinganHistory.map((item, index) => (
+                                    <motion.div
+                                        key={item.id}
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: index * 0.05 }}
+                                        className={`p-4 rounded-xl border ${item.status === 'menunggu' ? 'border-yellow-200 bg-yellow-50/50' :
+                                                item.status === 'revisi' ? 'border-red-200 bg-red-50/50' :
+                                                    item.status === 'acc' ? 'border-green-200 bg-green-50/50' :
+                                                        'border-blue-200 bg-blue-50/50'
+                                            }`}
+                                    >
+                                        {/* Header */}
+                                        <div className="flex items-center justify-between mb-3">
+                                            <div className="flex items-center gap-2">
+                                                {getStatusIcon(item.status)}
+                                                <span className="font-medium text-gray-800">{item.version} - {item.judul}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Badge className={`text-xs ${item.status === 'menunggu' ? 'bg-yellow-100 text-yellow-700' :
+                                                        item.status === 'revisi' ? 'bg-red-100 text-red-700' :
+                                                            item.status === 'acc' ? 'bg-green-100 text-green-700' :
+                                                                'bg-blue-100 text-blue-700'
+                                                    } border-0`}>
+                                                    {item.status === 'menunggu' ? 'Menunggu' :
+                                                        item.status === 'revisi' ? 'Revisi' :
+                                                            item.status === 'acc' ? 'ACC' : 'Lanjut BAB'}
+                                                </Badge>
+                                                <Badge className="bg-gray-100 text-gray-600 text-xs border-0">
+                                                    {item.dosenType === 'dospem_1' ? 'Dospem 1' : 'Dospem 2'}
+                                                </Badge>
+                                            </div>
+                                        </div>
+
+                                        {/* File & Date info */}
+                                        <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
+                                            <span className="flex items-center gap-1">
+                                                <FileText className="w-3 h-3" />
+                                                {item.fileName} ({item.fileSize})
+                                            </span>
+                                            <span className="flex items-center gap-1">
+                                                <Clock className="w-3 h-3" />
+                                                {item.createdAt}
+                                            </span>
+                                        </div>
+
+                                        {/* Catatan Mahasiswa */}
+                                        {item.catatan && (
+                                            <div className="p-2 bg-blue-50 rounded-lg mb-2">
+                                                <p className="text-xs font-medium text-blue-600 mb-1">Catatan Mahasiswa:</p>
+                                                <p className="text-sm text-gray-700">{item.catatan}</p>
+                                            </div>
+                                        )}
+
+                                        {/* Feedback Dosen */}
+                                        {item.feedback && (
+                                            <div className={`p-2 rounded-lg ${item.status === 'revisi' ? 'bg-red-50' :
+                                                    item.status === 'acc' ? 'bg-green-50' :
+                                                        'bg-blue-50'
+                                                }`}>
+                                                <p className={`text-xs font-medium mb-1 ${item.status === 'revisi' ? 'text-red-600' :
+                                                        item.status === 'acc' ? 'text-green-600' :
+                                                            'text-blue-600'
+                                                    }`}>Feedback Dosen ({item.feedbackDate}):</p>
+                                                <p className="text-sm text-gray-700">{item.feedback}</p>
+                                            </div>
+                                        )}
+                                    </motion.div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center py-8 text-gray-500">
+                                <FileText className="w-12 h-12 text-gray-300 mb-3" />
+                                <p>Belum ada riwayat bimbingan</p>
+                            </div>
+                        )}
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowHistoryModal(false)}>Tutup</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
