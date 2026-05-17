@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { motion, type Variants } from 'framer-motion'
 import { Button } from '@/components/ui/button'
@@ -26,7 +26,6 @@ import {
     Calendar,
     ChevronDown,
     LogOut,
-    Settings,
     User,
     FileText,
     ArrowLeft,
@@ -72,6 +71,7 @@ const menuItems = [
 
 const managementItems = [
     { label: 'Manajemen User', icon: Users, active: true, path: '/admin/users' },
+    { label: 'Kelola Bimbingan', icon: FileText, path: '/admin/bimbingan' },
     { label: 'Kelola Jadwal', icon: Calendar, path: '/admin/jadwal' },
 ]
 
@@ -364,9 +364,7 @@ export const EditUser = () => {
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={() => navigate('/admin/profile')}>
                                     <User className="w-4 h-4 mr-2" />Profile
-                                </DropdownMenuItem>
-                                <DropdownMenuItem><Settings className="w-4 h-4 mr-2" />Settings</DropdownMenuItem>
-                                <DropdownMenuSeparator />
+                                </DropdownMenuItem>                                <DropdownMenuSeparator />
                                 <DropdownMenuItem className="text-red-600" onClick={() => { dispatch(logout()); navigate('/') }}>
                                     <LogOut className="w-4 h-4 mr-2" />Logout
                                 </DropdownMenuItem>

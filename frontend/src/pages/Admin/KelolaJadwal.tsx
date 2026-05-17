@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ===========================================
  * Kelola Jadwal Sidang - Admin Page
  * ===========================================
@@ -50,7 +50,6 @@ import {
     Calendar,
     ChevronDown,
     LogOut,
-    Settings,
     User,
     Search,
     Plus,
@@ -103,6 +102,7 @@ const menuItems = [
 
 const managementItems = [
     { label: 'Manajemen User', icon: Users, active: false, path: '/admin/users' },
+    { label: 'Kelola Bimbingan', icon: FileText, path: '/admin/bimbingan' },
     { label: 'Kelola Jadwal', icon: Calendar, active: true, path: '/admin/jadwal' },
 ]
 
@@ -143,6 +143,10 @@ export const KelolaJadwal = () => {
     const [isBatalkanModalOpen, setIsBatalkanModalOpen] = useState(false)
     const [batalkanJadwal, setBatalkanJadwal] = useState<JadwalSidang | null>(null)
     const [alasanBatal, setAlasanBatal] = useState('')
+
+    // Hapus permanen modal states
+    const [isHapusModalOpen, setIsHapusModalOpen] = useState(false)
+    const [hapusJadwal, setHapusJadwal] = useState<JadwalSidang | null>(null)
 
     // Form states
     const [mahasiswaList, setMahasiswaList] = useState<UserOption[]>([])
@@ -391,9 +395,48 @@ export const KelolaJadwal = () => {
         setPenguji2('')
     }
 
+    // Open Hapus Permanen modal
+    const openHapusModal = (jadwal: JadwalSidang) => {
+        setHapusJadwal(jadwal)
+        setIsHapusModalOpen(true)
+    }
+
+    // Handle Hapus Permanen
+    const handleHapusPermanen = async () => {
+        if (!hapusJadwal) return
+
+        setIsSubmitting(true)
+        try {
+            await api.delete(`/jadwal/${hapusJadwal._id}/permanent`)
+            alert('Jadwal berhasil dihapus permanen!')
+            setIsHapusModalOpen(false)
+            setHapusJadwal(null)
+            fetchJadwal()
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } } }
+            alert(err.response?.data?.message || 'Gagal menghapus jadwal')
+        } finally {
+            setIsSubmitting(false)
+        }
+    }
+
+    // Handle Reschedule (jadwal ulang)
+    const handleReschedule = async (jadwal: JadwalSidang) => {
+        try {
+            await api.put(`/jadwal/${jadwal._id}`, { status: 'dijadwalkan' })
+            alert('Jadwal berhasil diaktifkan kembali! Silakan edit untuk mengubah tanggal/waktu.')
+            fetchJadwal()
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } } }
+            alert(err.response?.data?.message || 'Gagal mengaktifkan jadwal')
+        }
+    }
+
     const filteredJadwal = jadwalList.filter(jadwal => {
-        const matchesSearch = jadwal.mahasiswa?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            jadwal.mahasiswa?.nim_nip?.includes(searchQuery)
+        const normalizedSearch = searchQuery.trim().toLowerCase()
+        const matchesSearch = !normalizedSearch ||
+            jadwal.mahasiswa?.name?.toLowerCase().includes(normalizedSearch) ||
+            jadwal.mahasiswa?.nim_nip?.includes(normalizedSearch)
         const matchesStatus = statusFilter === 'all' || jadwal.status === statusFilter
         return matchesSearch && matchesStatus
     })
@@ -553,9 +596,7 @@ export const KelolaJadwal = () => {
                             <DropdownMenuContent align="end" className="w-48">
                                 <DropdownMenuLabel>{user?.name || 'Admin'}</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem className="cursor-pointer"><User className="w-4 h-4 mr-2" />Profile</DropdownMenuItem>
-                                <DropdownMenuItem className="cursor-pointer"><Settings className="w-4 h-4 mr-2" />Settings</DropdownMenuItem>
-                                <DropdownMenuSeparator />
+                                <DropdownMenuItem className="cursor-pointer"><User className="w-4 h-4 mr-2" />Profile</DropdownMenuItem>                                <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                     className="cursor-pointer text-red-600"
                                     onClick={() => {
@@ -754,23 +795,45 @@ export const KelolaJadwal = () => {
                                                                         >
                                                                             <CheckCircle className="w-4 h-4 mr-2" />Selesai
                                                                         </DropdownMenuItem>
+                                                                        <DropdownMenuSeparator />
                                                                         <DropdownMenuItem
                                                                             className="cursor-pointer text-red-600"
                                                                             onClick={() => openBatalkanModal(jadwal)}
                                                                         >
-                                                                            <Trash2 className="w-4 h-4 mr-2" />Batalkan
+                                                                            <XCircle className="w-4 h-4 mr-2" />Batalkan
+                                                                        </DropdownMenuItem>
+                                                                    </>
+                                                                )}
+                                                                {jadwal.status === 'dibatalkan' && (
+                                                                    <>
+                                                                        <DropdownMenuItem
+                                                                            className="cursor-pointer text-blue-600"
+                                                                            onClick={() => handleReschedule(jadwal)}
+                                                                        >
+                                                                            <Calendar className="w-4 h-4 mr-2" />Jadwal Ulang
+                                                                        </DropdownMenuItem>
+                                                                        <DropdownMenuSeparator />
+                                                                        <DropdownMenuItem
+                                                                            className="cursor-pointer text-red-600"
+                                                                            onClick={() => openHapusModal(jadwal)}
+                                                                        >
+                                                                            <Trash2 className="w-4 h-4 mr-2" />Hapus Permanen
                                                                         </DropdownMenuItem>
                                                                     </>
                                                                 )}
                                                                 {jadwal.status === 'selesai' && (
-                                                                    <DropdownMenuItem disabled className="text-gray-400">
-                                                                        <CheckCircle className="w-4 h-4 mr-2" />Sudah Selesai
-                                                                    </DropdownMenuItem>
-                                                                )}
-                                                                {jadwal.status === 'dibatalkan' && (
-                                                                    <DropdownMenuItem disabled className="text-gray-400">
-                                                                        <XCircle className="w-4 h-4 mr-2" />Sudah Dibatalkan
-                                                                    </DropdownMenuItem>
+                                                                    <>
+                                                                        <DropdownMenuItem disabled className="text-gray-400">
+                                                                            <CheckCircle className="w-4 h-4 mr-2" />Sudah Selesai
+                                                                        </DropdownMenuItem>
+                                                                        <DropdownMenuSeparator />
+                                                                        <DropdownMenuItem
+                                                                            className="cursor-pointer text-red-600"
+                                                                            onClick={() => openHapusModal(jadwal)}
+                                                                        >
+                                                                            <Trash2 className="w-4 h-4 mr-2" />Hapus Permanen
+                                                                        </DropdownMenuItem>
+                                                                    </>
                                                                 )}
                                                             </DropdownMenuContent>
                                                         </DropdownMenu>
@@ -1210,7 +1273,7 @@ export const KelolaJadwal = () => {
 
                         <div className="flex items-center gap-2 p-3 bg-red-50 rounded-lg text-sm text-red-700">
                             <AlertCircle className="w-4 h-4" />
-                            <p>Jadwal yang dibatalkan tidak dapat dikembalikan.</p>
+                            <p>Jadwal yang dibatalkan dapat dijadwal ulang melalui menu aksi.</p>
                         </div>
 
                         {/* Buttons */}
@@ -1237,6 +1300,57 @@ export const KelolaJadwal = () => {
                                 )}
                             </Button>
                         </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Hapus Permanen Modal */}
+            <Dialog open={isHapusModalOpen} onOpenChange={setIsHapusModalOpen}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-red-600">
+                            <AlertCircle className="w-5 h-5" />
+                            Hapus Jadwal Permanen
+                        </DialogTitle>
+                        <DialogDescription>
+                            Menghapus jadwal ini secara permanen dari database. Aksi ini tidak dapat dibatalkan!
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        {hapusJadwal && (
+                            <div className="p-4 bg-red-50 rounded-xl border border-red-200 space-y-2">
+                                <p className="font-medium text-red-800">{hapusJadwal.mahasiswa?.name}</p>
+                                <p className="text-sm text-red-600">
+                                    {hapusJadwal.jenisJadwal === 'sidang_proposal' ? 'Sidang Proposal' : 'Sidang Skripsi'} •{' '}
+                                    {new Date(hapusJadwal.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                </p>
+                                <Badge className={hapusJadwal.status === 'dibatalkan' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}>
+                                    {hapusJadwal.status === 'dibatalkan' ? 'Dibatalkan' : 'Selesai'}
+                                </Badge>
+                            </div>
+                        )}
+                        <div className="flex items-center gap-2 p-3 bg-yellow-50 rounded-lg text-sm text-yellow-700">
+                            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                            <p>Data jadwal akan dihapus permanen dan tidak dapat dikembalikan.</p>
+                        </div>
+                    </div>
+                    <div className="flex justify-end gap-3">
+                        <Button variant="outline" onClick={() => setIsHapusModalOpen(false)} disabled={isSubmitting}>
+                            Batal
+                        </Button>
+                        <Button variant="destructive" onClick={handleHapusPermanen} disabled={isSubmitting}>
+                            {isSubmitting ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                                    Menghapus...
+                                </>
+                            ) : (
+                                <>
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    Hapus Permanen
+                                </>
+                            )}
+                        </Button>
                     </div>
                 </DialogContent>
             </Dialog>

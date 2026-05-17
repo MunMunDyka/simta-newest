@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, type Variants } from 'framer-motion'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
@@ -21,7 +21,6 @@ import {
     Calendar,
     ChevronDown,
     LogOut,
-    Settings,
     User,
     FileEdit,
     Camera,
@@ -347,9 +346,7 @@ export const ProfileDosen = () => {
                                     onClick={() => navigate('/profile/dosen')}
                                 >
                                     <User className="w-4 h-4 mr-2" />Profile
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="cursor-pointer"><Settings className="w-4 h-4 mr-2" />Settings</DropdownMenuItem>
-                                <DropdownMenuSeparator />
+                                </DropdownMenuItem>                                <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                     className="cursor-pointer text-red-600"
                                     onClick={() => {

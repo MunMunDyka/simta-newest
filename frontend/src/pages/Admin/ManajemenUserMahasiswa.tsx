@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { motion, type Variants } from 'framer-motion'
 import { Button } from '@/components/ui/button'
@@ -28,7 +28,6 @@ import {
     Calendar,
     ChevronDown,
     LogOut,
-    Settings,
     User,
     FileText,
     ArrowLeft,
@@ -40,6 +39,8 @@ import {
     Key,
     Edit,
     Trash2,
+    Eye,
+    EyeOff,
 } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
@@ -78,6 +79,7 @@ const menuItems = [
 
 const managementItems = [
     { label: 'Manajemen User', icon: Users, active: true, path: '/admin/users' },
+    { label: 'Kelola Bimbingan', icon: FileText, path: '/admin/bimbingan' },
     { label: 'Kelola Jadwal', icon: Calendar, path: '/admin/jadwal' },
 ]
 
@@ -94,6 +96,7 @@ export const ManajemenUserMahasiswa = () => {
     const [mahasiswa, setMahasiswa] = useState<MahasiswaData | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [newPassword, setNewPassword] = useState('')
+    const [showPassword, setShowPassword] = useState(false)
     const [showResetModal, setShowResetModal] = useState(false)
     const [showDeleteModal, setShowDeleteModal] = useState(false)
 
@@ -331,9 +334,7 @@ export const ManajemenUserMahasiswa = () => {
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={() => navigate('/admin/profile')}>
                                     <User className="w-4 h-4 mr-2" />Profile
-                                </DropdownMenuItem>
-                                <DropdownMenuItem><Settings className="w-4 h-4 mr-2" />Settings</DropdownMenuItem>
-                                <DropdownMenuSeparator />
+                                </DropdownMenuItem>                                <DropdownMenuSeparator />
                                 <DropdownMenuItem className="text-red-600" onClick={() => { dispatch(logout()); navigate('/') }}>
                                     <LogOut className="w-4 h-4 mr-2" />Logout
                                 </DropdownMenuItem>
@@ -454,7 +455,12 @@ export const ManajemenUserMahasiswa = () => {
                                     </div>
                                     <div className="p-4 bg-orange-50 rounded-xl">
                                         <p className="text-sm text-orange-600 mb-2">Password</p>
-                                        <p className="font-medium text-gray-800 font-mono">{mahasiswa.plainPassword || '******'}</p>
+                                        <div className="flex items-center gap-2">
+                                            <p className="font-medium text-gray-800 font-mono">{showPassword ? (mahasiswa.plainPassword || '******') : '••••••••'}</p>
+                                            <button onClick={() => setShowPassword(!showPassword)} className="text-orange-500 hover:text-orange-700 transition-colors">
+                                                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                                 <div className="flex items-center justify-between mt-4">

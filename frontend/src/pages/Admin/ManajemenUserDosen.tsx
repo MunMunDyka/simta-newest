@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { motion, type Variants } from 'framer-motion'
 import { Button } from '@/components/ui/button'
@@ -36,7 +36,6 @@ import {
     Calendar,
     ChevronDown,
     LogOut,
-    Settings,
     User,
     FileText,
     ArrowLeft,
@@ -44,6 +43,7 @@ import {
     Phone,
     GraduationCap,
     Eye,
+    EyeOff,
     Key,
     Edit,
     Trash2,
@@ -100,6 +100,7 @@ const menuItems = [
 
 const managementItems = [
     { label: 'Manajemen User', icon: Users, active: true, path: '/admin/users' },
+    { label: 'Kelola Bimbingan', icon: FileText, path: '/admin/bimbingan' },
     { label: 'Kelola Jadwal', icon: Calendar, path: '/admin/jadwal' },
 ]
 
@@ -117,6 +118,7 @@ export const ManajemenUserDosen = () => {
     const [mahasiswaBimbingan, setMahasiswaBimbingan] = useState<MahasiswaBimbingan[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [newPassword, setNewPassword] = useState('')
+    const [showPassword, setShowPassword] = useState(false)
     const [showResetModal, setShowResetModal] = useState(false)
     const [showDeleteModal, setShowDeleteModal] = useState(false)
     // Bimbingan history states
@@ -246,6 +248,8 @@ export const ManajemenUserDosen = () => {
                 return <CheckCircle className="w-4 h-4 text-green-500" />
             case 'lanjut_bab':
                 return <ChevronRight className="w-4 h-4 text-blue-500" />
+            case 'acc_sempro':
+                return <CheckCircle className="w-4 h-4 text-purple-500" />
             default:
                 return <Clock className="w-4 h-4 text-yellow-500" />
         }
@@ -420,9 +424,7 @@ export const ManajemenUserDosen = () => {
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={() => navigate('/admin/profile')}>
                                     <User className="w-4 h-4 mr-2" />Profile
-                                </DropdownMenuItem>
-                                <DropdownMenuItem><Settings className="w-4 h-4 mr-2" />Settings</DropdownMenuItem>
-                                <DropdownMenuSeparator />
+                                </DropdownMenuItem>                                <DropdownMenuSeparator />
                                 <DropdownMenuItem className="text-red-600" onClick={() => { dispatch(logout()); navigate('/') }}>
                                     <LogOut className="w-4 h-4 mr-2" />Logout
                                 </DropdownMenuItem>
@@ -582,7 +584,12 @@ export const ManajemenUserDosen = () => {
                                     </div>
                                     <div className="p-4 bg-orange-50 rounded-xl">
                                         <p className="text-sm text-orange-600 mb-2">Password</p>
-                                        <p className="font-medium text-gray-800 font-mono">{dosen.plainPassword || '******'}</p>
+                                        <div className="flex items-center gap-2">
+                                            <p className="font-medium text-gray-800 font-mono">{showPassword ? (dosen.plainPassword || '******') : '••••••••'}</p>
+                                            <button onClick={() => setShowPassword(!showPassword)} className="text-orange-500 hover:text-orange-700 transition-colors">
+                                                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                                 <div className="flex items-center justify-between mt-4">
@@ -697,7 +704,8 @@ export const ManajemenUserDosen = () => {
                                         className={`p-4 rounded-xl border ${item.status === 'menunggu' ? 'border-yellow-200 bg-yellow-50/50' :
                                                 item.status === 'revisi' ? 'border-red-200 bg-red-50/50' :
                                                     item.status === 'acc' ? 'border-green-200 bg-green-50/50' :
-                                                        'border-blue-200 bg-blue-50/50'
+                                                        item.status === 'acc_sempro' ? 'border-purple-200 bg-purple-50/50' :
+                                                            'border-blue-200 bg-blue-50/50'
                                             }`}
                                     >
                                         {/* Header */}
@@ -710,11 +718,13 @@ export const ManajemenUserDosen = () => {
                                                 <Badge className={`text-xs ${item.status === 'menunggu' ? 'bg-yellow-100 text-yellow-700' :
                                                         item.status === 'revisi' ? 'bg-red-100 text-red-700' :
                                                             item.status === 'acc' ? 'bg-green-100 text-green-700' :
-                                                                'bg-blue-100 text-blue-700'
+                                                                item.status === 'acc_sempro' ? 'bg-purple-100 text-purple-700' :
+                                                                    'bg-blue-100 text-blue-700'
                                                     } border-0`}>
                                                     {item.status === 'menunggu' ? 'Menunggu' :
                                                         item.status === 'revisi' ? 'Revisi' :
-                                                            item.status === 'acc' ? 'ACC' : 'Lanjut BAB'}
+                                                            item.status === 'acc' ? 'ACC' :
+                                                                item.status === 'acc_sempro' ? 'ACC Sempro' : 'Lanjut BAB'}
                                                 </Badge>
                                                 <Badge className="bg-gray-100 text-gray-600 text-xs border-0">
                                                     {item.dosenType === 'dospem_1' ? 'Dospem 1' : 'Dospem 2'}
@@ -746,11 +756,13 @@ export const ManajemenUserDosen = () => {
                                         {item.feedback && (
                                             <div className={`p-2 rounded-lg ${item.status === 'revisi' ? 'bg-red-50' :
                                                     item.status === 'acc' ? 'bg-green-50' :
-                                                        'bg-blue-50'
+                                                        item.status === 'acc_sempro' ? 'bg-purple-50' :
+                                                            'bg-blue-50'
                                                 }`}>
                                                 <p className={`text-xs font-medium mb-1 ${item.status === 'revisi' ? 'text-red-600' :
                                                         item.status === 'acc' ? 'text-green-600' :
-                                                            'text-blue-600'
+                                                            item.status === 'acc_sempro' ? 'text-purple-600' :
+                                                                'text-blue-600'
                                                     }`}>Feedback Dosen ({item.feedbackDate}):</p>
                                                 <p className="text-sm text-gray-700">{item.feedback}</p>
                                             </div>

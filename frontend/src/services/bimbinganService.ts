@@ -38,7 +38,7 @@ export interface Bimbingan {
     filePath: string;
     fileSize: string;
     fileOriginalName?: string;
-    status: 'menunggu' | 'revisi' | 'acc' | 'lanjut_bab';
+    status: 'menunggu' | 'revisi' | 'acc' | 'lanjut_bab' | 'acc_sempro';
     statusColor?: string;
     feedback?: string;
     feedbackDate?: string;
@@ -59,7 +59,7 @@ export interface CreateBimbinganRequest {
 }
 
 export interface FeedbackRequest {
-    status: 'revisi' | 'acc' | 'lanjut_bab';
+    status: 'revisi' | 'acc' | 'lanjut_bab' | 'acc_sempro';
     feedback: string;
     feedbackFile?: File;
 }
@@ -150,5 +150,68 @@ export const downloadFile = async (bimbinganId: string): Promise<Blob> => {
  */
 export const getPendingCount = async (): Promise<ApiResponse<{ count: number }>> => {
     const response = await api.get<ApiResponse<{ count: number }>>('/bimbingan/pending-count');
+    return response.data;
+};
+
+// ===== Admin Bimbingan Functions =====
+
+export interface BimbinganStats {
+    total: number;
+    menunggu: number;
+    revisi: number;
+    acc: number;
+    lanjut_bab: number;
+    acc_sempro: number;
+}
+
+export interface AdminBimbinganSummary {
+    mahasiswa: {
+        _id: string;
+        name: string;
+        nim_nip: string;
+        prodi: string;
+        judulTA: string;
+        currentProgress: string;
+        dospem_1: { _id: string; name: string; nim_nip: string } | null;
+        dospem_2: { _id: string; name: string; nim_nip: string } | null;
+    };
+    dospem1: {
+        stats: BimbinganStats;
+        bimbingan: Bimbingan[];
+    };
+    dospem2: {
+        stats: BimbinganStats;
+        bimbingan: Bimbingan[];
+    };
+}
+
+export interface ClearBimbinganResult {
+    deletedBimbingan: number;
+    deletedReplies: number;
+    deletedFiles: number;
+    progressReset: boolean;
+    scope: string;
+}
+
+/**
+ * Get admin bimbingan summary for a mahasiswa
+ */
+export const getAdminBimbinganSummary = async (mahasiswaId: string): Promise<ApiResponse<AdminBimbinganSummary>> => {
+    const response = await api.get<ApiResponse<AdminBimbinganSummary>>(`/bimbingan/admin/mahasiswa/${mahasiswaId}`);
+    return response.data;
+};
+
+/**
+ * Clear bimbingan history (admin only, hard delete)
+ */
+export const clearBimbinganHistory = async (
+    mahasiswaId: string,
+    dosenType: 'dospem_1' | 'dospem_2' | 'all',
+    resetProgress: boolean = false
+): Promise<ApiResponse<ClearBimbinganResult>> => {
+    const response = await api.delete<ApiResponse<ClearBimbinganResult>>(
+        `/bimbingan/admin/clear/${mahasiswaId}`,
+        { params: { dosenType, resetProgress: resetProgress.toString() } }
+    );
     return response.data;
 };

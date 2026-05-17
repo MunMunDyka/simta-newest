@@ -26,7 +26,6 @@ import {
     Calendar,
     ChevronDown,
     LogOut,
-    Settings,
     User,
     FileText,
     Send,
@@ -264,6 +263,8 @@ export const BimbinganDosen = () => {
                 return <CheckCircle className="w-5 h-5 text-green-500" />
             case 'lanjut_bab':
                 return <ChevronRight className="w-5 h-5 text-blue-500" />
+            case 'acc_sempro':
+                return <GraduationCap className="w-5 h-5 text-purple-500" />
             default:
                 return <Clock className="w-5 h-5 text-yellow-500" />
         }
@@ -419,9 +420,7 @@ export const BimbinganDosen = () => {
                                     onClick={() => navigate('/profile/dosen')}
                                 >
                                     <User className="w-4 h-4 mr-2" />Profile
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="cursor-pointer"><Settings className="w-4 h-4 mr-2" />Settings</DropdownMenuItem>
-                                <DropdownMenuSeparator />
+                                </DropdownMenuItem>                                <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                     className="cursor-pointer text-red-600"
                                     onClick={() => {
@@ -481,7 +480,9 @@ export const BimbinganDosen = () => {
                                         ? 'bg-gradient-to-br from-red-400 to-red-500'
                                         : bimbinganData?.status === 'acc'
                                             ? 'bg-gradient-to-br from-green-400 to-green-500'
-                                            : 'bg-gradient-to-br from-blue-400 to-blue-500'
+                                            : bimbinganData?.status === 'acc_sempro'
+                                                ? 'bg-gradient-to-br from-purple-400 to-purple-500'
+                                                : 'bg-gradient-to-br from-blue-400 to-blue-500'
                                     }`}>
                                     <Clock className="w-5 h-5 text-white" />
                                 </div>
@@ -491,6 +492,7 @@ export const BimbinganDosen = () => {
                                         {bimbinganData?.status === 'revisi' && 'Revisi'}
                                         {bimbinganData?.status === 'acc' && 'ACC ✓'}
                                         {bimbinganData?.status === 'lanjut_bab' && 'Lanjut BAB ✓'}
+                                        {bimbinganData?.status === 'acc_sempro' && 'ACC Maju Sempro ✓'}
                                         {!bimbinganData?.status && 'Loading...'}
                                     </h3>
                                     <p className="text-sm text-gray-500">{bimbinganData?.version || '-'} - {bimbinganData?.judul || '-'}</p>
@@ -569,6 +571,14 @@ export const BimbinganDosen = () => {
                                                         <span>Lanjut BAB - Silakan lanjut ke bab berikutnya</span>
                                                     </div>
                                                 </SelectItem>
+                                                <SelectItem value="acc_sempro" disabled={bimbinganHistory.length < 5}>
+                                                    <div className="flex items-center gap-2">
+                                                        <GraduationCap className="w-4 h-4 text-purple-500" />
+                                                        <span>
+                                                            ACC Maju Sempro - {bimbinganHistory.length >= 5 ? 'Disetujui maju sidang' : 'minimal 5x bimbingan'}
+                                                        </span>
+                                                    </div>
+                                                </SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>
@@ -580,16 +590,19 @@ export const BimbinganDosen = () => {
                                             animate={{ opacity: 1, y: 0 }}
                                             className={`p-3 rounded-xl flex items-center gap-2 ${status === 'revisi' ? 'bg-red-50 border border-red-200' :
                                                 status === 'acc' ? 'bg-green-50 border border-green-200' :
-                                                    'bg-blue-50 border border-blue-200'
+                                                    status === 'acc_sempro' ? 'bg-purple-50 border border-purple-200' :
+                                                        'bg-blue-50 border border-blue-200'
                                                 }`}
                                         >
                                             {getStatusIcon(status)}
                                             <span className={`text-sm font-medium ${status === 'revisi' ? 'text-red-700' :
-                                                status === 'acc' ? 'text-green-700' : 'text-blue-700'
+                                                status === 'acc' ? 'text-green-700' :
+                                                    status === 'acc_sempro' ? 'text-purple-700' : 'text-blue-700'
                                                 }`}>
                                                 {status === 'revisi' ? 'Mahasiswa akan diminta untuk merevisi' :
                                                     status === 'acc' ? 'Dokumen akan disetujui' :
-                                                        'Mahasiswa bisa lanjut ke BAB berikutnya'}
+                                                        status === 'acc_sempro' ? 'Mahasiswa disetujui untuk maju Seminar Proposal' :
+                                                            'Mahasiswa bisa lanjut ke BAB berikutnya'}
                                             </span>
                                         </motion.div>
                                     )}
@@ -724,8 +737,9 @@ export const BimbinganDosen = () => {
                                             animate={{ opacity: 1, y: 0 }}
                                             transition={{ delay: index * 0.05 }}
                                             className={`border rounded-xl overflow-hidden ${item.status === 'menunggu' ? 'border-yellow-200 bg-yellow-50/50' :
-                                                    item.status === 'revisi' ? 'border-red-200 bg-red-50/50' :
-                                                        item.status === 'acc' ? 'border-green-200 bg-green-50/50' :
+                                                item.status === 'revisi' ? 'border-red-200 bg-red-50/50' :
+                                                    item.status === 'acc' ? 'border-green-200 bg-green-50/50' :
+                                                        item.status === 'acc_sempro' ? 'border-purple-200 bg-purple-50/50' :
                                                             'border-blue-200 bg-blue-50/50'
                                                 }`}
                                         >
@@ -736,8 +750,9 @@ export const BimbinganDosen = () => {
                                             >
                                                 <div className="flex items-center gap-3">
                                                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${item.status === 'menunggu' ? 'bg-yellow-100' :
-                                                            item.status === 'revisi' ? 'bg-red-100' :
-                                                                item.status === 'acc' ? 'bg-green-100' :
+                                                        item.status === 'revisi' ? 'bg-red-100' :
+                                                            item.status === 'acc' ? 'bg-green-100' :
+                                                                item.status === 'acc_sempro' ? 'bg-purple-100' :
                                                                     'bg-blue-100'
                                                         }`}>
                                                         {getStatusIcon(item.status)}
@@ -749,13 +764,15 @@ export const BimbinganDosen = () => {
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     <Badge className={`${item.status === 'menunggu' ? 'bg-yellow-100 text-yellow-700' :
-                                                            item.status === 'revisi' ? 'bg-red-100 text-red-700' :
-                                                                item.status === 'acc' ? 'bg-green-100 text-green-700' :
+                                                        item.status === 'revisi' ? 'bg-red-100 text-red-700' :
+                                                            item.status === 'acc' ? 'bg-green-100 text-green-700' :
+                                                                item.status === 'acc_sempro' ? 'bg-purple-100 text-purple-700' :
                                                                     'bg-blue-100 text-blue-700'
                                                         } border-0`}>
                                                         {item.status === 'menunggu' ? 'Menunggu' :
                                                             item.status === 'revisi' ? 'Revisi' :
-                                                                item.status === 'acc' ? 'ACC' : 'Lanjut BAB'}
+                                                                item.status === 'acc' ? 'ACC' :
+                                                                    item.status === 'acc_sempro' ? 'ACC Sempro' : 'Lanjut BAB'}
                                                     </Badge>
                                                     <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${expandedHistory === item.id ? 'rotate-180' : ''
                                                         }`} />
@@ -789,11 +806,13 @@ export const BimbinganDosen = () => {
                                                         {/* Feedback Dosen */}
                                                         {item.feedback && (
                                                             <div className={`p-3 rounded-lg ${item.status === 'revisi' ? 'bg-red-50' :
-                                                                    item.status === 'acc' ? 'bg-green-50' :
+                                                                item.status === 'acc' ? 'bg-green-50' :
+                                                                    item.status === 'acc_sempro' ? 'bg-purple-50' :
                                                                         'bg-blue-50'
                                                                 }`}>
                                                                 <p className={`text-xs font-medium mb-1 ${item.status === 'revisi' ? 'text-red-600' :
-                                                                        item.status === 'acc' ? 'text-green-600' :
+                                                                    item.status === 'acc' ? 'text-green-600' :
+                                                                        item.status === 'acc_sempro' ? 'text-purple-600' :
                                                                             'text-blue-600'
                                                                     }`}>Feedback Dosen ({item.feedbackDate}):</p>
                                                                 <p className="text-sm text-gray-700">{item.feedback}</p>

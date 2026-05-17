@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, type Variants } from 'framer-motion'
 import { Input } from '@/components/ui/input'
@@ -43,7 +43,6 @@ import {
     Calendar,
     ChevronDown,
     LogOut,
-    Settings,
     User,
     Search,
     Plus,
@@ -83,6 +82,7 @@ const menuItems = [
 
 const managementItems = [
     { label: 'Manajemen User', icon: Users, active: true, path: '/admin/users' },
+    { label: 'Kelola Bimbingan', icon: FileText, path: '/admin/bimbingan' },
     { label: 'Kelola Jadwal', icon: Calendar, path: '/admin/jadwal' },
 ]
 
@@ -477,9 +477,7 @@ export const ManajemenUser = () => {
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/admin/profile')}>
                                     <User className="w-4 h-4 mr-2" />Profile
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="cursor-pointer"><Settings className="w-4 h-4 mr-2" />Settings</DropdownMenuItem>
-                                <DropdownMenuSeparator />
+                                </DropdownMenuItem>                                <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                     className="cursor-pointer text-red-600"
                                     onClick={() => {

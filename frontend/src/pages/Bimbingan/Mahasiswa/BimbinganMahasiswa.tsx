@@ -20,7 +20,6 @@ import {
     FileText,
     ChevronDown,
     LogOut,
-    Settings,
     User,
     Upload,
     FileEdit,
@@ -212,6 +211,8 @@ export const BimbinganMahasiswa = () => {
                 return <Badge className="bg-green-100 text-green-600 hover:bg-green-100 border-0"><CheckCircle className="w-3 h-3 mr-1" />ACC</Badge>
             case 'lanjut_bab':
                 return <Badge className="bg-blue-100 text-blue-600 hover:bg-blue-100 border-0"><ChevronRight className="w-3 h-3 mr-1" />Lanjut BAB</Badge>
+            case 'acc_sempro':
+                return <Badge className="bg-purple-100 text-purple-600 hover:bg-purple-100 border-0"><CheckCircle className="w-3 h-3 mr-1" />ACC Sempro</Badge>
             default:
                 return <Badge>{status}</Badge>
         }
@@ -330,9 +331,7 @@ export const BimbinganMahasiswa = () => {
                                     onClick={() => navigate('/profile/mahasiswa')}
                                 >
                                     <User className="w-4 h-4 mr-2" />Profile
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="cursor-pointer"><Settings className="w-4 h-4 mr-2" />Settings</DropdownMenuItem>
-                                <DropdownMenuSeparator />
+                                </DropdownMenuItem>                                <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                     className="cursor-pointer text-red-600"
                                     onClick={() => {

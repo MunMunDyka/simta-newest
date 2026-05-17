@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, type Variants } from 'framer-motion'
 import { Input } from '@/components/ui/input'
@@ -41,7 +41,6 @@ import {
     ChevronLeft,
     ChevronRight,
     LogOut,
-    Settings,
     User,
 } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
@@ -59,7 +58,7 @@ interface Student {
     progress: string
     currentProgress?: string
     tanggalUpdate: string
-    status: 'revisi' | 'baik' | 'menunggu' | 'acc' | 'lanjut_bab'
+    status: 'revisi' | 'baik' | 'menunggu' | 'acc' | 'lanjut_bab' | 'acc_sempro'
     revisiDetail?: string
     lastBimbinganStatus?: string
 }
@@ -123,7 +122,7 @@ export const DashboardDosen = () => {
 
                 // Calculate stats
                 const mengerjakanCount = transformedData.filter((s: Student) => s.status !== 'acc').length
-                const terpenuhi = transformedData.filter((s: Student) => s.status === 'acc').length
+                const terpenuhi = transformedData.filter((s: Student) => s.status === 'acc' || s.status === 'acc_sempro').length
 
                 setStats({
                     totalMahasiswa: transformedData.length,
@@ -210,6 +209,24 @@ export const DashboardDosen = () => {
                 return (
                     <Badge className="bg-yellow-100 text-yellow-600 hover:bg-yellow-100 border-0 font-medium">
                         Menunggu Review
+                    </Badge>
+                )
+            case 'acc':
+                return (
+                    <Badge className="bg-green-100 text-green-600 hover:bg-green-100 border-0 font-medium">
+                        ACC
+                    </Badge>
+                )
+            case 'lanjut_bab':
+                return (
+                    <Badge className="bg-blue-100 text-blue-600 hover:bg-blue-100 border-0 font-medium">
+                        Lanjut BAB
+                    </Badge>
+                )
+            case 'acc_sempro':
+                return (
+                    <Badge className="bg-purple-100 text-purple-600 hover:bg-purple-100 border-0 font-medium">
+                        ACC Sempro
                     </Badge>
                 )
         }
@@ -380,10 +397,7 @@ export const DashboardDosen = () => {
                                 <User className="w-4 h-4 mr-2" />
                                 Profile
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="cursor-pointer">
-                                <Settings className="w-4 h-4 mr-2" />
-                                Settings
-                            </DropdownMenuItem>
+
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                                 className="cursor-pointer text-red-600"
@@ -478,7 +492,7 @@ export const DashboardDosen = () => {
                                 </div>
                             </motion.div>
 
-                            {/* Card 3 - Deadline */}
+                            {/* Card 3 - Pending Review */}
                             <motion.div
                                 variants={cardVariants}
                                 className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
@@ -487,24 +501,24 @@ export const DashboardDosen = () => {
                                 <div className="flex items-start justify-between mb-4">
                                     <div>
                                         <motion.h2
-                                            className="text-3xl font-bold text-red-600"
+                                            className="text-4xl font-bold text-gray-800"
                                             initial={{ opacity: 0, scale: 0.5 }}
                                             animate={{ opacity: 1, scale: 1 }}
                                             transition={{ delay: 0.5, type: 'spring' as const }}
                                         >
-                                            13-03-2025
+                                            {stats.totalMahasiswa - stats.terpenuhi - stats.mengerjakanCount > 0 ? stats.totalMahasiswa - stats.terpenuhi - stats.mengerjakanCount : 0}
                                         </motion.h2>
-                                        <p className="text-gray-500 font-medium">DEADLINE</p>
+                                        <p className="text-gray-500 font-medium">Menunggu Review</p>
                                     </div>
                                 </div>
                                 <div className="flex items-center justify-between bg-gradient-to-r from-orange-50 to-red-50 rounded-xl p-4">
                                     <div>
-                                        <p className="text-sm text-orange-600 font-medium">Capaian BAB</p>
-                                        <p className="text-2xl font-bold text-orange-700">IV</p>
+                                        <p className="text-sm text-orange-600 font-medium">Perlu Ditindaklanjuti</p>
+                                        <p className="text-2xl font-bold text-orange-700">{stats.mengerjakanCount}</p>
                                     </div>
-                                    <div className="flex items-center gap-1 bg-gradient-to-r from-red-500 to-red-600 px-4 py-2 rounded-xl shadow-md">
-                                        <Clock className="w-4 h-4 text-white" />
-                                        <span className="font-bold text-white">{stats.deadline} Hari Lagi</span>
+                                    <div className="flex items-center gap-1 bg-white px-3 py-1.5 rounded-full shadow-sm">
+                                        <Clock className="w-4 h-4 text-orange-500" />
+                                        <span className="text-sm font-bold text-orange-600">Pending</span>
                                     </div>
                                 </div>
                             </motion.div>

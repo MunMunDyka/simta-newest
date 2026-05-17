@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, type Variants } from 'framer-motion'
 import { Badge } from '@/components/ui/badge'
@@ -30,10 +30,8 @@ import {
 import {
     LayoutDashboard,
     Calendar,
-    FileText,
     ChevronDown,
     LogOut,
-    Settings,
     User,
     Download,
     FileEdit,
@@ -97,7 +95,7 @@ export const JadwalSidang = () => {
             try {
                 setIsLoading(true)
                 const response = await api.get('/jadwal', {
-                    params: { limit: 50, viewAll: 'true' }
+                    params: { limit: 50, viewAll: 'true', status: 'dijadwalkan' }
                 })
 
                 const jadwalList = response.data.data || []
@@ -319,9 +317,7 @@ export const JadwalSidang = () => {
                                     onClick={() => navigate(isDosen ? '/profile/dosen' : '/profile/mahasiswa')}
                                 >
                                     <User className="w-4 h-4 mr-2" />Profile
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="cursor-pointer"><Settings className="w-4 h-4 mr-2" />Settings</DropdownMenuItem>
-                                <DropdownMenuSeparator />
+                                </DropdownMenuItem>                                <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                     className="cursor-pointer text-red-600"
                                     onClick={() => {
@@ -544,25 +540,6 @@ export const JadwalSidang = () => {
                                         * Jadwal dapat berubah sewaktu-waktu. Harap konfirmasi dengan prodi.
                                     </p>
                                 </div>
-                            </div>
-                        </motion.div>
-
-                        {/* Quick Tips */}
-                        <motion.div
-                            variants={itemVariants}
-                            className="bg-gradient-to-r from-blue-500 via-blue-600 to-blue-700 rounded-2xl p-6 shadow-lg"
-                        >
-                            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                                <div className="text-white">
-                                    <h3 className="text-lg font-bold mb-1">📋 Informasi Penting</h3>
-                                    <p className="text-blue-100 text-sm">Pastikan Anda hadir 15 menit sebelum jadwal sidang dimulai. Bawa berkas yang diperlukan.</p>
-                                </div>
-                                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                                    <Button className="bg-white text-blue-600 font-semibold px-6 rounded-xl shadow-md hover:bg-blue-50 transition-all">
-                                        <FileText className="w-4 h-4 mr-2" />
-                                        Lihat Panduan
-                                    </Button>
-                                </motion.div>
                             </div>
                         </motion.div>
 

@@ -16,7 +16,6 @@ import {
     Calendar,
     ChevronDown,
     LogOut,
-    Settings,
     User,
     GraduationCap,
     UserCheck,
@@ -62,6 +61,7 @@ const menuItems = [
 
 const managementItems = [
     { label: 'Manajemen User', icon: Users, path: '/admin/users' },
+    { label: 'Kelola Bimbingan', icon: FileText, path: '/admin/bimbingan' },
     { label: 'Kelola Jadwal', icon: Calendar, path: '/admin/jadwal' },
 ]
 
@@ -418,12 +418,7 @@ export const DashboardAdmin = () => {
                                 >
                                     <User className="w-4 h-4 mr-2" />
                                     Profile
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="cursor-pointer">
-                                    <Settings className="w-4 h-4 mr-2" />
-                                    Settings
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
+                                </DropdownMenuItem>                                <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                     className="cursor-pointer text-red-600"
                                     onClick={() => {

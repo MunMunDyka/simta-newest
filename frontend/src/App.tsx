@@ -11,7 +11,7 @@ import { useAppDispatch, useAppSelector } from './store/hooks'
 import { initializeAuth } from './store/slices/authSlice'
 import ProtectedRoute from './components/ProtectedRoute'
 import './App.css'
-
+  
 // Pages
 import { Login } from './pages/Login/Login'
 import { DashboardDosen } from './pages/Dashboard/Dosen/DashboardDosen'
@@ -22,6 +22,8 @@ import { ManajemenUserMahasiswa } from './pages/Admin/ManajemenUserMahasiswa'
 import { ManajemenUserDosen } from './pages/Admin/ManajemenUserDosen'
 import { EditUser } from './pages/Admin/EditUser'
 import { KelolaJadwal } from './pages/Admin/KelolaJadwal'
+import { KelolaBimbingan } from './pages/Admin/KelolaBimbingan'
+import { Laporan } from './pages/Admin/Laporan'
 import { JadwalSidang } from './pages/Jadwal/JadwalSidang'
 import { BimbinganMahasiswa } from './pages/Bimbingan/Mahasiswa/BimbinganMahasiswa'
 import { BimbinganDosen } from './pages/Bimbingan/Dosen/BimbinganDosen'
@@ -116,14 +118,6 @@ function App() {
         }
       />
       <Route
-        path="/bimbingan/dosen"
-        element={
-          <ProtectedRoute allowedRoles={['dosen']}>
-            <ListMahasiswaBimbingan />
-          </ProtectedRoute>
-        }
-      />
-      <Route
         path="/bimbingan/dosen/:mahasiswaId"
         element={
           <ProtectedRoute allowedRoles={['dosen']}>
@@ -174,10 +168,26 @@ function App() {
         }
       />
       <Route
+        path="/admin/bimbingan"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <KelolaBimbingan />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/admin/jadwal"
         element={
           <ProtectedRoute allowedRoles={['admin']}>
             <KelolaJadwal />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/laporan"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <Laporan />
           </ProtectedRoute>
         }
       />

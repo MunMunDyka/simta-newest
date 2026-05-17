@@ -21,12 +21,10 @@ import {
     Calendar,
     ChevronDown,
     LogOut,
-    Settings,
     User,
     MessageCircle,
     TrendingUp,
     TrendingDown,
-    Clock,
     GraduationCap,
     FileEdit,
     CheckCircle,
@@ -59,7 +57,7 @@ interface MahasiswaData {
 }
 
 interface BimbinganStats {
-    lastStatus: 'menunggu' | 'revisi' | 'acc' | 'lanjut_bab' | null
+    lastStatus: 'menunggu' | 'revisi' | 'acc' | 'lanjut_bab' | 'acc_sempro' | null
     totalBimbingan: number
     pendingCount: number
 }
@@ -74,6 +72,8 @@ interface SemproStatus {
         totalBimbingan: number
         required: number
         needed: number
+        meetsMinimum: boolean
+        approved: boolean
         ready: boolean
     }
     dospem2: {
@@ -82,6 +82,8 @@ interface SemproStatus {
         totalBimbingan: number
         required: number
         needed: number
+        meetsMinimum: boolean
+        approved: boolean
         ready: boolean
     }
     message: string
@@ -112,9 +114,7 @@ export const DashboardMhs = () => {
     const [semproStatus, setSemproStatus] = useState<SemproStatus | null>(null)
     const [isLoading, setIsLoading] = useState(true)
 
-    // Calculate deadline (dummy for now - can be set by admin later)
-    const deadline = '13-03-2025'
-    const daysRemaining = 30
+
 
     // Fetch mahasiswa data on mount
     useEffect(() => {
@@ -220,6 +220,8 @@ export const DashboardMhs = () => {
                 return 'from-red-500 to-red-600'
             case 'acc':
                 return 'from-green-500 to-green-600'
+            case 'acc_sempro':
+                return 'from-purple-500 to-purple-600'
             case 'menunggu':
                 return 'from-yellow-500 to-yellow-600'
             case 'lanjut_bab':
@@ -235,6 +237,8 @@ export const DashboardMhs = () => {
                 return 'REVISI'
             case 'acc':
                 return 'ACC'
+            case 'acc_sempro':
+                return 'ACC SEMPRO'
             case 'menunggu':
                 return 'MENUNGGU'
             case 'lanjut_bab':
@@ -391,10 +395,7 @@ export const DashboardMhs = () => {
                                     <User className="w-4 h-4 mr-2" />
                                     Profile
                                 </DropdownMenuItem>
-                                <DropdownMenuItem className="cursor-pointer">
-                                    <Settings className="w-4 h-4 mr-2" />
-                                    Settings
-                                </DropdownMenuItem>
+
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                     className="cursor-pointer text-red-600"
@@ -477,27 +478,27 @@ export const DashboardMhs = () => {
                                 </div>
                             </motion.div>
 
-                            {/* Card 3 - Deadline */}
+                            {/* Card 3 - Total Bimbingan */}
                             <motion.div
                                 variants={cardVariants}
                                 className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
                                 whileHover={{ y: -2 }}
                             >
-                                <p className="text-sm text-gray-500 font-medium mb-3 text-center">DEADLINE</p>
-                                <div className="flex items-center justify-between gap-3">
-                                    <div className="flex-1 bg-gray-100 rounded-xl p-4">
-                                        <p className="text-xs text-gray-500 font-medium">DEADLINE</p>
-                                        <p className="text-sm font-bold text-gray-700">{deadline}</p>
-                                    </div>
-                                    <motion.div
-                                        className="bg-gradient-to-r from-red-500 to-red-600 rounded-xl px-4 py-4 text-center shadow-lg shadow-red-500/25"
-                                        animate={{ scale: [1, 1.02, 1] }}
-                                        transition={{ duration: 2, repeat: Infinity }}
+                                <p className="text-sm text-gray-500 font-medium mb-3 text-center">TOTAL BIMBINGAN</p>
+                                <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl p-4 flex items-center justify-between">
+                                    <motion.span
+                                        className="text-xl font-bold text-white"
+                                        initial={{ opacity: 0, x: -10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: 0.5 }}
                                     >
-                                        <div className="flex items-center gap-1 text-white">
-                                            <Clock className="w-4 h-4" />
-                                            <span className="font-bold text-sm">{daysRemaining} Hari Lagi</span>
-                                        </div>
+                                        {bimbinganStats.totalBimbingan} Sesi
+                                    </motion.span>
+                                    <motion.div
+                                        className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center"
+                                        whileHover={{ scale: 1.1 }}
+                                    >
+                                        <FileEdit className="w-4 h-4 text-white" />
                                     </motion.div>
                                 </div>
                             </motion.div>
@@ -541,7 +542,7 @@ export const DashboardMhs = () => {
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: 0.4 }}
                                     >
-                                        Saat ini kamu berada di semester <span className="font-semibold text-blue-600">{mahasiswaData?.semester || '8'} Ganjil</span> (Minggu #12).
+                                        Prodi <span className="font-semibold text-blue-600">{mahasiswaData?.prodi || 'Sistem Informasi'}</span> — Semester {mahasiswaData?.semester || '8'}
                                     </motion.p>
                                     <motion.p
                                         className="text-sm text-blue-600 font-medium italic"
@@ -601,7 +602,7 @@ export const DashboardMhs = () => {
                                     </div>
                                     <div>
                                         <h3 className="text-lg font-bold text-gray-800">Status Persiapan Sempro</h3>
-                                        <p className="text-sm text-gray-500">Minimal {semproStatus.minRequired} ACC per dosen pembimbing</p>
+                                        <p className="text-sm text-gray-500">Minimal {semproStatus.minRequired} bimbingan dan ACC Maju Sempro dari tiap dospem</p>
                                     </div>
                                     {semproStatus.isReady && (
                                         <motion.div
@@ -631,7 +632,7 @@ export const DashboardMhs = () => {
                                             </div>
                                             <span className={`text-sm font-bold ${semproStatus.dospem1.ready ? 'text-green-600' : 'text-gray-600'
                                                 }`}>
-                                                {semproStatus.dospem1.accCount}/{semproStatus.dospem1.required} ACC
+                                                {semproStatus.dospem1.totalBimbingan}/{semproStatus.dospem1.required} bimbingan
                                             </span>
                                         </div>
                                         <p className="text-xs text-gray-500 mb-2">
@@ -644,16 +645,21 @@ export const DashboardMhs = () => {
                                                     }`}
                                                 initial={{ width: 0 }}
                                                 animate={{
-                                                    width: `${Math.min(100, (semproStatus.dospem1.accCount / semproStatus.dospem1.required) * 100)}%`
+                                                    width: `${Math.min(100, (semproStatus.dospem1.totalBimbingan / semproStatus.dospem1.required) * 100)}%`
                                                 }}
                                                 transition={{ duration: 1, delay: 0.3 }}
                                             />
                                         </div>
-                                        {!semproStatus.dospem1.ready && (
-                                            <p className="text-xs text-gray-500 mt-2">
-                                                Butuh {semproStatus.dospem1.needed} ACC lagi
+                                        <div className="mt-3 space-y-1 text-xs">
+                                            <p className={semproStatus.dospem1.meetsMinimum ? 'text-green-600 font-medium' : 'text-gray-500'}>
+                                                {semproStatus.dospem1.meetsMinimum
+                                                    ? 'Minimal bimbingan terpenuhi'
+                                                    : `Butuh ${semproStatus.dospem1.needed} bimbingan lagi`}
                                             </p>
-                                        )}
+                                            <p className={semproStatus.dospem1.approved ? 'text-green-600 font-medium' : 'text-gray-500'}>
+                                                {semproStatus.dospem1.approved ? 'ACC Maju Sempro diberikan' : 'Menunggu ACC Maju Sempro'}
+                                            </p>
+                                        </div>
                                     </div>
 
                                     {/* Dospem 2 Progress */}
@@ -671,7 +677,7 @@ export const DashboardMhs = () => {
                                             </div>
                                             <span className={`text-sm font-bold ${semproStatus.dospem2.ready ? 'text-green-600' : 'text-gray-600'
                                                 }`}>
-                                                {semproStatus.dospem2.accCount}/{semproStatus.dospem2.required} ACC
+                                                {semproStatus.dospem2.totalBimbingan}/{semproStatus.dospem2.required} bimbingan
                                             </span>
                                         </div>
                                         <p className="text-xs text-gray-500 mb-2">
@@ -684,16 +690,21 @@ export const DashboardMhs = () => {
                                                     }`}
                                                 initial={{ width: 0 }}
                                                 animate={{
-                                                    width: `${Math.min(100, (semproStatus.dospem2.accCount / semproStatus.dospem2.required) * 100)}%`
+                                                    width: `${Math.min(100, (semproStatus.dospem2.totalBimbingan / semproStatus.dospem2.required) * 100)}%`
                                                 }}
                                                 transition={{ duration: 1, delay: 0.5 }}
                                             />
                                         </div>
-                                        {!semproStatus.dospem2.ready && (
-                                            <p className="text-xs text-gray-500 mt-2">
-                                                Butuh {semproStatus.dospem2.needed} ACC lagi
+                                        <div className="mt-3 space-y-1 text-xs">
+                                            <p className={semproStatus.dospem2.meetsMinimum ? 'text-green-600 font-medium' : 'text-gray-500'}>
+                                                {semproStatus.dospem2.meetsMinimum
+                                                    ? 'Minimal bimbingan terpenuhi'
+                                                    : `Butuh ${semproStatus.dospem2.needed} bimbingan lagi`}
                                             </p>
-                                        )}
+                                            <p className={semproStatus.dospem2.approved ? 'text-green-600 font-medium' : 'text-gray-500'}>
+                                                {semproStatus.dospem2.approved ? 'ACC Maju Sempro diberikan' : 'Menunggu ACC Maju Sempro'}
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
 
