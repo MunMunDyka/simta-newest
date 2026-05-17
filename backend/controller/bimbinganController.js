@@ -19,6 +19,8 @@ const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess, sendPaginated, sendCreated } = require('../utils/responseHelper');
 const { notifyDosenBimbinganBaru, notifyMahasiswaFeedback } = require('../services/whatsappService');
 
+const MIN_BIMBINGAN_SEMPRO = 5;
+
 /**
  * @desc    Get all bimbingan (filtered by role)
  * @route   GET /api/bimbingan
@@ -225,6 +227,19 @@ const giveFeedback = asyncHandler(async (req, res) => {
         );
     }
 
+    if (status === 'acc_sempro') {
+        const totalBimbinganDospem = await Bimbingan.countDocuments({
+            mahasiswa: bimbingan.mahasiswa,
+            dosenType: bimbingan.dosenType
+        });
+
+        if (totalBimbinganDospem < MIN_BIMBINGAN_SEMPRO) {
+            throw ApiError.badRequest(
+                `ACC Maju Sempro hanya dapat diberikan setelah minimal ${MIN_BIMBINGAN_SEMPRO} kali bimbingan dengan dosen pembimbing ini.`
+            );
+        }
+    }
+
     // Update bimbingan with feedback
     bimbingan.status = status;
     bimbingan.feedback = feedback;
@@ -258,7 +273,13 @@ const giveFeedback = asyncHandler(async (req, res) => {
 
     // Send WhatsApp notification to mahasiswa (non-blocking)
     if (bimbingan.mahasiswa.whatsapp) {
-        const statusText = status === 'acc' ? 'ACC' : status === 'revisi' ? 'Revisi' : 'Lanjut Bab';
+        const statusText = status === 'acc'
+            ? 'ACC'
+            : status === 'revisi'
+                ? 'Revisi'
+                : status === 'acc_sempro'
+                    ? 'ACC Maju Sempro'
+                    : 'Lanjut Bab';
         notifyMahasiswaFeedback(bimbingan.mahasiswa.whatsapp, req.user.name, statusText, feedback)
             .then(result => {
                 if (result.success) {
@@ -370,9 +391,8 @@ const getPendingCount = asyncHandler(async (req, res) => {
  * @access  Private (mahasiswa can only check own, admin/dosen can check all)
  * 
  * Requirements for Sempro (SI prodi):
- * - Minimum 5 ACC from dospem_1
- * - Minimum 5 ACC from dospem_2
- * - Both must be fulfilled
+ * - Minimum 5 bimbingan from dospem_1 and dospem_2
+ * - Each dospem must give final acc_sempro approval
  */
 const getSemproStatus = asyncHandler(async (req, res) => {
     const { mahasiswaId } = req.params;
@@ -390,37 +410,36 @@ const getSemproStatus = asyncHandler(async (req, res) => {
         throw ApiError.notFound('Mahasiswa tidak ditemukan');
     }
 
-    // Minimum ACC required per dospem
-    const MIN_ACC_REQUIRED = 5;
-
-    // Count ACC bimbingan from dospem_1
-    const accDospem1 = await Bimbingan.countDocuments({
-        mahasiswa: mahasiswaId,
-        dosenType: 'dospem_1',
-        status: 'acc'
-    });
-
-    // Count ACC bimbingan from dospem_2
-    const accDospem2 = await Bimbingan.countDocuments({
-        mahasiswa: mahasiswaId,
-        dosenType: 'dospem_2',
-        status: 'acc'
-    });
-
     // Count total bimbingan (any status) per dospem
-    const totalDospem1 = await Bimbingan.countDocuments({
-        mahasiswa: mahasiswaId,
-        dosenType: 'dospem_1'
-    });
+    const [totalDospem1, totalDospem2, accSemproDospem1, accSemproDospem2] = await Promise.all([
+        Bimbingan.countDocuments({
+            mahasiswa: mahasiswaId,
+            dosenType: 'dospem_1'
+        }),
+        Bimbingan.countDocuments({
+            mahasiswa: mahasiswaId,
+            dosenType: 'dospem_2'
+        }),
+        Bimbingan.countDocuments({
+            mahasiswa: mahasiswaId,
+            dosenType: 'dospem_1',
+            status: 'acc_sempro'
+        }),
+        Bimbingan.countDocuments({
+            mahasiswa: mahasiswaId,
+            dosenType: 'dospem_2',
+            status: 'acc_sempro'
+        })
+    ]);
 
-    const totalDospem2 = await Bimbingan.countDocuments({
-        mahasiswa: mahasiswaId,
-        dosenType: 'dospem_2'
-    });
+    const dospem1MeetsMinimum = totalDospem1 >= MIN_BIMBINGAN_SEMPRO;
+    const dospem2MeetsMinimum = totalDospem2 >= MIN_BIMBINGAN_SEMPRO;
+    const dospem1Approved = accSemproDospem1 > 0;
+    const dospem2Approved = accSemproDospem2 > 0;
 
     // Check if ready for sempro
-    const dospem1Ready = accDospem1 >= MIN_ACC_REQUIRED;
-    const dospem2Ready = accDospem2 >= MIN_ACC_REQUIRED;
+    const dospem1Ready = dospem1MeetsMinimum && dospem1Approved;
+    const dospem2Ready = dospem2MeetsMinimum && dospem2Approved;
     const isReady = dospem1Ready && dospem2Ready;
 
     // Get dosen names
@@ -428,16 +447,18 @@ const getSemproStatus = asyncHandler(async (req, res) => {
 
     const response = {
         isReady,
-        minRequired: MIN_ACC_REQUIRED,
+        minRequired: MIN_BIMBINGAN_SEMPRO,
         dospem1: {
             dosen: mahasiswa.dospem_1 ? {
                 name: mahasiswa.dospem_1.name,
                 nim_nip: mahasiswa.dospem_1.nim_nip
             } : null,
-            accCount: accDospem1,
+            accCount: accSemproDospem1,
             totalBimbingan: totalDospem1,
-            required: MIN_ACC_REQUIRED,
-            needed: Math.max(0, MIN_ACC_REQUIRED - accDospem1),
+            required: MIN_BIMBINGAN_SEMPRO,
+            needed: Math.max(0, MIN_BIMBINGAN_SEMPRO - totalDospem1),
+            meetsMinimum: dospem1MeetsMinimum,
+            approved: dospem1Approved,
             ready: dospem1Ready
         },
         dospem2: {
@@ -445,15 +466,17 @@ const getSemproStatus = asyncHandler(async (req, res) => {
                 name: mahasiswa.dospem_2.name,
                 nim_nip: mahasiswa.dospem_2.nim_nip
             } : null,
-            accCount: accDospem2,
+            accCount: accSemproDospem2,
             totalBimbingan: totalDospem2,
-            required: MIN_ACC_REQUIRED,
-            needed: Math.max(0, MIN_ACC_REQUIRED - accDospem2),
+            required: MIN_BIMBINGAN_SEMPRO,
+            needed: Math.max(0, MIN_BIMBINGAN_SEMPRO - totalDospem2),
+            meetsMinimum: dospem2MeetsMinimum,
+            approved: dospem2Approved,
             ready: dospem2Ready
         },
         message: isReady
-            ? '🎉 Selamat! Anda sudah memenuhi syarat untuk mengajukan Seminar Proposal.'
-            : `Anda membutuhkan minimal ${MIN_ACC_REQUIRED} ACC dari masing-masing dosen pembimbing untuk dapat mengajukan Seminar Proposal.`
+            ? 'Selamat! Anda sudah memenuhi syarat untuk mengajukan Seminar Proposal.'
+            : `Syarat Sempro: minimal ${MIN_BIMBINGAN_SEMPRO} kali bimbingan dan ACC Maju Sempro dari masing-masing dosen pembimbing.`
     };
 
     sendSuccess(res, 200, 'Status kesiapan sempro', response);
@@ -481,26 +504,36 @@ const generateSuratSempro = asyncHandler(async (req, res) => {
     }
 
     // Verify sempro requirements are met
-    const MIN_ACC_REQUIRED = 5;
+    const [totalDospem1, totalDospem2, accSemproDospem1, accSemproDospem2] = await Promise.all([
+        Bimbingan.countDocuments({
+            mahasiswa: mahasiswaId,
+            dosenType: 'dospem_1'
+        }),
+        Bimbingan.countDocuments({
+            mahasiswa: mahasiswaId,
+            dosenType: 'dospem_2'
+        }),
+        Bimbingan.countDocuments({
+            mahasiswa: mahasiswaId,
+            dosenType: 'dospem_1',
+            status: 'acc_sempro'
+        }),
+        Bimbingan.countDocuments({
+            mahasiswa: mahasiswaId,
+            dosenType: 'dospem_2',
+            status: 'acc_sempro'
+        })
+    ]);
 
-    const accDospem1 = await Bimbingan.countDocuments({
-        mahasiswa: mahasiswaId,
-        dosenType: 'dospem_1',
-        status: 'acc'
-    });
-
-    const accDospem2 = await Bimbingan.countDocuments({
-        mahasiswa: mahasiswaId,
-        dosenType: 'dospem_2',
-        status: 'acc'
-    });
-
-    const isReady = accDospem1 >= MIN_ACC_REQUIRED && accDospem2 >= MIN_ACC_REQUIRED;
+    const isReady = totalDospem1 >= MIN_BIMBINGAN_SEMPRO
+        && totalDospem2 >= MIN_BIMBINGAN_SEMPRO
+        && accSemproDospem1 > 0
+        && accSemproDospem2 > 0;
 
     if (!isReady) {
         throw ApiError.badRequest(
             'Anda belum memenuhi syarat untuk mengunduh surat persetujuan sempro. ' +
-            `Dibutuhkan minimal ${MIN_ACC_REQUIRED} ACC dari masing-masing dosen pembimbing.`
+            `Dibutuhkan minimal ${MIN_BIMBINGAN_SEMPRO} kali bimbingan dan ACC Maju Sempro dari masing-masing dosen pembimbing.`
         );
     }
 
@@ -537,6 +570,255 @@ const generateSuratSempro = asyncHandler(async (req, res) => {
     res.send(buffer);
 });
 
+/**
+ * @desc    Get admin bimbingan summary for a mahasiswa
+ * @route   GET /api/bimbingan/admin/mahasiswa/:mahasiswaId
+ * @access  Admin
+ */
+const getAdminBimbinganSummary = asyncHandler(async (req, res) => {
+    const { mahasiswaId } = req.params;
+
+    // Get mahasiswa data
+    const mahasiswa = await User.findById(mahasiswaId)
+        .populate('dospem_1', 'name nim_nip')
+        .populate('dospem_2', 'name nim_nip');
+
+    if (!mahasiswa || mahasiswa.role !== 'mahasiswa') {
+        throw ApiError.notFound('Mahasiswa tidak ditemukan');
+    }
+
+    // Get all bimbingan for this mahasiswa
+    const allBimbingan = await Bimbingan.find({ mahasiswa: mahasiswaId })
+        .populate('dosen', 'name nim_nip')
+        .sort({ createdAt: -1 });
+
+    // Separate by dosenType
+    const bimbinganDospem1 = allBimbingan.filter(b => b.dosenType === 'dospem_1');
+    const bimbinganDospem2 = allBimbingan.filter(b => b.dosenType === 'dospem_2');
+
+    // Count by status
+    const countByStatus = (list) => ({
+        total: list.length,
+        menunggu: list.filter(b => b.status === 'menunggu').length,
+        revisi: list.filter(b => b.status === 'revisi').length,
+        acc: list.filter(b => b.status === 'acc').length,
+        lanjut_bab: list.filter(b => b.status === 'lanjut_bab').length,
+        acc_sempro: list.filter(b => b.status === 'acc_sempro').length,
+    });
+
+    const response = {
+        mahasiswa: {
+            _id: mahasiswa._id,
+            name: mahasiswa.name,
+            nim_nip: mahasiswa.nim_nip,
+            prodi: mahasiswa.prodi,
+            judulTA: mahasiswa.judulTA,
+            currentProgress: mahasiswa.currentProgress,
+            dospem_1: mahasiswa.dospem_1,
+            dospem_2: mahasiswa.dospem_2,
+        },
+        dospem1: {
+            stats: countByStatus(bimbinganDospem1),
+            bimbingan: bimbinganDospem1,
+        },
+        dospem2: {
+            stats: countByStatus(bimbinganDospem2),
+            bimbingan: bimbinganDospem2,
+        },
+    };
+
+    sendSuccess(res, 200, 'Data bimbingan mahasiswa berhasil diambil', response);
+});
+
+/**
+ * @desc    Clear bimbingan history (hard delete)
+ * @route   DELETE /api/bimbingan/admin/clear/:mahasiswaId
+ * @access  Admin
+ * @query   dosenType - dospem_1 | dospem_2 | all
+ * @query   resetProgress - true | false (optional, default false)
+ */
+const clearBimbinganHistory = asyncHandler(async (req, res) => {
+    const { mahasiswaId } = req.params;
+    const { dosenType, resetProgress } = req.query;
+
+    // Get mahasiswa data
+    const mahasiswa = await User.findById(mahasiswaId);
+    if (!mahasiswa || mahasiswa.role !== 'mahasiswa') {
+        throw ApiError.notFound('Mahasiswa tidak ditemukan');
+    }
+
+    // Build query based on dosenType
+    let query = { mahasiswa: mahasiswaId };
+    if (dosenType !== 'all') {
+        query.dosenType = dosenType;
+    }
+
+    // Find all bimbingan to delete (need IDs for replies and file paths)
+    const bimbinganToDelete = await Bimbingan.find(query);
+
+    if (bimbinganToDelete.length === 0) {
+        throw ApiError.badRequest('Tidak ada data bimbingan yang ditemukan untuk dihapus');
+    }
+
+    const bimbinganIds = bimbinganToDelete.map(b => b._id);
+
+    // 1. Delete all replies associated with these bimbingan
+    const deletedReplies = await Reply.deleteMany({ bimbingan: { $in: bimbinganIds } });
+
+    // 2. Delete physical files (PDF uploads)
+    let filesDeleted = 0;
+    for (const bimbingan of bimbinganToDelete) {
+        // Delete submission file
+        if (bimbingan.filePath) {
+            const filePath = path.resolve(bimbingan.filePath);
+            if (fs.existsSync(filePath)) {
+                try {
+                    fs.unlinkSync(filePath);
+                    filesDeleted++;
+                } catch (err) {
+                    console.error(`⚠️ Failed to delete file: ${filePath}`, err.message);
+                }
+            }
+        }
+        // Delete feedback file if exists
+        if (bimbingan.feedbackFile) {
+            const feedbackPath = path.resolve(bimbingan.feedbackFile);
+            if (fs.existsSync(feedbackPath)) {
+                try {
+                    fs.unlinkSync(feedbackPath);
+                    filesDeleted++;
+                } catch (err) {
+                    console.error(`⚠️ Failed to delete feedback file: ${feedbackPath}`, err.message);
+                }
+            }
+        }
+    }
+
+    // 3. Delete bimbingan records from database
+    const deletedBimbingan = await Bimbingan.deleteMany({ _id: { $in: bimbinganIds } });
+
+    // 4. Optionally reset mahasiswa progress
+    let progressReset = false;
+    if (resetProgress === 'true') {
+        mahasiswa.currentProgress = 'BAB I';
+        await mahasiswa.save();
+        progressReset = true;
+    }
+
+    const scopeLabel = dosenType === 'all' ? 'semua dospem' : dosenType === 'dospem_1' ? 'Dospem 1' : 'Dospem 2';
+    console.log(`🗑️ Bimbingan cleared: ${mahasiswa.name} (${scopeLabel}) - ${deletedBimbingan.deletedCount} bimbingan, ${deletedReplies.deletedCount} replies, ${filesDeleted} files`);
+
+    sendSuccess(res, 200, `Riwayat bimbingan berhasil dihapus (${scopeLabel})`, {
+        deletedBimbingan: deletedBimbingan.deletedCount,
+        deletedReplies: deletedReplies.deletedCount,
+        deletedFiles: filesDeleted,
+        progressReset,
+        scope: dosenType,
+    });
+});
+
+/**
+ * @desc    Get bimbingan progress report for all mahasiswa (Admin only)
+ * @route   GET /api/bimbingan/admin/progress-report
+ * @access  Admin
+ */
+const getProgressReport = asyncHandler(async (req, res) => {
+    // Get all mahasiswa with their dospem info
+    const mahasiswaList = await User.find({ role: 'mahasiswa', status: 'aktif' })
+        .select('name nim_nip prodi judulTA currentProgress dospem_1 dospem_2')
+        .populate('dospem_1', 'name nim_nip')
+        .populate('dospem_2', 'name nim_nip')
+        .sort({ name: 1 });
+
+    // Aggregate bimbingan counts per mahasiswa per dosenType
+    const bimbinganAgg = await Bimbingan.aggregate([
+        {
+            $group: {
+                _id: { mahasiswa: '$mahasiswa', dosenType: '$dosenType' },
+                total: { $sum: 1 },
+                acc: { $sum: { $cond: [{ $eq: ['$status', 'acc'] }, 1, 0] } },
+                acc_sempro: { $sum: { $cond: [{ $eq: ['$status', 'acc_sempro'] }, 1, 0] } },
+                revisi: { $sum: { $cond: [{ $eq: ['$status', 'revisi'] }, 1, 0] } },
+                menunggu: { $sum: { $cond: [{ $eq: ['$status', 'menunggu'] }, 1, 0] } },
+                lanjut_bab: { $sum: { $cond: [{ $eq: ['$status', 'lanjut_bab'] }, 1, 0] } },
+                lastActivity: { $max: '$createdAt' }
+            }
+        }
+    ]);
+
+    // Map aggregation to mahasiswa
+    const report = mahasiswaList.map(mhs => {
+        const dospem1Data = bimbinganAgg.find(
+            a => a._id.mahasiswa.toString() === mhs._id.toString() && a._id.dosenType === 'dospem_1'
+        );
+        const dospem2Data = bimbinganAgg.find(
+            a => a._id.mahasiswa.toString() === mhs._id.toString() && a._id.dosenType === 'dospem_2'
+        );
+
+        const d1Total = dospem1Data?.total || 0;
+        const d2Total = dospem2Data?.total || 0;
+        const d1Acc = dospem1Data?.acc || 0;
+        const d2Acc = dospem2Data?.acc || 0;
+        const d1AccSempro = dospem1Data?.acc_sempro || 0;
+        const d2AccSempro = dospem2Data?.acc_sempro || 0;
+        const d1MeetsMinimum = d1Total >= MIN_BIMBINGAN_SEMPRO;
+        const d2MeetsMinimum = d2Total >= MIN_BIMBINGAN_SEMPRO;
+        const d1IsSufficient = d1MeetsMinimum && d1AccSempro > 0;
+        const d2IsSufficient = d2MeetsMinimum && d2AccSempro > 0;
+
+        return {
+            _id: mhs._id,
+            name: mhs.name,
+            nim_nip: mhs.nim_nip,
+            prodi: mhs.prodi,
+            judulTA: mhs.judulTA,
+            currentProgress: mhs.currentProgress,
+            dospem_1: mhs.dospem_1 ? { name: mhs.dospem_1.name, nim_nip: mhs.dospem_1.nim_nip } : null,
+            dospem_2: mhs.dospem_2 ? { name: mhs.dospem_2.name, nim_nip: mhs.dospem_2.nim_nip } : null,
+            dospem1: {
+                total: d1Total,
+                acc: d1Acc,
+                revisi: dospem1Data?.revisi || 0,
+                menunggu: dospem1Data?.menunggu || 0,
+                lanjut_bab: dospem1Data?.lanjut_bab || 0,
+                acc_sempro: d1AccSempro,
+                lastActivity: dospem1Data?.lastActivity || null,
+                meetsMinimum: d1MeetsMinimum,
+                isSufficient: d1IsSufficient
+            },
+            dospem2: {
+                total: d2Total,
+                acc: d2Acc,
+                revisi: dospem2Data?.revisi || 0,
+                menunggu: dospem2Data?.menunggu || 0,
+                lanjut_bab: dospem2Data?.lanjut_bab || 0,
+                acc_sempro: d2AccSempro,
+                lastActivity: dospem2Data?.lastActivity || null,
+                meetsMinimum: d2MeetsMinimum,
+                isSufficient: d2IsSufficient
+            },
+            totalBimbingan: d1Total + d2Total,
+            totalAcc: d1Acc + d2Acc,
+            isBothSufficient: d1IsSufficient && d2IsSufficient,
+            isSemproReady: d1IsSufficient && d2IsSufficient,
+            lastActivity: dospem1Data?.lastActivity > dospem2Data?.lastActivity
+                ? dospem1Data?.lastActivity
+                : dospem2Data?.lastActivity || dospem1Data?.lastActivity || null
+        };
+    });
+
+    // Summary stats
+    const summary = {
+        totalMahasiswa: report.length,
+        sufficientBoth: report.filter(r => r.isBothSufficient).length,
+        sufficientOne: report.filter(r => (r.dospem1.isSufficient || r.dospem2.isSufficient) && !r.isBothSufficient).length,
+        insufficientBoth: report.filter(r => !r.dospem1.isSufficient && !r.dospem2.isSufficient).length,
+        minAccRequired: MIN_BIMBINGAN_SEMPRO
+    };
+
+    sendSuccess(res, 200, 'Progress report berhasil diambil', { summary, report });
+});
+
 module.exports = {
     getAll,
     getById,
@@ -546,5 +828,8 @@ module.exports = {
     downloadFile,
     getPendingCount,
     getSemproStatus,
-    generateSuratSempro
+    generateSuratSempro,
+    getAdminBimbinganSummary,
+    clearBimbinganHistory,
+    getProgressReport
 };

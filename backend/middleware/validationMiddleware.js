@@ -178,7 +178,7 @@ const createBimbinganValidation = [
 const feedbackValidation = [
     body('status')
         .notEmpty().withMessage('Status wajib diisi')
-        .isIn(['revisi', 'acc', 'lanjut_bab']).withMessage('Status harus: revisi, acc, atau lanjut_bab'),
+        .isIn(['revisi', 'acc', 'lanjut_bab', 'acc_sempro']).withMessage('Status harus: revisi, acc, lanjut_bab, atau acc_sempro'),
 
     body('feedback')
         .notEmpty().withMessage('Feedback wajib diisi')
@@ -260,6 +260,17 @@ const updateJadwalValidation = [
         .isFloat({ min: 0, max: 100 }).withMessage('Nilai harus antara 0-100')
 ];
 
+// ===== Clear Bimbingan Validation Rules =====
+
+/**
+ * Clear bimbingan history validation (Admin only)
+ */
+const clearBimbinganValidation = [
+    query('dosenType')
+        .notEmpty().withMessage('Jenis dosen (dosenType) wajib diisi')
+        .isIn(['dospem_1', 'dospem_2', 'all']).withMessage('dosenType harus: dospem_1, dospem_2, atau all')
+];
+
 // ===== Common Validation Rules =====
 
 /**
@@ -296,6 +307,7 @@ module.exports = {
     createBimbinganValidation,
     feedbackValidation,
     replyValidation,
+    clearBimbinganValidation,
     // Jadwal
     createJadwalValidation,
     updateJadwalValidation,

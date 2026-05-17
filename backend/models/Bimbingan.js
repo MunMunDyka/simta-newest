@@ -90,8 +90,8 @@ const bimbinganSchema = new Schema({
     status: {
         type: String,
         enum: {
-            values: ['menunggu', 'revisi', 'acc', 'lanjut_bab'],
-            message: 'Status harus: menunggu, revisi, acc, atau lanjut_bab'
+            values: ['menunggu', 'revisi', 'acc', 'lanjut_bab', 'acc_sempro'],
+            message: 'Status harus: menunggu, revisi, acc, lanjut_bab, atau acc_sempro'
         },
         default: 'menunggu'
     },
@@ -148,7 +148,8 @@ bimbinganSchema.virtual('statusColor').get(function () {
         menunggu: 'yellow',
         revisi: 'red',
         acc: 'green',
-        lanjut_bab: 'blue'
+        lanjut_bab: 'blue',
+        acc_sempro: 'purple'
     };
     return colors[this.status] || 'gray';
 });

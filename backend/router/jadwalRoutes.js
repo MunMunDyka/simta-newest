@@ -100,6 +100,19 @@ router.put(
 );
 
 /**
+ * @route   DELETE /api/jadwal/:id/permanent
+ * @desc    Hard delete jadwal (permanent removal)
+ * @access  Admin
+ */
+router.delete(
+    '/:id/permanent',
+    roleMiddleware(['admin']),
+    mongoIdParam('id'),
+    handleValidationErrors,
+    jadwalController.hardDelete
+);
+
+/**
  * @route   DELETE /api/jadwal/:id
  * @desc    Cancel jadwal
  * @access  Admin

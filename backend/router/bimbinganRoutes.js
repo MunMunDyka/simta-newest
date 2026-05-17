@@ -23,6 +23,7 @@ const {
     createBimbinganValidation,
     feedbackValidation,
     replyValidation,
+    clearBimbinganValidation,
     mongoIdParam,
     paginationQuery,
     handleValidationErrors
@@ -73,6 +74,44 @@ const upload = multer({
 
 // All routes require authentication
 router.use(authMiddleware);
+
+/**
+ * @route   GET /api/bimbingan/admin/progress-report
+ * @desc    Get bimbingan progress report for all mahasiswa
+ * @access  Admin
+ */
+router.get(
+    '/admin/progress-report',
+    roleMiddleware(['admin']),
+    bimbinganController.getProgressReport
+);
+
+/**
+ * @route   GET /api/bimbingan/admin/mahasiswa/:mahasiswaId
+ * @desc    Get bimbingan summary for admin (all bimbingan + stats per dospem)
+ * @access  Admin
+ */
+router.get(
+    '/admin/mahasiswa/:mahasiswaId',
+    roleMiddleware(['admin']),
+    mongoIdParam('mahasiswaId'),
+    handleValidationErrors,
+    bimbinganController.getAdminBimbinganSummary
+);
+
+/**
+ * @route   DELETE /api/bimbingan/admin/clear/:mahasiswaId
+ * @desc    Clear bimbingan history (hard delete)
+ * @access  Admin
+ */
+router.delete(
+    '/admin/clear/:mahasiswaId',
+    roleMiddleware(['admin']),
+    mongoIdParam('mahasiswaId'),
+    clearBimbinganValidation,
+    handleValidationErrors,
+    bimbinganController.clearBimbinganHistory
+);
 
 /**
  * @route   GET /api/bimbingan/pending-count

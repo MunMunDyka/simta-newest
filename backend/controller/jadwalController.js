@@ -251,7 +251,7 @@ const update = asyncHandler(async (req, res) => {
         throw ApiError.notFound('Jadwal tidak ditemukan');
     }
 
-    // Cannot update completed or cancelled jadwal
+    // Cannot update completed jadwal (cancelled can be rescheduled)
     if (jadwal.status === 'selesai') {
         throw ApiError.badRequest('Tidak dapat mengubah jadwal yang sudah selesai');
     }
@@ -316,6 +316,31 @@ const remove = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @desc    Hard delete jadwal (permanent, only for cancelled/completed)
+ * @route   DELETE /api/jadwal/:id/permanent
+ * @access  Admin
+ */
+const hardDelete = asyncHandler(async (req, res) => {
+    const jadwal = await Jadwal.findById(req.params.id);
+
+    if (!jadwal) {
+        throw ApiError.notFound('Jadwal tidak ditemukan');
+    }
+
+    if (jadwal.status === 'dijadwalkan') {
+        throw ApiError.badRequest(
+            'Tidak dapat menghapus permanen jadwal yang masih aktif. Batalkan terlebih dahulu.'
+        );
+    }
+
+    await Jadwal.findByIdAndDelete(req.params.id);
+
+    console.log(`💀 Jadwal PERMANENTLY deleted: ${jadwal._id} by Admin ${req.user.name}`);
+
+    sendSuccess(res, 200, 'Jadwal berhasil dihapus permanen', null);
+});
+
+/**
  * @desc    Get upcoming jadwal (for dashboard)
  * @route   GET /api/jadwal/upcoming
  * @access  Private
@@ -362,6 +387,7 @@ module.exports = {
     create,
     update,
     remove,
+    hardDelete,
     getUpcoming,
     getStatistics
 };
