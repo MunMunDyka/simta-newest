@@ -22,8 +22,6 @@ const { notifyDosenBimbinganBaruEmail, notifyMahasiswaFeedbackEmail } = require(
 
 const MIN_BIMBINGAN_SEMPRO = 5;
 
-const MIN_BIMBINGAN_SEMPRO = 5;
-
 /**
  * @desc    Get all bimbingan (filtered by role)
  * @route   GET /api/bimbingan
