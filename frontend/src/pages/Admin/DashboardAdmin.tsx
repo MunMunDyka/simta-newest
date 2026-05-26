@@ -27,6 +27,8 @@ import {
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
 import api from '@/lib/api'
+import { FeedbackAlert } from '@/components/FeedbackAlert'
+import { getApiErrorMessage } from '@/lib/errorMessage'
 
 // Types
 interface StatCard {
@@ -82,12 +84,14 @@ export const DashboardAdmin = () => {
         menungguApproval: 0
     })
     const [isLoading, setIsLoading] = useState(true)
+    const [loadError, setLoadError] = useState<string | null>(null)
 
     // Fetch stats from database
     useEffect(() => {
         const fetchStats = async () => {
             try {
                 setIsLoading(true)
+                setLoadError(null)
                 // Fetch user stats
                 const userResponse = await api.get('/users/statistics')
                 const userData = userResponse.data.data
@@ -105,8 +109,9 @@ export const DashboardAdmin = () => {
                         const jadwalDate = new Date(j.tanggal)
                         return jadwalDate.getMonth() === thisMonth && jadwalDate.getFullYear() === thisYear
                     }).length
-                } catch {
+                } catch (jadwalError) {
                     // If jadwal endpoint fails, use total count
+                    setLoadError(getApiErrorMessage(jadwalError, 'Statistik jadwal sidang gagal dimuat. Data lain tetap ditampilkan.'))
                     jadwalCount = 0
                 }
 
@@ -118,6 +123,7 @@ export const DashboardAdmin = () => {
                 })
             } catch (error) {
                 console.error('Failed to fetch stats:', error)
+                setLoadError(getApiErrorMessage(error, 'Gagal memuat statistik dashboard admin. Silakan refresh halaman.'))
             } finally {
                 setIsLoading(false)
             }
@@ -442,6 +448,8 @@ export const DashboardAdmin = () => {
                         animate="visible"
                         className="space-y-6"
                     >
+                        <FeedbackAlert message={loadError} onClose={() => setLoadError(null)} />
+
                         {/* Stats Cards */}
                         <motion.div
                             variants={itemVariants}

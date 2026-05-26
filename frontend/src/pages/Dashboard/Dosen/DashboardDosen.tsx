@@ -35,8 +35,7 @@ import {
     Search,
     ChevronDown,
     ExternalLink,
-    TrendingUp,
-    TrendingDown,
+    CheckCircle,
     Clock,
     ChevronLeft,
     ChevronRight,
@@ -46,6 +45,8 @@ import {
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
 import api from '@/lib/api'
+import { FeedbackAlert } from '@/components/FeedbackAlert'
+import { getApiErrorMessage } from '@/lib/errorMessage'
 
 // Types
 interface Student {
@@ -58,15 +59,26 @@ interface Student {
     progress: string
     currentProgress?: string
     tanggalUpdate: string
-    status: 'revisi' | 'baik' | 'menunggu' | 'acc' | 'lanjut_bab' | 'acc_sempro'
+    status: 'revisi' | 'baik' | 'menunggu' | 'acc' | 'lanjut_bab' | 'acc_sempro' | 'belum_ada'
     revisiDetail?: string
     lastBimbinganStatus?: string
+    lastBimbinganVersion?: string | number
+    lastBimbinganJudul?: string
+    lastBimbinganAt?: string
+    lastFeedbackAt?: string
+    lastActionStatus?: 'revisi' | 'baik' | 'acc' | 'lanjut_bab' | 'acc_sempro'
+    lastActionVersion?: string | number
+    lastActionJudul?: string
+    lastActionAt?: string
+    pendingReviewCount?: number
+    reviewStatus?: 'menunggu_review' | 'sudah_direview' | 'belum_ada'
 }
 
 interface DosenStats {
     totalMahasiswa: number
     mengerjakanCount: number
     terpenuhi: number
+    pendingReviewCount: number
     deadline: number
 }
 
@@ -95,43 +107,86 @@ export const DashboardDosen = () => {
         totalMahasiswa: 0,
         mengerjakanCount: 0,
         terpenuhi: 0,
+        pendingReviewCount: 0,
         deadline: 30
     })
     const [isLoading, setIsLoading] = useState(true)
+    const [loadError, setLoadError] = useState<string | null>(null)
+    const [dosenMascotError, setDosenMascotError] = useState(false)
 
     // Fetch mahasiswa bimbingan
     useEffect(() => {
         const fetchData = async () => {
             try {
                 setIsLoading(true)
+                setLoadError(null)
                 const response = await api.get('/users/mahasiswa-bimbingan')
                 const mahasiswaList = response.data.data || []
 
                 // Transform data
-                const transformedData: Student[] = mahasiswaList.map((mhs: { _id: string; nim_nip: string; name: string; currentProgress?: string; updatedAt?: string; lastBimbinganStatus?: string }) => ({
-                    id: mhs._id,
-                    _id: mhs._id,
-                    nim: mhs.nim_nip,
-                    nama: mhs.name,
-                    progress: mhs.currentProgress || 'BAB I',
-                    tanggalUpdate: mhs.updatedAt ? new Date(mhs.updatedAt).toLocaleDateString('id-ID') : '-',
-                    status: mhs.lastBimbinganStatus || 'menunggu'
-                }))
+                const transformedData: Student[] = mahasiswaList.map((mhs: {
+                    _id: string;
+                    nim_nip: string;
+                    name: string;
+                    currentProgress?: string;
+                    updatedAt?: string;
+                    lastBimbinganStatus?: Student['status'] | null;
+                    lastBimbinganVersion?: string | number | null;
+                    lastBimbinganJudul?: string | null;
+                    lastBimbinganAt?: string | null;
+                    lastFeedbackAt?: string | null;
+                    lastActionStatus?: Student['lastActionStatus'] | null;
+                    lastActionVersion?: string | number | null;
+                    lastActionJudul?: string | null;
+                    lastActionAt?: string | null;
+                    pendingReviewCount?: number;
+                    reviewStatus?: Student['reviewStatus'];
+                }) => {
+                    const pendingReviewCount = mhs.pendingReviewCount || 0;
+                    const status = pendingReviewCount > 0
+                        ? 'menunggu'
+                        : (mhs.lastBimbinganStatus || 'belum_ada');
+                    const displayDate = mhs.lastBimbinganAt || mhs.updatedAt;
+
+                    return {
+                        id: mhs._id,
+                        _id: mhs._id,
+                        nim: mhs.nim_nip,
+                        nama: mhs.name,
+                        progress: mhs.currentProgress || 'BAB I',
+                        tanggalUpdate: displayDate ? new Date(displayDate).toLocaleDateString('id-ID') : '-',
+                        status,
+                        lastBimbinganStatus: mhs.lastBimbinganStatus || undefined,
+                        lastBimbinganVersion: mhs.lastBimbinganVersion || undefined,
+                        lastBimbinganJudul: mhs.lastBimbinganJudul || undefined,
+                        lastBimbinganAt: mhs.lastBimbinganAt || undefined,
+                        lastFeedbackAt: mhs.lastFeedbackAt || undefined,
+                        lastActionStatus: mhs.lastActionStatus || undefined,
+                        lastActionVersion: mhs.lastActionVersion || undefined,
+                        lastActionJudul: mhs.lastActionJudul || undefined,
+                        lastActionAt: mhs.lastActionAt || undefined,
+                        pendingReviewCount,
+                        reviewStatus: mhs.reviewStatus || (status === 'belum_ada' ? 'belum_ada' : status === 'menunggu' ? 'menunggu_review' : 'sudah_direview')
+                    }
+                })
 
                 setStudentsData(transformedData)
 
                 // Calculate stats
-                const mengerjakanCount = transformedData.filter((s: Student) => s.status !== 'acc').length
+                const pendingReviewCount = transformedData.filter((s: Student) => (s.pendingReviewCount || 0) > 0).length
+                const mengerjakanCount = transformedData.filter((s: Student) => s.status !== 'acc' && s.status !== 'acc_sempro').length
                 const terpenuhi = transformedData.filter((s: Student) => s.status === 'acc' || s.status === 'acc_sempro').length
 
                 setStats({
                     totalMahasiswa: transformedData.length,
                     mengerjakanCount,
                     terpenuhi,
+                    pendingReviewCount,
                     deadline: 30
                 })
             } catch (error) {
                 console.error('Failed to fetch mahasiswa:', error)
+                setLoadError(getApiErrorMessage(error, 'Gagal memuat data mahasiswa bimbingan. Silakan refresh halaman.'))
             } finally {
                 setIsLoading(false)
             }
@@ -192,44 +247,134 @@ export const DashboardDosen = () => {
     }
 
     const getStatusBadge = (student: Student) => {
-        switch (student.status) {
-            case 'revisi':
-                return (
-                    <Badge className="bg-red-100 text-red-600 hover:bg-red-100 border-0 font-medium">
-                        Revisi ⚠️ {student.revisiDetail}
-                    </Badge>
-                )
-            case 'baik':
-                return (
-                    <Badge className="bg-green-100 text-green-600 hover:bg-green-100 border-0 font-medium">
-                        Baik
-                    </Badge>
-                )
-            case 'menunggu':
-                return (
-                    <Badge className="bg-yellow-100 text-yellow-600 hover:bg-yellow-100 border-0 font-medium">
-                        Menunggu Review
-                    </Badge>
-                )
-            case 'acc':
-                return (
-                    <Badge className="bg-green-100 text-green-600 hover:bg-green-100 border-0 font-medium">
-                        ACC
-                    </Badge>
-                )
-            case 'lanjut_bab':
-                return (
-                    <Badge className="bg-blue-100 text-blue-600 hover:bg-blue-100 border-0 font-medium">
-                        Lanjut BAB
-                    </Badge>
-                )
-            case 'acc_sempro':
-                return (
-                    <Badge className="bg-purple-100 text-purple-600 hover:bg-purple-100 border-0 font-medium">
-                        ACC Sempro
-                    </Badge>
-                )
+        const statusConfig = {
+            revisi: {
+                label: `Sudah Direview - Revisi${student.revisiDetail ? ` ${student.revisiDetail}` : ''}`,
+                className: 'bg-red-100 text-red-600 hover:bg-red-100'
+            },
+            baik: {
+                label: 'Sudah Direview - Baik',
+                className: 'bg-green-100 text-green-600 hover:bg-green-100'
+            },
+            menunggu: {
+                label: `Menunggu Review${student.pendingReviewCount && student.pendingReviewCount > 1 ? ` (${student.pendingReviewCount})` : ''}`,
+                className: 'bg-yellow-100 text-yellow-600 hover:bg-yellow-100'
+            },
+            acc: {
+                label: 'Sudah Direview - ACC',
+                className: 'bg-green-100 text-green-600 hover:bg-green-100'
+            },
+            lanjut_bab: {
+                label: 'Sudah Direview - Lanjut BAB',
+                className: 'bg-blue-100 text-blue-600 hover:bg-blue-100'
+            },
+            acc_sempro: {
+                label: 'Sudah Direview - ACC Sidang',
+                className: 'bg-purple-100 text-purple-600 hover:bg-purple-100'
+            },
+            belum_ada: {
+                label: 'Belum Ada Bimbingan',
+                className: 'bg-gray-100 text-gray-600 hover:bg-gray-100'
+            }
+        } as const;
+        const config = statusConfig[student.status];
+
+        if (config) {
+            return (
+                <Badge className={`${config.className} border-0 font-medium`}>
+                    {config.label}
+                </Badge>
+            );
         }
+
+        return (
+            <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 border-0 font-medium">
+                Status tidak diketahui
+            </Badge>
+        )
+    }
+
+    const getProgressBadge = (progress: string) => {
+        const normalizedProgress = (progress || 'BAB I').toUpperCase()
+        const progressConfig: Record<string, { label: string; className: string }> = {
+            'BAB I': {
+                label: 'BAB I',
+                className: 'bg-blue-50 text-blue-700 ring-blue-200'
+            },
+            'BAB II': {
+                label: 'BAB II',
+                className: 'bg-cyan-50 text-cyan-700 ring-cyan-200'
+            },
+            'BAB III': {
+                label: 'BAB III',
+                className: 'bg-amber-50 text-amber-700 ring-amber-200'
+            },
+            'BAB IV': {
+                label: 'BAB IV',
+                className: 'bg-indigo-50 text-indigo-700 ring-indigo-200'
+            },
+            'BAB V': {
+                label: 'BAB V',
+                className: 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+            },
+            'SELESAI': {
+                label: 'Selesai',
+                className: 'bg-green-50 text-green-700 ring-green-200'
+            }
+        }
+        const config = progressConfig[normalizedProgress] || {
+            label: progress || 'BAB I',
+            className: 'bg-slate-50 text-slate-700 ring-slate-200'
+        }
+
+        return (
+            <span className={`inline-flex min-w-[76px] items-center justify-center rounded-full px-3 py-1.5 text-xs font-bold ring-1 ${config.className}`}>
+                {config.label}
+            </span>
+        )
+    }
+
+    const getActionBadge = (status?: Student['lastActionStatus']) => {
+        const actionConfig = {
+            revisi: {
+                label: 'Revisi',
+                className: 'bg-red-50 text-red-600'
+            },
+            baik: {
+                label: 'Baik',
+                className: 'bg-green-50 text-green-600'
+            },
+            acc: {
+                label: 'ACC',
+                className: 'bg-green-50 text-green-600'
+            },
+            lanjut_bab: {
+                label: 'Lanjut BAB',
+                className: 'bg-blue-50 text-blue-600'
+            },
+            acc_sempro: {
+                label: 'ACC Sidang',
+                className: 'bg-purple-50 text-purple-600'
+            }
+        } as const
+
+        const config = status ? actionConfig[status] : undefined
+
+        return (
+            <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${config?.className || 'bg-gray-50 text-gray-600'}`}>
+                {config?.label || 'Aksi'}
+            </span>
+        )
+    }
+
+    const formatHistoryDate = (value?: string) => {
+        if (!value) return '-'
+
+        return new Date(value).toLocaleDateString('id-ID', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric'
+        })
     }
 
     const filteredStudents = studentsData.filter(student =>
@@ -238,6 +383,10 @@ export const DashboardDosen = () => {
     )
 
     const totalPages = Math.ceil(filteredStudents.length / parseInt(entriesPerPage))
+    const recentActions = studentsData
+        .filter((student) => Boolean(student.lastActionStatus && student.lastActionAt))
+        .sort((a, b) => new Date(b.lastActionAt || 0).getTime() - new Date(a.lastActionAt || 0).getTime())
+        .slice(0, 5)
 
     return (
         <div className="min-h-screen flex bg-gradient-to-br from-gray-50 via-white to-gray-100">
@@ -421,6 +570,55 @@ export const DashboardDosen = () => {
                         animate="visible"
                         className="space-y-6"
                     >
+                        <FeedbackAlert message={loadError} onClose={() => setLoadError(null)} />
+
+                        {/* Greeting */}
+                        <motion.div
+                            variants={itemVariants}
+                            className="grid grid-cols-1"
+                        >
+                            <motion.div
+                                variants={cardVariants}
+                                className="relative min-h-[104px] overflow-hidden bg-white rounded-2xl px-6 py-5 pl-[82px] shadow-sm border border-gray-100"
+                            >
+                                <div className="pointer-events-none absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-blue-50/80 via-blue-50/30 to-transparent" />
+                                <div className="pointer-events-none absolute -right-10 top-1/2 h-28 w-28 -translate-y-1/2 rounded-full border border-blue-100/80" />
+                                <div className="pointer-events-none absolute right-10 top-6 h-2 w-2 rounded-full bg-blue-300/60" />
+                                <div className="pointer-events-none absolute right-20 bottom-7 h-1.5 w-1.5 rounded-full bg-cyan-300/70" />
+                                <motion.div
+                                    className="absolute left-0 top-1/2 h-24 w-24 -translate-y-1/2 flex items-center justify-start"
+                                    whileHover={{ scale: 1.04 }}
+                                    transition={{ type: 'spring' as const, stiffness: 300 }}
+                                >
+                                    {dosenMascotError ? (
+                                        <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center shadow-md border border-blue-100">
+                                            <Users className="w-8 h-8 text-blue-600" />
+                                        </div>
+                                    ) : (
+                                        <img
+                                            src="/maskot_siakad.png"
+                                            alt="Maskot ITEBA"
+                                            className="h-25 w-25 object-contain object-left"
+                                            onError={() => setDosenMascotError(true)}
+                                        />
+                                    )}
+                                </motion.div>
+                                <div className="relative z-10 flex min-h-16 items-center">
+                                    <div className="flex-1 min-w-0">
+                                        <h2 className="text-lg font-bold text-gray-800 leading-tight truncate">
+                                            Hi, {user?.name || 'Dosen Pembimbing'}
+                                        </h2>
+                                        <p className="mt-1 text-sm text-gray-500 leading-tight">
+                                            {user?.nim_nip || 'NIP belum tersedia'} &middot; Dosen Pembimbing
+                                        </p>
+                                        <p className="mt-1.5 text-xs text-blue-500 font-medium italic leading-tight">
+                                            Pantau bimbingan dan tindak lanjuti review mahasiswa.
+                                        </p>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        </motion.div>
+
                         {/* Stats Cards */}
                         <motion.div
                             variants={itemVariants}
@@ -429,97 +627,60 @@ export const DashboardDosen = () => {
                             {/* Card 1 - Mengerjakan */}
                             <motion.div
                                 variants={cardVariants}
-                                className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
+                                className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
                                 whileHover={{ y: -2 }}
                             >
-                                <div className="flex items-start justify-between mb-4">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="h-10 w-10 rounded-xl bg-blue-50 flex items-center justify-center">
+                                        <Users className="h-5 w-5 text-blue-600" />
+                                    </div>
                                     <div>
-                                        <motion.h2
-                                            className="text-4xl font-bold text-gray-800"
-                                            initial={{ opacity: 0, scale: 0.5 }}
-                                            animate={{ opacity: 1, scale: 1 }}
-                                            transition={{ delay: 0.3, type: 'spring' as const }}
-                                        >
-                                            {stats.mengerjakanCount}
-                                        </motion.h2>
-                                        <p className="text-gray-500 font-medium">Mengerjakan</p>
+                                        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Mahasiswa</p>
+                                        <h3 className="font-bold text-gray-800">Bimbingan Aktif</h3>
                                     </div>
                                 </div>
-                                <div className="flex items-center justify-between bg-gradient-to-r from-blue-50 to-blue-100/50 rounded-xl p-4">
-                                    <div>
-                                        <p className="text-sm text-blue-600 font-medium">Total Mahasiswa</p>
-                                        <p className="text-2xl font-bold text-blue-700">{stats.totalMahasiswa}</p>
-                                    </div>
-                                    <div className="flex items-center gap-1 bg-white px-3 py-1.5 rounded-full shadow-sm">
-                                        <span className="text-lg font-bold text-blue-600">
-                                            {stats.totalMahasiswa > 0 ? Math.round((stats.mengerjakanCount / stats.totalMahasiswa) * 100) : 0}%
-                                        </span>
-                                        <TrendingUp className="w-4 h-4 text-blue-600" />
-                                    </div>
+                                <div className="rounded-xl border border-blue-100 bg-blue-50/70 px-4 py-3">
+                                    <p className="text-3xl font-bold text-blue-700">{stats.totalMahasiswa}</p>
                                 </div>
                             </motion.div>
 
                             {/* Card 2 - Terpenuhi */}
                             <motion.div
                                 variants={cardVariants}
-                                className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
+                                className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
                                 whileHover={{ y: -2 }}
                             >
-                                <div className="flex items-start justify-between mb-4">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="h-10 w-10 rounded-xl bg-green-50 flex items-center justify-center">
+                                        <CheckCircle className="h-5 w-5 text-green-600" />
+                                    </div>
                                     <div>
-                                        <motion.h2
-                                            className="text-4xl font-bold text-gray-800"
-                                            initial={{ opacity: 0, scale: 0.5 }}
-                                            animate={{ opacity: 1, scale: 1 }}
-                                            transition={{ delay: 0.4, type: 'spring' as const }}
-                                        >
-                                            {stats.terpenuhi}
-                                        </motion.h2>
-                                        <p className="text-gray-500 font-medium">Terpenuhi</p>
+                                        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Syarat</p>
+                                        <h3 className="font-bold text-gray-800">Terpenuhi</h3>
                                     </div>
                                 </div>
-                                <div className="flex items-center justify-between bg-gradient-to-r from-green-50 to-green-100/50 rounded-xl p-4">
-                                    <div>
-                                        <p className="text-sm text-green-600 font-medium">Tidak Memenuhi</p>
-                                        <p className="text-2xl font-bold text-green-700">{stats.totalMahasiswa - stats.terpenuhi}</p>
-                                    </div>
-                                    <div className="flex items-center gap-1 bg-white px-3 py-1.5 rounded-full shadow-sm">
-                                        <span className="text-lg font-bold text-red-500">
-                                            {stats.totalMahasiswa > 0 ? Math.round((stats.terpenuhi / stats.totalMahasiswa) * 100) : 0}%
-                                        </span>
-                                        <TrendingDown className="w-4 h-4 text-red-500" />
-                                    </div>
+                                <div className="rounded-xl border border-green-100 bg-green-50/70 px-4 py-3">
+                                    <p className="text-3xl font-bold text-green-700">{stats.terpenuhi}</p>
                                 </div>
                             </motion.div>
 
                             {/* Card 3 - Pending Review */}
                             <motion.div
                                 variants={cardVariants}
-                                className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
+                                className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
                                 whileHover={{ y: -2 }}
                             >
-                                <div className="flex items-start justify-between mb-4">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="h-10 w-10 rounded-xl bg-orange-50 flex items-center justify-center">
+                                        <Clock className="h-5 w-5 text-orange-600" />
+                                    </div>
                                     <div>
-                                        <motion.h2
-                                            className="text-4xl font-bold text-gray-800"
-                                            initial={{ opacity: 0, scale: 0.5 }}
-                                            animate={{ opacity: 1, scale: 1 }}
-                                            transition={{ delay: 0.5, type: 'spring' as const }}
-                                        >
-                                            {stats.totalMahasiswa - stats.terpenuhi - stats.mengerjakanCount > 0 ? stats.totalMahasiswa - stats.terpenuhi - stats.mengerjakanCount : 0}
-                                        </motion.h2>
-                                        <p className="text-gray-500 font-medium">Menunggu Review</p>
+                                        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Review</p>
+                                        <h3 className="font-bold text-gray-800">Menunggu</h3>
                                     </div>
                                 </div>
-                                <div className="flex items-center justify-between bg-gradient-to-r from-orange-50 to-red-50 rounded-xl p-4">
-                                    <div>
-                                        <p className="text-sm text-orange-600 font-medium">Perlu Ditindaklanjuti</p>
-                                        <p className="text-2xl font-bold text-orange-700">{stats.mengerjakanCount}</p>
-                                    </div>
-                                    <div className="flex items-center gap-1 bg-white px-3 py-1.5 rounded-full shadow-sm">
-                                        <Clock className="w-4 h-4 text-orange-500" />
-                                        <span className="text-sm font-bold text-orange-600">Pending</span>
-                                    </div>
+                                <div className="rounded-xl border border-orange-100 bg-orange-50/80 px-4 py-3">
+                                    <p className="text-3xl font-bold text-orange-700">{stats.pendingReviewCount}</p>
                                 </div>
                             </motion.div>
                         </motion.div>
@@ -561,14 +722,60 @@ export const DashboardDosen = () => {
                                         </div>
                                     </div>
 
-                                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                                        <Button
-                                            variant="outline"
-                                            className="border-blue-200 text-blue-600 hover:bg-blue-50 rounded-xl"
-                                        >
-                                            Recent History
-                                        </Button>
-                                    </motion.div>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                                                <Button
+                                                    variant="outline"
+                                                    className="border-blue-200 text-blue-600 hover:bg-blue-50 rounded-xl"
+                                                >
+                                                    Recent History
+                                                </Button>
+                                            </motion.div>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="w-96 rounded-2xl p-0 overflow-hidden">
+                                            <div className="p-4 border-b border-gray-100">
+                                                <DropdownMenuLabel className="p-0 text-sm font-bold text-gray-800">
+                                                    Aksi Review Terakhir
+                                                </DropdownMenuLabel>
+                                                <p className="mt-1 text-xs text-gray-500">
+                                                    Riwayat feedback terbaru yang sudah diberikan dosen.
+                                                </p>
+                                            </div>
+
+                                            <div className="max-h-80 overflow-auto p-2">
+                                                {recentActions.length === 0 ? (
+                                                    <div className="px-3 py-6 text-center">
+                                                        <Clock className="mx-auto mb-2 h-8 w-8 text-gray-300" />
+                                                        <p className="text-sm font-medium text-gray-600">Belum ada aksi review</p>
+                                                        <p className="mt-1 text-xs text-gray-400">Aksi akan muncul setelah dosen memberi feedback.</p>
+                                                    </div>
+                                                ) : (
+                                                    recentActions.map((student) => (
+                                                        <button
+                                                            key={`${student.id}-${student.lastActionAt}`}
+                                                            type="button"
+                                                            onClick={() => navigate(`/bimbingan/dosen/${student.id}`)}
+                                                            className="w-full rounded-xl px-3 py-3 text-left hover:bg-gray-50 transition-colors"
+                                                        >
+                                                            <div className="flex items-start justify-between gap-3">
+                                                                <div className="min-w-0">
+                                                                    <p className="truncate text-sm font-semibold text-gray-800">{student.nama}</p>
+                                                                    <p className="mt-0.5 truncate text-xs text-gray-500">
+                                                                        {student.lastActionJudul || 'Bimbingan'} {student.lastActionVersion ? `(${student.lastActionVersion})` : ''}
+                                                                    </p>
+                                                                    <p className="mt-1 text-xs text-gray-400">
+                                                                        {formatHistoryDate(student.lastActionAt)}
+                                                                    </p>
+                                                                </div>
+                                                                {getActionBadge(student.lastActionStatus)}
+                                                            </div>
+                                                        </button>
+                                                    ))
+                                                )}
+                                            </div>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
                                 </div>
                             </div>
 
@@ -576,13 +783,13 @@ export const DashboardDosen = () => {
                             <div className="overflow-x-auto">
                                 <Table>
                                     <TableHeader>
-                                        <TableRow className="bg-gray-50/50 hover:bg-gray-50/50">
-                                            <TableHead className="font-semibold text-gray-700">NIM</TableHead>
-                                            <TableHead className="font-semibold text-gray-700">NAMA</TableHead>
-                                            <TableHead className="font-semibold text-gray-700">PROGRESS</TableHead>
-                                            <TableHead className="font-semibold text-gray-700">TANGGAL UPDATE</TableHead>
-                                            <TableHead className="font-semibold text-gray-700">Status</TableHead>
-                                            <TableHead className="font-semibold text-gray-700 text-center">Action</TableHead>
+                                        <TableRow className="bg-gray-50/70 hover:bg-gray-50/70">
+                                            <TableHead className="h-12 text-center font-semibold text-gray-700">NIM</TableHead>
+                                            <TableHead className="h-12 font-semibold text-gray-700">NAMA</TableHead>
+                                            <TableHead className="h-12 font-semibold text-gray-700">PROGRESS</TableHead>
+                                            <TableHead className="h-12 text-center font-semibold text-gray-700">TANGGAL UPDATE</TableHead>
+                                            <TableHead className="h-12 text-center font-semibold text-gray-700">Status</TableHead>
+                                            <TableHead className="h-12 w-32 font-semibold text-gray-700 text-center">Action</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -618,21 +825,23 @@ export const DashboardDosen = () => {
                                                     initial={{ opacity: 0, y: 10 }}
                                                     animate={{ opacity: 1, y: 0 }}
                                                     transition={{ delay: 0.1 * index }}
-                                                    className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors"
+                                                    className="border-b border-gray-100 hover:bg-blue-50/40 transition-colors"
                                                 >
-                                                    <TableCell className="font-medium text-gray-700">{student.nim}</TableCell>
-                                                    <TableCell className="text-gray-700">{student.nama}</TableCell>
-                                                    <TableCell className="text-gray-600">{student.progress}</TableCell>
-                                                    <TableCell className="text-gray-600">{student.tanggalUpdate}</TableCell>
-                                                    <TableCell>{getStatusBadge(student)}</TableCell>
-                                                    <TableCell className="text-center">
+                                                    <TableCell className="py-4 text-center font-medium text-gray-700">{student.nim}</TableCell>
+                                                    <TableCell className="py-4 font-semibold text-gray-800">{student.nama}</TableCell>
+                                                    <TableCell className="py-4">{getProgressBadge(student.progress)}</TableCell>
+                                                    <TableCell className="py-4 text-center text-gray-600">{student.tanggalUpdate}</TableCell>
+                                                    <TableCell className="py-4 text-center">{getStatusBadge(student)}</TableCell>
+                                                    <TableCell className="py-4 text-center">
                                                         <motion.button
-                                                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                                            whileHover={{ scale: 1.1 }}
-                                                            whileTap={{ scale: 0.9 }}
+                                                            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-3.5 py-2 text-sm font-semibold text-blue-600 shadow-sm transition-colors hover:bg-blue-50 hover:border-blue-300"
+                                                            whileHover={{ scale: 1.03 }}
+                                                            whileTap={{ scale: 0.97 }}
                                                             onClick={() => navigate(`/bimbingan/dosen/${student.id}`)}
+                                                            aria-label={`Buka detail bimbingan ${student.nama}`}
                                                         >
                                                             <ExternalLink className="w-4 h-4" />
+                                                            Detail
                                                         </motion.button>
                                                     </TableCell>
                                                 </motion.tr>

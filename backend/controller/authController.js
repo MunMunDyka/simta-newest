@@ -27,8 +27,8 @@ const login = asyncHandler(async (req, res) => {
 
     if (!user) {
         throw ApiError.unauthorized(
-            `Login gagal. User dengan NIM/NIP '${nim_nip}' tidak ditemukan. ` +
-            'Periksa kembali NIM/NIP Anda atau hubungi admin.'
+            `Login gagal. Username '${nim_nip}' tidak ditemukan. ` +
+            'Periksa kembali username Anda atau hubungi admin.'
         );
     }
 

@@ -20,6 +20,11 @@ interface AuthState {
     error: string | null;
 }
 
+type ApiErrorResponse = {
+    message?: string;
+    errors?: Array<{ message?: string }>;
+};
+
 // ===== Initial State =====
 const initialState: AuthState = {
     user: null,
@@ -29,6 +34,14 @@ const initialState: AuthState = {
     isLoading: false,
     isInitialized: false,
     error: null,
+};
+
+const getApiErrorMessage = (error: unknown, fallback: string) => {
+    const err = error as { response?: { data?: ApiErrorResponse } };
+    const data = err.response?.data;
+    const validationMessage = data?.errors?.find((item) => item.message)?.message;
+
+    return validationMessage || data?.message || fallback;
 };
 
 // ===== Async Thunks =====
@@ -49,8 +62,7 @@ export const login = createAsyncThunk(
 
             return response.data;
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Login gagal. Periksa kembali NIM/NIP dan password.');
+            return rejectWithValue(getApiErrorMessage(error, 'Login gagal. Periksa kembali username dan password.'));
         }
     }
 );
@@ -69,8 +81,7 @@ export const getMe = createAsyncThunk(
             localStorage.removeItem('accessToken');
             localStorage.removeItem('refreshToken');
             localStorage.removeItem('user');
-            const err = error as { response?: { data?: { message?: string } } };
-            return rejectWithValue(err.response?.data?.message || 'Session expired');
+            return rejectWithValue(getApiErrorMessage(error, 'Session expired'));
         }
     }
 );

@@ -69,6 +69,8 @@ import {
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
 import api from '@/lib/api'
+import { FeedbackAlert } from '@/components/FeedbackAlert'
+import { getApiErrorMessage } from '@/lib/errorMessage'
 
 // Types
 interface JadwalSidang {
@@ -123,6 +125,7 @@ export const KelolaJadwal = () => {
     const [currentPage, setCurrentPage] = useState(1)
     const [isLoading, setIsLoading] = useState(true)
     const [jadwalList, setJadwalList] = useState<JadwalSidang[]>([])
+    const [loadError, setLoadError] = useState<string | null>(null)
 
     // Modal states
     const [isModalOpen, setIsModalOpen] = useState(false)
@@ -207,10 +210,12 @@ export const KelolaJadwal = () => {
     const fetchJadwal = async () => {
         try {
             setIsLoading(true)
+            setLoadError(null)
             const response = await api.get('/jadwal', { params: { limit: 100 } })
             setJadwalList(response.data.data || [])
         } catch (error) {
             console.error('Failed to fetch jadwal:', error)
+            setLoadError(getApiErrorMessage(error, 'Gagal memuat data jadwal. Silakan refresh halaman.'))
         } finally {
             setIsLoading(false)
         }
@@ -227,6 +232,7 @@ export const KelolaJadwal = () => {
             setDosenList(dosenRes.data.data || [])
         } catch (error) {
             console.error('Failed to fetch users:', error)
+            setLoadError(getApiErrorMessage(error, 'Gagal memuat daftar mahasiswa/dosen untuk jadwal. Silakan refresh halaman.'))
         }
     }
 
@@ -614,6 +620,8 @@ export const KelolaJadwal = () => {
                 {/* Page Content */}
                 <main className="flex-1 p-6 overflow-auto">
                     <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6">
+                        <FeedbackAlert message={loadError} onClose={() => setLoadError(null)} />
+
                         {/* Stats Cards */}
                         <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-4 gap-6">
                             {statsCards.map((stat, index) => (

@@ -55,6 +55,8 @@ import {
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
 import api from '@/lib/api'
+import { FeedbackAlert } from '@/components/FeedbackAlert'
+import { getApiErrorMessage } from '@/lib/errorMessage'
 
 // Types
 interface DospemProgress {
@@ -120,6 +122,7 @@ export const Laporan = () => {
     const [statusFilter, setStatusFilter] = useState('all')
     const [report, setReport] = useState<MahasiswaProgress[]>([])
     const [summary, setSummary] = useState<ReportSummary | null>(null)
+    const [loadError, setLoadError] = useState<string | null>(null)
 
     // Animation variants
     const containerVariants: Variants = {
@@ -142,11 +145,13 @@ export const Laporan = () => {
     const fetchReport = async () => {
         try {
             setIsLoading(true)
+            setLoadError(null)
             const res = await api.get('/bimbingan/admin/progress-report')
             setReport(res.data.data.report || [])
             setSummary(res.data.data.summary || null)
         } catch (error) {
             console.error('Failed to fetch progress report:', error)
+            setLoadError(getApiErrorMessage(error, 'Gagal memuat laporan progress bimbingan. Silakan refresh halaman.'))
         } finally {
             setIsLoading(false)
         }
@@ -333,6 +338,8 @@ export const Laporan = () => {
                 {/* Content */}
                 <main className="flex-1 p-6 overflow-auto">
                     <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6">
+                        <FeedbackAlert message={loadError} onClose={() => setLoadError(null)} />
+
                         {/* Stats Cards */}
                         {summary && (
                             <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-4 gap-6">

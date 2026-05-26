@@ -56,6 +56,8 @@ import {
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
 import api from '@/lib/api'
+import { FeedbackAlert } from '@/components/FeedbackAlert'
+import { getApiErrorMessage } from '@/lib/errorMessage'
 
 // Types
 interface DosenData {
@@ -117,6 +119,7 @@ export const ManajemenUserDosen = () => {
     const [dosen, setDosen] = useState<DosenData | null>(null)
     const [mahasiswaBimbingan, setMahasiswaBimbingan] = useState<MahasiswaBimbingan[]>([])
     const [isLoading, setIsLoading] = useState(true)
+    const [loadError, setLoadError] = useState<string | null>(null)
     const [newPassword, setNewPassword] = useState('')
     const [showPassword, setShowPassword] = useState(false)
     const [showResetModal, setShowResetModal] = useState(false)
@@ -126,12 +129,14 @@ export const ManajemenUserDosen = () => {
     const [selectedMahasiswa, setSelectedMahasiswa] = useState<MahasiswaBimbingan | null>(null)
     const [bimbinganHistory, setBimbinganHistory] = useState<BimbinganHistoryItem[]>([])
     const [isLoadingHistory, setIsLoadingHistory] = useState(false)
+    const [historyError, setHistoryError] = useState<string | null>(null)
 
     // Fetch dosen data
     const fetchDosen = async () => {
         if (!id) return
         try {
             setIsLoading(true)
+            setLoadError(null)
             const dosenResponse = await api.get(`/users/${id}`)
             setDosen(dosenResponse.data.data)
 
@@ -148,6 +153,7 @@ export const ManajemenUserDosen = () => {
             }
         } catch (error) {
             console.error('Failed to fetch data:', error)
+            setLoadError(getApiErrorMessage(error, 'Gagal memuat detail dosen. Silakan refresh halaman.'))
         } finally {
             setIsLoading(false)
         }
@@ -209,6 +215,7 @@ export const ManajemenUserDosen = () => {
         setSelectedMahasiswa(mhs)
         setShowHistoryModal(true)
         setIsLoadingHistory(true)
+        setHistoryError(null)
         setBimbinganHistory([])
 
         try {
@@ -234,6 +241,7 @@ export const ManajemenUserDosen = () => {
             setBimbinganHistory(history)
         } catch (error) {
             console.error('Failed to fetch bimbingan history:', error)
+            setHistoryError(getApiErrorMessage(error, 'Gagal memuat riwayat bimbingan mahasiswa. Silakan coba lagi.'))
         } finally {
             setIsLoadingHistory(false)
         }
@@ -441,6 +449,8 @@ export const ManajemenUserDosen = () => {
                         </div>
                     ) : dosen ? (
                         <motion.div variants={containerVariants} initial="hidden" animate="visible" className="max-w-5xl mx-auto space-y-6">
+                            <FeedbackAlert message={loadError} onClose={() => setLoadError(null)} />
+
                             {/* Dosen Profile Card */}
                             <motion.div variants={itemVariants} className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
                                 <div className="flex items-start gap-6">
@@ -606,8 +616,8 @@ export const ManajemenUserDosen = () => {
                             </motion.div>
                         </motion.div>
                     ) : (
-                        <div className="flex items-center justify-center h-64">
-                            <p className="text-gray-500">Data dosen tidak ditemukan</p>
+                        <div className="mx-auto flex max-w-3xl flex-col gap-4">
+                            <FeedbackAlert message={loadError || 'Data dosen tidak ditemukan.'} />
                         </div>
                     )}
                 </main>
@@ -689,7 +699,9 @@ export const ManajemenUserDosen = () => {
                     </DialogHeader>
 
                     <div className="flex-1 overflow-y-auto py-4">
-                        {isLoadingHistory ? (
+                        {historyError ? (
+                            <FeedbackAlert message={historyError} onClose={() => setHistoryError(null)} />
+                        ) : isLoadingHistory ? (
                             <div className="flex items-center justify-center py-8">
                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
                             </div>

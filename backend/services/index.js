@@ -8,7 +8,9 @@
 'use strict';
 
 const whatsappService = require('./whatsappService');
+const emailService = require('./emailService');
 
 module.exports = {
-    whatsappService
+    whatsappService,
+    emailService
 };

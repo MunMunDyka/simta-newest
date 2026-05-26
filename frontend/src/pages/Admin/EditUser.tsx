@@ -38,6 +38,8 @@ import {
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
 import api from '@/lib/api'
+import { FeedbackAlert } from '@/components/FeedbackAlert'
+import { getApiErrorMessage } from '@/lib/errorMessage'
 
 // Types
 interface UserData {
@@ -89,6 +91,7 @@ export const EditUser = () => {
     const [isLoading, setIsLoading] = useState(true)
     const [isSaving, setIsSaving] = useState(false)
     const [dosenList, setDosenList] = useState<DosenOption[]>([])
+    const [loadError, setLoadError] = useState<string | null>(null)
 
     // Form state
     const [name, setName] = useState('')
@@ -107,6 +110,7 @@ export const EditUser = () => {
         if (!id) return
         try {
             setIsLoading(true)
+            setLoadError(null)
             const response = await api.get(`/users/${id}`)
             const data = response.data.data
             setUserData(data)
@@ -124,7 +128,7 @@ export const EditUser = () => {
             setDospem2(data.dospem_2?._id || 'none')
         } catch (error) {
             console.error('Failed to fetch user:', error)
-            alert('Gagal memuat data user')
+            setLoadError(getApiErrorMessage(error, 'Gagal memuat data user. Silakan refresh halaman.'))
         } finally {
             setIsLoading(false)
         }
@@ -137,6 +141,7 @@ export const EditUser = () => {
             setDosenList(response.data.data)
         } catch (error) {
             console.error('Failed to fetch dosen list:', error)
+            setLoadError(getApiErrorMessage(error, 'Gagal memuat daftar dosen pembimbing. Silakan refresh halaman.'))
         }
     }
 
@@ -381,6 +386,7 @@ export const EditUser = () => {
                         </div>
                     ) : userData ? (
                         <motion.div variants={containerVariants} initial="hidden" animate="visible" className="max-w-3xl mx-auto space-y-6">
+                            <FeedbackAlert message={loadError} onClose={() => setLoadError(null)} />
 
                             {/* Profile Header */}
                             <motion.div variants={itemVariants} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
@@ -600,8 +606,8 @@ export const EditUser = () => {
                             </motion.div>
                         </motion.div>
                     ) : (
-                        <div className="flex items-center justify-center h-64">
-                            <p className="text-gray-500">Data tidak ditemukan</p>
+                        <div className="mx-auto flex max-w-3xl flex-col gap-4">
+                            <FeedbackAlert message={loadError || 'Data tidak ditemukan.'} />
                         </div>
                     )}
                 </main>

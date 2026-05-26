@@ -67,9 +67,10 @@ export const BimbinganMahasiswa = () => {
     // API states
     const [bimbinganList, setBimbinganList] = useState<Bimbingan[]>([])
     const [, setIsLoading] = useState(true)
-    const [, setIsSubmitting] = useState(false)
-    const [, setError] = useState<string | null>(null)
-    const [, setSuccessMessage] = useState<string | null>(null)
+    const [isSubmitting, setIsSubmitting] = useState(false)
+    const [error, setError] = useState<string | null>(null)
+    const [successMessage, setSuccessMessage] = useState<string | null>(null)
+    const [isUploadFormOpen, setIsUploadFormOpen] = useState(false)
 
     // Dospem info from user (handle both string and object types)
     const dospem1Name = typeof user?.dospem_1 === 'object' ? user.dospem_1?.name : 'Dosen Pembimbing 1'
@@ -97,9 +98,26 @@ export const BimbinganMahasiswa = () => {
         fetchBimbingan()
     }, [fetchBimbingan])
 
-    const currentHistory = bimbinganList
+    const currentDosenType = activeTab === 'dospem1' ? 'dospem_1' : 'dospem_2'
+    const currentHistory = bimbinganList.filter((item) => item.dosenType === currentDosenType)
     const latestStatus = currentHistory[0]?.status
     const isFormDisabled = latestStatus === 'menunggu'
+    const hasHistory = currentHistory.length > 0
+    const shouldShowUploadForm = (!hasHistory || isUploadFormOpen) && !isFormDisabled
+
+    useEffect(() => {
+        setExpandedId(null)
+        setReplyText('')
+        setIsUploadFormOpen(false)
+        setJudulBimbingan('')
+        setCatatan('')
+        setSelectedFile(null)
+        setError(null)
+        setSuccessMessage(null)
+        if (fileInputRef.current) {
+            fileInputRef.current.value = ''
+        }
+    }, [activeTab])
 
     // Animation variants
     const containerVariants: Variants = {
@@ -131,14 +149,18 @@ export const BimbinganMahasiswa = () => {
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (file && file.type === 'application/pdf') {
+            setError(null)
             setSelectedFile(file)
         } else {
-            alert('Hanya file PDF yang diperbolehkan!')
+            setSelectedFile(null)
+            setSuccessMessage(null)
+            setError('Hanya file PDF yang diperbolehkan!')
         }
     }
 
     const handleSubmit = async () => {
         if (!judulBimbingan || !selectedFile) {
+            setSuccessMessage(null)
             setError('Mohon lengkapi judul dan file!')
             return
         }
@@ -159,6 +181,10 @@ export const BimbinganMahasiswa = () => {
             setJudulBimbingan('')
             setCatatan('')
             setSelectedFile(null)
+            setIsUploadFormOpen(false)
+            if (fileInputRef.current) {
+                fileInputRef.current.value = ''
+            }
 
             // Refresh list
             await fetchBimbingan()
@@ -174,12 +200,16 @@ export const BimbinganMahasiswa = () => {
         if (!replyText.trim()) return
 
         try {
+            setError(null)
+            setSuccessMessage(null)
             await bimbinganService.addReply(bimbinganId, { message: replyText })
             setReplyText('')
+            setSuccessMessage('Balasan berhasil dikirim.')
             // Refresh to show new reply
             await fetchBimbingan()
         } catch (err: unknown) {
             const error = err as { response?: { data?: { message?: string } } }
+            setSuccessMessage(null)
             setError(error.response?.data?.message || 'Gagal mengirim balasan')
         }
     }
@@ -212,11 +242,164 @@ export const BimbinganMahasiswa = () => {
             case 'lanjut_bab':
                 return <Badge className="bg-blue-100 text-blue-600 hover:bg-blue-100 border-0"><ChevronRight className="w-3 h-3 mr-1" />Lanjut BAB</Badge>
             case 'acc_sempro':
-                return <Badge className="bg-purple-100 text-purple-600 hover:bg-purple-100 border-0"><CheckCircle className="w-3 h-3 mr-1" />ACC Sempro</Badge>
+                return <Badge className="bg-purple-100 text-purple-600 hover:bg-purple-100 border-0"><CheckCircle className="w-3 h-3 mr-1" />ACC Sidang</Badge>
             default:
                 return <Badge>{status}</Badge>
         }
     }
+
+    const handleToggleUploadForm = () => {
+        setIsUploadFormOpen((current) => {
+            const nextOpen = !current
+            return nextOpen
+        })
+    }
+
+    const historySection = (
+        <motion.div variants={itemVariants}>
+            <h3 className="text-lg font-bold text-gray-800 mb-4">Riwayat Bimbingan</h3>
+
+            <div className="space-y-3">
+                {currentHistory.length === 0 ? (
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+                        <div className="flex flex-col items-center justify-center text-center">
+                            <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+                                <FileText className="w-8 h-8 text-gray-400" />
+                            </div>
+                            <h3 className="text-lg font-medium text-gray-700 mb-1">Belum ada riwayat bimbingan</h3>
+                            <p className="text-sm text-gray-500">
+                                Mulai kirim bimbingan pertama Anda dengan mengisi form di bawah
+                            </p>
+                        </div>
+                    </div>
+                ) : (
+                    currentHistory.map((item, index) => (
+                        <motion.div
+                            key={item._id}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.05 }}
+                            className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
+                        >
+                            <div
+                                className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                                onClick={() => setExpandedId(expandedId === item._id ? null : item._id)}
+                            >
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                                            <span className="font-bold text-gray-600 text-sm">{item.version}</span>
+                                        </div>
+                                        <div>
+                                            <h4 className="font-semibold text-gray-800">{item.judul}</h4>
+                                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                                                <Paperclip className="w-3 h-3" />
+                                                <span>{item.fileName}</span>
+                                                <span>-</span>
+                                                <span>{item.fileSize}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        {getStatusBadge(item.status)}
+                                        <motion.div animate={{ rotate: expandedId === item._id ? 90 : 0 }}>
+                                            <ChevronRight className="w-5 h-5 text-gray-400" />
+                                        </motion.div>
+                                    </div>
+                                </div>
+                                <p className="text-xs text-gray-400 mt-2">Dikirim: {item.tanggalKirim}</p>
+                            </div>
+
+                            <AnimatePresence>
+                                {expandedId === item._id && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        className="border-t border-gray-100"
+                                    >
+                                        <div className="p-4 space-y-4">
+                                            <div className="bg-blue-50 rounded-xl p-3">
+                                                <p className="text-xs font-medium text-blue-600 mb-1">Catatan Anda:</p>
+                                                <p className="text-sm text-gray-700">{item.catatan}</p>
+                                            </div>
+
+                                            {item.feedback && (
+                                                <div className="bg-gray-50 rounded-xl p-3">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <MessageSquare className="w-4 h-4 text-gray-500" />
+                                                        <p className="text-xs font-medium text-gray-600">Feedback Dosen ({item.tanggalFeedback}):</p>
+                                                    </div>
+                                                    <p className="text-sm text-gray-700">{item.feedback}</p>
+                                                </div>
+                                            )}
+
+                                            {item.replies && item.replies.length > 0 && (
+                                                <div className="space-y-2 pl-4 border-l-2 border-gray-200">
+                                                    {item.replies.map((reply) => (
+                                                        <div key={reply._id || reply.id} className={`p-3 rounded-xl ${reply.senderRole === 'mahasiswa' ? 'bg-blue-50' : 'bg-gray-50'}`}>
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <span className={`text-xs font-medium ${reply.senderRole === 'mahasiswa' ? 'text-blue-600' : 'text-gray-600'}`}>
+                                                                    {reply.senderRole === 'mahasiswa' ? 'Anda' : 'Dosen'}
+                                                                </span>
+                                                                <span className="text-xs text-gray-400">{reply.timestamp || reply.formattedTime}</span>
+                                                            </div>
+                                                            <p className="text-sm text-gray-700">{reply.message}</p>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {item.status !== 'menunggu' && (
+                                                <div className="flex gap-2">
+                                                    <Input
+                                                        placeholder="Tulis balasan..."
+                                                        value={replyText}
+                                                        onChange={(e) => setReplyText(e.target.value)}
+                                                        className="flex-1 rounded-xl"
+                                                    />
+                                                    <Button onClick={() => handleSendReply(item._id)} className="rounded-xl bg-blue-500 hover:bg-blue-600">
+                                                        <Send className="w-4 h-4" />
+                                                    </Button>
+                                                </div>
+                                            )}
+
+                                            <Button
+                                                variant="outline"
+                                                className="w-full rounded-xl"
+                                                onClick={() => handleDownload(item.id || item._id, item.fileName)}
+                                            >
+                                                <Download className="w-4 h-4 mr-2" />
+                                                Download {item.fileName}
+                                            </Button>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </motion.div>
+                    ))
+                )}
+            </div>
+
+            {hasHistory && !isFormDisabled && (
+                <div className="mt-4 flex justify-end">
+                    <button
+                        type="button"
+                        onClick={handleToggleUploadForm}
+                        style={{
+                            backgroundColor: isUploadFormOpen ? '#ffffff' : '#2563eb',
+                            borderColor: isUploadFormOpen ? '#93c5fd' : '#2563eb',
+                            color: isUploadFormOpen ? '#2563eb' : '#ffffff',
+                        }}
+                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold shadow-sm transition hover:shadow-md"
+                    >
+                        <Upload className="w-4 h-4" />
+                        {isUploadFormOpen ? 'Tutup Form' : 'Kirim Bimbingan Baru'}
+                    </button>
+                </div>
+            )}
+        </motion.div>
+    )
 
     return (
         <div className="min-h-screen flex bg-gradient-to-br from-gray-50 via-white to-gray-100">
@@ -378,8 +561,40 @@ export const BimbinganMahasiswa = () => {
                             </motion.button>
                         </motion.div>
 
+                        {historySection}
+
+                        <AnimatePresence>
+                            {(error || successMessage) && (
+                                <motion.div
+                                    variants={itemVariants}
+                                    initial={{ opacity: 0, y: -8 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -8 }}
+                                    className={`flex items-center gap-3 rounded-xl border p-4 ${error
+                                        ? 'border-red-200 bg-red-50 text-red-700'
+                                        : 'border-green-200 bg-green-50 text-green-700'
+                                        }`}
+                                >
+                                    {error ? (
+                                        <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                                    ) : (
+                                        <CheckCircle className="h-5 w-5 flex-shrink-0" />
+                                    )}
+                                    <p className="text-sm font-medium">{error || successMessage}</p>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
                         {/* Upload Form */}
-                        <motion.div variants={itemVariants} className={`bg-white rounded-2xl p-6 shadow-sm border border-gray-100 ${isFormDisabled ? 'opacity-60' : ''}`}>
+                        <AnimatePresence initial={false}>
+                            {shouldShowUploadForm && (
+                                <motion.div
+                                    variants={itemVariants}
+                                    initial={{ opacity: 0, y: 16 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: 12 }}
+                                    className={`bg-white rounded-2xl p-6 shadow-sm border border-gray-100 ${isFormDisabled ? 'opacity-60' : ''}`}
+                                >
                             <div className="flex items-center gap-3 mb-4">
                                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
                                     <Upload className="w-5 h-5 text-white" />
@@ -455,18 +670,20 @@ export const BimbinganMahasiswa = () => {
                                 <motion.div whileHover={{ scale: isFormDisabled ? 1 : 1.01 }} whileTap={{ scale: isFormDisabled ? 1 : 0.99 }}>
                                     <Button
                                         onClick={handleSubmit}
-                                        disabled={isFormDisabled}
+                                        disabled={isFormDisabled || isSubmitting}
                                         className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl py-6"
                                     >
                                         <Send className="w-5 h-5 mr-2" />
-                                        Kirim Bimbingan
+                                        {isSubmitting ? 'Mengirim...' : 'Kirim Bimbingan'}
                                     </Button>
                                 </motion.div>
                             </div>
-                        </motion.div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
 
-                        {/* History Section */}
-                        <motion.div variants={itemVariants}>
+                        {false && (
+                            <motion.div variants={itemVariants}>
                             <h3 className="text-lg font-bold text-gray-800 mb-4">Riwayat Bimbingan</h3>
                             <div className="space-y-3">
                                 {currentHistory.length === 0 ? (
@@ -596,7 +813,8 @@ export const BimbinganMahasiswa = () => {
                                     ))
                                 )}
                             </div>
-                        </motion.div>
+                            </motion.div>
+                        )}
 
                     </motion.div>
                 </main>

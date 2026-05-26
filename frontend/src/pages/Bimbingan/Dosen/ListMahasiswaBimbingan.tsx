@@ -33,6 +33,8 @@ import {
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
 import { getBimbinganList, type Bimbingan } from '@/services/bimbinganService'
+import { FeedbackAlert } from '@/components/FeedbackAlert'
+import { getApiErrorMessage } from '@/lib/errorMessage'
 
 // Types
 interface MahasiswaWithBimbingan {
@@ -64,6 +66,7 @@ export const ListMahasiswaBimbingan = () => {
     const [searchQuery, setSearchQuery] = useState('')
     const [mahasiswaList, setMahasiswaList] = useState<MahasiswaWithBimbingan[]>([])
     const [isLoading, setIsLoading] = useState(true)
+    const [loadError, setLoadError] = useState<string | null>(null)
 
     // Animation variants
     const containerVariants: Variants = {
@@ -97,6 +100,7 @@ export const ListMahasiswaBimbingan = () => {
         const fetchData = async () => {
             try {
                 setIsLoading(true)
+                setLoadError(null)
                 const response = await getBimbinganList()
 
                 // Group bimbingan by mahasiswa
@@ -137,6 +141,7 @@ export const ListMahasiswaBimbingan = () => {
                 setMahasiswaList(Array.from(mahasiswaMap.values()))
             } catch (error) {
                 console.error('Failed to fetch mahasiswa:', error)
+                setLoadError(getApiErrorMessage(error, 'Gagal memuat daftar mahasiswa bimbingan. Silakan refresh halaman.'))
             } finally {
                 setIsLoading(false)
             }
@@ -304,6 +309,7 @@ export const ListMahasiswaBimbingan = () => {
                 {/* Page Content */}
                 <main className="flex-1 p-6 overflow-auto">
                     <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6">
+                        <FeedbackAlert message={loadError} onClose={() => setLoadError(null)} />
 
                         {/* Search & Stats */}
                         <motion.div variants={itemVariants} className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">

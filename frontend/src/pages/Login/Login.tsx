@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { Input } from '@/components/ui/input'
@@ -18,6 +18,64 @@ export const Login = () => {
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
     const [rememberMe, setRememberMe] = useState(false)
+    const [localError, setLocalError] = useState<string | null>(null)
+    const displayError = localError || error
+    const errorBoxRef = useRef<HTMLDivElement | null>(null)
+    const errorTextRef = useRef<HTMLParagraphElement | null>(null)
+
+    const paintLoginError = (message: string) => {
+        const box = errorBoxRef.current || document.getElementById('login-inline-error')
+        const text = errorTextRef.current || document.getElementById('login-inline-error-text')
+
+        if (text) {
+            text.textContent = message
+        }
+
+        if (box) {
+            box.style.display = 'flex'
+            box.style.opacity = '1'
+            box.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+        }
+    }
+
+    const showLoginError = (message: string) => {
+        setLocalError(message)
+        paintLoginError(message)
+        requestAnimationFrame(() => paintLoginError(message))
+        window.setTimeout(() => paintLoginError(message), 50)
+    }
+
+    const hideLoginError = () => {
+        setLocalError(null)
+        const box = errorBoxRef.current || document.getElementById('login-inline-error')
+        const text = errorTextRef.current || document.getElementById('login-inline-error-text')
+
+        if (text) {
+            text.textContent = ''
+        }
+
+        if (box) {
+            box.style.display = 'none'
+        }
+    }
+
+    useEffect(() => {
+        if (displayError) {
+            paintLoginError(displayError)
+        }
+    }, [error, localError, displayError])
+
+    useEffect(() => {
+        const handleLoginError = (event: Event) => {
+            const { detail } = event as CustomEvent<string>
+            if (detail) {
+                showLoginError(detail)
+            }
+        }
+
+        window.addEventListener('simta:login-error', handleLoginError)
+        return () => window.removeEventListener('simta:login-error', handleLoginError)
+    }, [])
 
     // Redirect if already authenticated
     useEffect(() => {
@@ -40,16 +98,20 @@ export const Login = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+        hideLoginError()
+        dispatch(clearError())
 
         if (!username.trim() || !password.trim()) {
+            showLoginError('Username dan password wajib diisi.')
             return
         }
 
         try {
             await dispatch(login({ nim_nip: username, password })).unwrap()
             // Navigation will be handled by the useEffect above
-        } catch {
-            // Error is handled by Redux state
+        } catch (err) {
+            const message = typeof err === 'string' ? err : 'Login gagal. Periksa kembali username dan password.'
+            showLoginError(message)
         }
     }
 
@@ -231,19 +293,19 @@ export const Login = () => {
                         className="space-y-6"
                     >
                         {/* Error Message */}
-                        <AnimatePresence>
-                            {error && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: -10, height: 0 }}
-                                    animate={{ opacity: 1, y: 0, height: 'auto' }}
-                                    exit={{ opacity: 0, y: -10, height: 0 }}
-                                    className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700"
-                                >
-                                    <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                                    <p className="text-sm font-medium">{error}</p>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
+                        <div
+                            id="login-inline-error"
+                            ref={errorBoxRef}
+                            className="items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700"
+                            style={{ display: displayError ? 'flex' : 'none' }}
+                            role="alert"
+                            aria-live="polite"
+                        >
+                            <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0" />
+                            <p id="login-inline-error-text" ref={errorTextRef} className="text-sm font-medium">
+                                {displayError || ''}
+                            </p>
+                        </div>
 
                         {/* Username Field */}
                         <motion.div variants={itemVariants} className="space-y-2">
@@ -262,7 +324,11 @@ export const Login = () => {
                                     type="text"
                                     placeholder="Masukkan username"
                                     value={username}
-                                    onChange={(e) => setUsername(e.target.value)}
+                                    onChange={(e) => {
+                                        setUsername(e.target.value)
+                                        hideLoginError()
+                                        dispatch(clearError())
+                                    }}
                                     className="h-12 px-4 bg-white border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 transition-all duration-300 rounded-xl shadow-sm hover:border-gray-300"
                                 />
                             </motion.div>
@@ -282,7 +348,11 @@ export const Login = () => {
                                     type={showPassword ? 'text' : 'password'}
                                     placeholder="Masukkan password"
                                     value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
+                                    onChange={(e) => {
+                                        setPassword(e.target.value)
+                                        hideLoginError()
+                                        dispatch(clearError())
+                                    }}
                                     className="h-12 px-4 pr-12 bg-white border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 transition-all duration-300 rounded-xl shadow-sm hover:border-gray-300"
                                 />
                                 <motion.button

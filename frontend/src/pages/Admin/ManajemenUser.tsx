@@ -61,6 +61,8 @@ import {
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
 import api from '@/lib/api'
+import { FeedbackAlert } from '@/components/FeedbackAlert'
+import { getApiErrorMessage } from '@/lib/errorMessage'
 
 // Types
 interface UserData {
@@ -101,6 +103,7 @@ export const ManajemenUser = () => {
     const [currentPage, setCurrentPage] = useState(1)
     const [usersData, setUsersData] = useState<UserData[]>([])
     const [isLoading, setIsLoading] = useState(true)
+    const [loadError, setLoadError] = useState<string | null>(null)
 
     // Modal states
     const [showAddModal, setShowAddModal] = useState(false)
@@ -131,6 +134,7 @@ export const ManajemenUser = () => {
         const fetchUsers = async () => {
             try {
                 setIsLoading(true)
+                setLoadError(null)
                 // Fetch ALL users (max limit is 100)
                 const response = await api.get('/users?limit=100')
                 const users = response.data.data || []
@@ -141,6 +145,7 @@ export const ManajemenUser = () => {
                 setDosenList(dosenUsers.map((d: UserData) => ({ _id: d._id, name: d.name })))
             } catch (error) {
                 console.error('Failed to fetch users:', error)
+                setLoadError(getApiErrorMessage(error, 'Gagal memuat data user. Silakan refresh halaman.'))
             } finally {
                 setIsLoading(false)
             }
@@ -151,11 +156,13 @@ export const ManajemenUser = () => {
     // Refetch users after changes
     const refetchUsers = async () => {
         try {
+            setLoadError(null)
             const response = await api.get('/users?limit=100')
             const users = response.data.data || []
             setUsersData(users)
         } catch (error) {
             console.error('Failed to refetch users:', error)
+            setLoadError(getApiErrorMessage(error, 'Gagal memperbarui data user. Silakan refresh halaman.'))
         }
     }
 
@@ -495,6 +502,8 @@ export const ManajemenUser = () => {
                 {/* Page Content */}
                 <main className="flex-1 p-6 overflow-auto">
                     <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6">
+                        <FeedbackAlert message={loadError} onClose={() => setLoadError(null)} />
+
                         {/* Summary Cards */}
                         <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">

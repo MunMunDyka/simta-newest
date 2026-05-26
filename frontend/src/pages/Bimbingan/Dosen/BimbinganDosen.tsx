@@ -43,6 +43,8 @@ import {
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
 import api from '@/lib/api'
+import { FeedbackAlert } from '@/components/FeedbackAlert'
+import { getApiErrorMessage } from '@/lib/errorMessage'
 
 // Menu items
 const menuItems = [
@@ -65,6 +67,7 @@ export const BimbinganDosen = () => {
     const [selectedFile, setSelectedFile] = useState<File | null>(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [, setIsLoading] = useState(true)
+    const [loadError, setLoadError] = useState<string | null>(null)
     const [bimbinganData, setBimbinganData] = useState<{
         id: string
         mahasiswa: { name: string; nim_nip: string; prodi: string; currentProgress: string; judulTA: string }
@@ -100,6 +103,7 @@ export const BimbinganDosen = () => {
 
             try {
                 setIsLoading(true)
+                setLoadError(null)
                 // Fetch ALL bimbingan for this mahasiswa (no limit - for history)
                 const response = await api.get(`/bimbingan`, {
                     params: {
@@ -147,6 +151,7 @@ export const BimbinganDosen = () => {
                 }
             } catch (error) {
                 console.error('Failed to fetch bimbingan:', error)
+                setLoadError(getApiErrorMessage(error, 'Gagal memuat data bimbingan mahasiswa. Silakan refresh halaman.'))
             } finally {
                 setIsLoading(false)
             }
@@ -438,6 +443,7 @@ export const BimbinganDosen = () => {
                 {/* Page Content */}
                 <main className="flex-1 p-6 overflow-auto">
                     <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6 max-w-4xl mx-auto">
+                        <FeedbackAlert message={loadError} onClose={() => setLoadError(null)} />
 
                         {/* Mahasiswa Info Card - Read Only */}
                         <motion.div variants={itemVariants} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">

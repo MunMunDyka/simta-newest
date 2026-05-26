@@ -22,19 +22,18 @@ import {
     ChevronDown,
     LogOut,
     User,
-    MessageCircle,
     TrendingUp,
-    TrendingDown,
     GraduationCap,
     FileEdit,
     CheckCircle,
     XCircle,
-    Target,
     Download,
 } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
 import api from '@/lib/api'
+import { FeedbackAlert } from '@/components/FeedbackAlert'
+import { getApiErrorMessage } from '@/lib/errorMessage'
 
 // Types
 interface DosenInfo {
@@ -56,8 +55,15 @@ interface MahasiswaData {
     dospem_2?: DosenInfo
 }
 
+type BimbinganStatus = 'menunggu' | 'revisi' | 'acc' | 'lanjut_bab' | 'acc_sempro' | null
+
+interface DospemStatus {
+    status: BimbinganStatus
+}
+
 interface BimbinganStats {
-    lastStatus: 'menunggu' | 'revisi' | 'acc' | 'lanjut_bab' | 'acc_sempro' | null
+    dospem1Status: DospemStatus
+    dospem2Status: DospemStatus
     totalBimbingan: number
     pendingCount: number
 }
@@ -99,6 +105,8 @@ const aktivitasItems = [
     { label: 'Jadwal Sidang', icon: Calendar, path: '/jadwal-sidang' },
 ]
 
+const studentMascotUrl = '/maskot_siakad.png'
+
 export const DashboardMhs = () => {
     const navigate = useNavigate()
     const dispatch = useAppDispatch()
@@ -107,12 +115,15 @@ export const DashboardMhs = () => {
     // State for data from API
     const [mahasiswaData, setMahasiswaData] = useState<MahasiswaData | null>(null)
     const [bimbinganStats, setBimbinganStats] = useState<BimbinganStats>({
-        lastStatus: null,
+        dospem1Status: { status: null },
+        dospem2Status: { status: null },
         totalBimbingan: 0,
         pendingCount: 0
     })
     const [semproStatus, setSemproStatus] = useState<SemproStatus | null>(null)
     const [isLoading, setIsLoading] = useState(true)
+    const [loadError, setLoadError] = useState<string | null>(null)
+    const [studentMascotError, setStudentMascotError] = useState(false)
 
 
 
@@ -121,6 +132,7 @@ export const DashboardMhs = () => {
         const fetchData = async () => {
             try {
                 setIsLoading(true)
+                setLoadError(null)
 
                 // Get user data with dosen pembimbing populated
                 const userResponse = await api.get('/auth/me')
@@ -129,32 +141,43 @@ export const DashboardMhs = () => {
 
                 // Get bimbingan stats
                 try {
-                    const bimbinganResponse = await api.get('/bimbingan')
+                    const bimbinganResponse = await api.get('/bimbingan', { params: { limit: 50 } })
                     const bimbinganList = bimbinganResponse.data.data || []
 
                     // Calculate stats
                     const pendingCount = bimbinganList.filter((b: { status: string }) => b.status === 'menunggu').length
-                    const lastBimbingan = bimbinganList[0]
+
+                    // Get last status per dospem
+                    const lastDospem1 = bimbinganList.find((b: { dosenType: string }) => b.dosenType === 'dospem_1')
+                    const lastDospem2 = bimbinganList.find((b: { dosenType: string }) => b.dosenType === 'dospem_2')
 
                     setBimbinganStats({
-                        lastStatus: lastBimbingan?.status || null,
+                        dospem1Status: {
+                            status: lastDospem1?.status || null,
+                        },
+                        dospem2Status: {
+                            status: lastDospem2?.status || null,
+                        },
                         totalBimbingan: bimbinganList.length,
                         pendingCount
                     })
-                } catch {
+                } catch (bimbinganError) {
                     // Bimbingan endpoint might not have data yet
                     console.log('No bimbingan data yet')
+                    setLoadError(getApiErrorMessage(bimbinganError, 'Sebagian data bimbingan gagal dimuat. Data dashboard utama tetap ditampilkan.'))
                 }
 
                 // Get sempro status
                 try {
                     const semproResponse = await api.get(`/bimbingan/sempro-status/${userData._id}`)
                     setSemproStatus(semproResponse.data.data)
-                } catch {
+                } catch (semproError) {
                     console.log('Failed to fetch sempro status')
+                    setLoadError(getApiErrorMessage(semproError, 'Status persiapan sidang gagal dimuat. Data dashboard utama tetap ditampilkan.'))
                 }
             } catch (error) {
                 console.error('Failed to fetch data:', error)
+                setLoadError(getApiErrorMessage(error, 'Gagal memuat data dashboard. Silakan refresh halaman.'))
             } finally {
                 setIsLoading(false)
             }
@@ -244,13 +267,14 @@ export const DashboardMhs = () => {
             case 'lanjut_bab':
                 return 'LANJUT BAB'
             default:
-                return 'BELUM ADA'
+                return 'TIDAK ADA'
         }
     }
 
-    // Navigate to bimbingan with specific dospem tab
-    const handleChatDospem = (dospemNumber: 1 | 2) => {
-        navigate(`/bimbingan/mahasiswa?tab=dospem${dospemNumber}`)
+    const getSidangStatusText = (dospem: SemproStatus['dospem1']) => {
+        if (dospem.ready) return 'Siap maju sidang'
+        if (!dospem.meetsMinimum) return `Belum siap maju sidang - butuh ${dospem.needed} bimbingan lagi`
+        return 'Belum di-ACC Maju Sidang'
     }
 
     // Navigate to bimbingan page
@@ -420,10 +444,66 @@ export const DashboardMhs = () => {
                         animate="visible"
                         className="space-y-6"
                     >
-                        {/* Stats Cards */}
+                        <FeedbackAlert message={loadError} onClose={() => setLoadError(null)} />
+
                         <motion.div
                             variants={itemVariants}
-                            className="grid grid-cols-1 md:grid-cols-3 gap-6"
+                            className="grid grid-cols-1 md:grid-cols-2 gap-6"
+                        >
+                            {/* Left: Greeting */}
+                            <motion.div
+                                variants={cardVariants}
+                                className="relative min-h-[104px] overflow-hidden bg-white rounded-2xl px-6 py-5 pl-[82px] shadow-sm border border-gray-100"
+                            >
+                                <motion.div
+                                    className="absolute left-0 top-1/2 h-24 w-24 -translate-y-1/2 flex items-center justify-start"
+                                    whileHover={{ scale: 1.04 }}
+                                    transition={{ type: 'spring' as const, stiffness: 300 }}
+                                >
+                                    {studentMascotError ? (
+                                        <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center shadow-md border-2 border-blue-200">
+                                            <GraduationCap className="w-8 h-8 text-blue-600" />
+                                        </div>
+                                    ) : (
+                                        <img
+                                            src={studentMascotUrl}
+                                            alt="Maskot SIAKAD"
+                                            className="h-25 w-25 object-contain object-left"
+                                            onError={() => setStudentMascotError(true)}
+                                        />
+                                    )}
+                                </motion.div>
+                                <div className="relative z-10 flex min-h-16 items-center">
+                                    <div className="flex-1 min-w-0">
+                                        <h2 className="text-lg font-bold text-gray-800 leading-tight truncate">
+                                            Hi, {mahasiswaData?.name || user?.name}
+                                        </h2>
+                                        <p className="mt-1 text-sm text-gray-500 leading-tight">
+                                            {mahasiswaData?.nim_nip || 'NIM'} &middot; Prodi <span className="font-semibold text-blue-600">{mahasiswaData?.prodi || 'Sistem Informasi'}</span> &middot; Semester {mahasiswaData?.semester || '8'}
+                                        </p>
+                                        <p className="mt-1.5 text-xs text-blue-500 font-medium italic leading-tight">
+                                            Tetap semangat dan teruslah belajar! 💪
+                                        </p>
+                                    </div>
+                                </div>
+                            </motion.div>
+
+                            {/* Right: Judul TA */}
+                            <motion.div
+                                variants={cardVariants}
+                                className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col items-center justify-center text-center"
+                            >
+                                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Judul Tugas Akhir</p>
+                                <p className="text-sm font-semibold text-gray-800 leading-relaxed">
+                                    {mahasiswaData?.judulTA || 'Judul Tugas Akhir belum diset'}
+                                </p>
+                            </motion.div>
+                        </motion.div>
+
+                        {/* ===== ROW 2: Stats Cards (4 cols) ===== */}
+                        <motion.div
+                            variants={itemVariants}
+                            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4"
                         >
                             {/* Card 1 - Progress */}
                             <motion.div
@@ -431,178 +511,102 @@ export const DashboardMhs = () => {
                                 className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
                                 whileHover={{ y: -2 }}
                             >
-                                <p className="text-sm text-gray-500 font-medium mb-3 text-center">PROGRESS</p>
+                                <p className="text-xs text-gray-400 font-semibold mb-3 text-center uppercase tracking-wider">Progress</p>
                                 <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-4 flex items-center justify-between">
                                     <motion.span
-                                        className="text-xl font-bold text-white"
+                                        className="text-lg font-bold text-white"
                                         initial={{ opacity: 0, x: -10 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: 0.3 }}
                                     >
                                         {mahasiswaData?.currentProgress || 'BAB I'}
                                     </motion.span>
-                                    <motion.div
-                                        className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center"
-                                        whileHover={{ scale: 1.1, rotate: 45 }}
-                                    >
+                                    <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
                                         <TrendingUp className="w-4 h-4 text-white" />
-                                    </motion.div>
+                                    </div>
                                 </div>
                             </motion.div>
 
-                            {/* Card 2 - Status */}
+                            {/* Card 2 - Status Dospem 1 */}
                             <motion.div
                                 variants={cardVariants}
                                 className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
                                 whileHover={{ y: -2 }}
                             >
-                                <p className="text-sm text-gray-500 font-medium mb-3 text-center">STATUS</p>
-                                <div className={`bg-gradient-to-r ${getStatusColor(bimbinganStats.lastStatus)} rounded-xl p-4 flex items-center justify-between`}>
+                                <p className="text-xs text-gray-400 font-semibold mb-3 text-center uppercase tracking-wider">Status Dospem 1</p>
+                                <div className={`bg-gradient-to-r ${getStatusColor(bimbinganStats.dospem1Status.status)} rounded-xl p-4`}>
                                     <motion.span
-                                        className="text-xl font-bold text-white"
+                                        className="text-lg font-bold text-white block"
                                         initial={{ opacity: 0, x: -10 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: 0.4 }}
                                     >
-                                        {getStatusText(bimbinganStats.lastStatus)}
+                                        {getStatusText(bimbinganStats.dospem1Status.status)}
                                     </motion.span>
-                                    <motion.div
-                                        className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center"
-                                        animate={{
-                                            scale: bimbinganStats.lastStatus === 'revisi' ? [1, 1.1, 1] : 1,
-                                        }}
-                                        transition={{ duration: 1.5, repeat: Infinity }}
-                                    >
-                                        <TrendingDown className="w-4 h-4 text-white" />
-                                    </motion.div>
                                 </div>
                             </motion.div>
 
-                            {/* Card 3 - Total Bimbingan */}
+                            {/* Card 3 - Status Dospem 2 */}
                             <motion.div
                                 variants={cardVariants}
                                 className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
                                 whileHover={{ y: -2 }}
                             >
-                                <p className="text-sm text-gray-500 font-medium mb-3 text-center">TOTAL BIMBINGAN</p>
+                                <p className="text-xs text-gray-400 font-semibold mb-3 text-center uppercase tracking-wider">Status Dospem 2</p>
+                                <div className={`bg-gradient-to-r ${getStatusColor(bimbinganStats.dospem2Status.status)} rounded-xl p-4`}>
+                                    <motion.span
+                                        className="text-lg font-bold text-white block"
+                                        initial={{ opacity: 0, x: -10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: 0.45 }}
+                                    >
+                                        {getStatusText(bimbinganStats.dospem2Status.status)}
+                                    </motion.span>
+                                </div>
+                            </motion.div>
+
+                            {/* Card 4 - Total Bimbingan */}
+                            <motion.div
+                                variants={cardVariants}
+                                className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
+                                whileHover={{ y: -2 }}
+                            >
+                                <p className="text-xs text-gray-400 font-semibold mb-3 text-center uppercase tracking-wider">Total Bimbingan</p>
                                 <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl p-4 flex items-center justify-between">
                                     <motion.span
-                                        className="text-xl font-bold text-white"
+                                        className="text-lg font-bold text-white"
                                         initial={{ opacity: 0, x: -10 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: 0.5 }}
                                     >
                                         {bimbinganStats.totalBimbingan} Sesi
                                     </motion.span>
-                                    <motion.div
-                                        className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center"
-                                        whileHover={{ scale: 1.1 }}
-                                    >
+                                    <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
                                         <FileEdit className="w-4 h-4 text-white" />
-                                    </motion.div>
+                                    </div>
                                 </div>
                             </motion.div>
                         </motion.div>
 
-                        {/* Student Greeting Card */}
-                        <motion.div
-                            variants={itemVariants}
-                            className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 overflow-hidden relative"
-                        >
-                            <div className="flex items-center gap-5">
-                                {/* Avatar/Mascot */}
-                                <motion.div
-                                    className="w-20 h-20 rounded-2xl bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center shadow-lg border-2 border-amber-200 flex-shrink-0"
-                                    whileHover={{ scale: 1.05, rotate: 5 }}
-                                    transition={{ type: 'spring' as const, stiffness: 300 }}
-                                >
-                                    <div className="relative">
-                                        <GraduationCap className="w-10 h-10 text-amber-600" />
-                                        <motion.div
-                                            className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"
-                                            animate={{ scale: [1, 1.2, 1] }}
-                                            transition={{ duration: 2, repeat: Infinity }}
-                                        />
-                                    </div>
-                                </motion.div>
 
-                                {/* Greeting Text */}
-                                <div className="flex-1">
-                                    <motion.h2
-                                        className="text-xl font-bold text-gray-800 mb-1"
-                                        initial={{ opacity: 0, x: -10 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: 0.3 }}
-                                    >
-                                        Hi, {mahasiswaData?.name || user?.name} ({mahasiswaData?.nim_nip || 'NIM'})
-                                    </motion.h2>
-                                    <motion.p
-                                        className="text-gray-600 mb-1"
-                                        initial={{ opacity: 0, x: -10 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: 0.4 }}
-                                    >
-                                        Prodi <span className="font-semibold text-blue-600">{mahasiswaData?.prodi || 'Sistem Informasi'}</span> — Semester {mahasiswaData?.semester || '8'}
-                                    </motion.p>
-                                    <motion.p
-                                        className="text-sm text-blue-600 font-medium italic"
-                                        initial={{ opacity: 0, x: -10 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: 0.5 }}
-                                    >
-                                        Tetap semangat dan teruslah belajar! 💪
-                                    </motion.p>
-                                </div>
-
-                                {/* Prodi Badge */}
-                                <motion.div
-                                    className="hidden md:flex flex-col items-end gap-1"
-                                    initial={{ opacity: 0, scale: 0.9 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    transition={{ delay: 0.4 }}
-                                >
-                                    <span className="bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm font-semibold px-4 py-1.5 rounded-full shadow-md">
-                                        {mahasiswaData?.prodi || 'Program Studi'}
-                                    </span>
-                                </motion.div>
-                            </div>
-                        </motion.div>
-
-                        {/* Judul Tugas Akhir Section */}
-                        <motion.div
-                            variants={itemVariants}
-                            className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100"
-                        >
-                            <h3 className="text-lg font-bold text-gray-800 text-center mb-4">JUDUL TUGAS AKHIR</h3>
-                            <motion.p
-                                className="text-center text-gray-700 font-medium leading-relaxed px-4"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ delay: 0.5 }}
-                            >
-                                {mahasiswaData?.judulTA || 'Judul Tugas Akhir belum diset'}
-                            </motion.p>
-                        </motion.div>
-
-                        {/* ===== SEMPRO STATUS CARD ===== */}
+                        {/* ===== STATUS BIMBINGAN CARD ===== */}
                         {semproStatus && (
                             <motion.div
                                 variants={itemVariants}
                                 className={`rounded-2xl p-6 shadow-sm border ${semproStatus.isReady
                                     ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200'
                                     : 'bg-white border-gray-100'
-                                    }`}
+                                }`}
                             >
                                 <div className="flex items-center gap-3 mb-4">
-                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${semproStatus.isReady
-                                        ? 'bg-gradient-to-br from-green-500 to-green-600'
-                                        : 'bg-gradient-to-br from-purple-500 to-purple-600'
-                                        }`}>
-                                        <Target className="w-5 h-5 text-white" />
+                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center shadow-sm border border-blue-200">
+                                        <div className="relative">
+                                            <GraduationCap className="w-5 h-5 text-blue-600" />
+                                            <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-green-500" />
+                                        </div>
                                     </div>
                                     <div>
-                                        <h3 className="text-lg font-bold text-gray-800">Status Persiapan Sempro</h3>
-                                        <p className="text-sm text-gray-500">Minimal {semproStatus.minRequired} bimbingan dan ACC Maju Sempro dari tiap dospem</p>
+                                        <h3 className="text-lg font-bold text-gray-800">Status Bimbingan</h3>
                                     </div>
                                     {semproStatus.isReady && (
                                         <motion.div
@@ -611,7 +615,7 @@ export const DashboardMhs = () => {
                                             transition={{ duration: 2, repeat: Infinity }}
                                         >
                                             <CheckCircle className="w-4 h-4" />
-                                            SIAP SEMPRO!
+                                            SIAP SIDANG!
                                         </motion.div>
                                     )}
                                 </div>
@@ -635,7 +639,7 @@ export const DashboardMhs = () => {
                                                 {semproStatus.dospem1.totalBimbingan}/{semproStatus.dospem1.required} bimbingan
                                             </span>
                                         </div>
-                                        <p className="text-xs text-gray-500 mb-2">
+                                        <p className="text-xs text-gray-500 mb-2 truncate">
                                             {semproStatus.dospem1.dosen?.name || 'Belum ditentukan'}
                                         </p>
                                         {/* Progress Bar */}
@@ -650,16 +654,9 @@ export const DashboardMhs = () => {
                                                 transition={{ duration: 1, delay: 0.3 }}
                                             />
                                         </div>
-                                        <div className="mt-3 space-y-1 text-xs">
-                                            <p className={semproStatus.dospem1.meetsMinimum ? 'text-green-600 font-medium' : 'text-gray-500'}>
-                                                {semproStatus.dospem1.meetsMinimum
-                                                    ? 'Minimal bimbingan terpenuhi'
-                                                    : `Butuh ${semproStatus.dospem1.needed} bimbingan lagi`}
-                                            </p>
-                                            <p className={semproStatus.dospem1.approved ? 'text-green-600 font-medium' : 'text-gray-500'}>
-                                                {semproStatus.dospem1.approved ? 'ACC Maju Sempro diberikan' : 'Menunggu ACC Maju Sempro'}
-                                            </p>
-                                        </div>
+                                        <p className={`text-xs mt-2 ${semproStatus.dospem1.ready ? 'text-green-600 font-medium' : 'text-gray-500'}`}>
+                                            {getSidangStatusText(semproStatus.dospem1)}
+                                        </p>
                                     </div>
 
                                     {/* Dospem 2 Progress */}
@@ -680,7 +677,7 @@ export const DashboardMhs = () => {
                                                 {semproStatus.dospem2.totalBimbingan}/{semproStatus.dospem2.required} bimbingan
                                             </span>
                                         </div>
-                                        <p className="text-xs text-gray-500 mb-2">
+                                        <p className="text-xs text-gray-500 mb-2 truncate">
                                             {semproStatus.dospem2.dosen?.name || 'Belum ditentukan'}
                                         </p>
                                         {/* Progress Bar */}
@@ -695,16 +692,9 @@ export const DashboardMhs = () => {
                                                 transition={{ duration: 1, delay: 0.5 }}
                                             />
                                         </div>
-                                        <div className="mt-3 space-y-1 text-xs">
-                                            <p className={semproStatus.dospem2.meetsMinimum ? 'text-green-600 font-medium' : 'text-gray-500'}>
-                                                {semproStatus.dospem2.meetsMinimum
-                                                    ? 'Minimal bimbingan terpenuhi'
-                                                    : `Butuh ${semproStatus.dospem2.needed} bimbingan lagi`}
-                                            </p>
-                                            <p className={semproStatus.dospem2.approved ? 'text-green-600 font-medium' : 'text-gray-500'}>
-                                                {semproStatus.dospem2.approved ? 'ACC Maju Sempro diberikan' : 'Menunggu ACC Maju Sempro'}
-                                            </p>
-                                        </div>
+                                        <p className={`text-xs mt-2 ${semproStatus.dospem2.ready ? 'text-green-600 font-medium' : 'text-gray-500'}`}>
+                                            {getSidangStatusText(semproStatus.dospem2)}
+                                        </p>
                                     </div>
                                 </div>
 
@@ -712,8 +702,10 @@ export const DashboardMhs = () => {
                                 <div className={`mt-4 p-3 rounded-lg text-center ${semproStatus.isReady
                                     ? 'bg-green-100 text-green-700'
                                     : 'bg-blue-50 text-blue-700'
-                                    }`}>
-                                    <p className="text-sm font-medium">{semproStatus.message}</p>
+                                }`}>
+                                    <p className="text-sm font-medium">
+                                        Syarat Sidang: minimal {semproStatus.minRequired} kali bimbingan dan ACC Maju Sidang dari masing-masing dosen pembimbing.
+                                    </p>
                                 </div>
 
                                 {/* Download Button - Only show when ready */}
@@ -748,94 +740,6 @@ export const DashboardMhs = () => {
                                 )}
                             </motion.div>
                         )}
-
-                        {/* Dosen Pembimbing Section */}
-                        <motion.div
-                            variants={itemVariants}
-                            className="grid grid-cols-1 md:grid-cols-2 gap-6"
-                        >
-                            {/* Dosen Pembimbing 1 */}
-                            <motion.div
-                                variants={cardVariants}
-                                className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-all relative overflow-hidden"
-                                whileHover={{ y: -3, scale: 1.01 }}
-                            >
-                                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-blue-50 to-transparent rounded-bl-full opacity-60"></div>
-                                <div className="absolute bottom-0 left-0 w-16 h-16 bg-gradient-to-tr from-gray-50 to-transparent rounded-tr-full opacity-50"></div>
-
-                                <div className="flex items-start justify-between gap-4 relative z-10">
-                                    <div className="flex items-start gap-4 flex-1">
-                                        <Avatar className="w-14 h-14 border-2 border-blue-100 shadow-sm">
-                                            <AvatarFallback className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
-                                                {mahasiswaData?.dospem_1?.name?.split(' ').map(n => n[0]).slice(0, 2).join('') || 'D1'}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        <div className="flex-1">
-                                            <p className="text-sm font-semibold text-blue-600 mb-1">
-                                                Dosen Pembimbing 1 :
-                                            </p>
-                                            <h4 className="font-bold text-gray-800 text-base mb-1">
-                                                {mahasiswaData?.dospem_1?.name || 'Belum ditentukan'}
-                                            </h4>
-                                            <p className="text-sm text-gray-500">
-                                                NIP : <span className="font-semibold text-gray-700">{mahasiswaData?.dospem_1?.nim_nip || '-'}</span>
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    {/* Chat Button */}
-                                    <motion.button
-                                        className="w-12 h-12 bg-gradient-to-br from-gray-700 to-gray-800 rounded-xl flex items-center justify-center shadow-md hover:from-gray-800 hover:to-gray-900 transition-all flex-shrink-0"
-                                        whileHover={{ scale: 1.08 }}
-                                        whileTap={{ scale: 0.95 }}
-                                        onClick={() => handleChatDospem(1)}
-                                    >
-                                        <MessageCircle className="w-5 h-5 text-white" />
-                                    </motion.button>
-                                </div>
-                            </motion.div>
-
-                            {/* Dosen Pembimbing 2 */}
-                            <motion.div
-                                variants={cardVariants}
-                                className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-all relative overflow-hidden"
-                                whileHover={{ y: -3, scale: 1.01 }}
-                            >
-                                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-blue-50 to-transparent rounded-bl-full opacity-60"></div>
-                                <div className="absolute bottom-0 left-0 w-16 h-16 bg-gradient-to-tr from-gray-50 to-transparent rounded-tr-full opacity-50"></div>
-
-                                <div className="flex items-start justify-between gap-4 relative z-10">
-                                    <div className="flex items-start gap-4 flex-1">
-                                        <Avatar className="w-14 h-14 border-2 border-blue-100 shadow-sm">
-                                            <AvatarFallback className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
-                                                {mahasiswaData?.dospem_2?.name?.split(' ').map(n => n[0]).slice(0, 2).join('') || 'D2'}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        <div className="flex-1">
-                                            <p className="text-sm font-semibold text-blue-600 mb-1">
-                                                Dosen Pembimbing 2 :
-                                            </p>
-                                            <h4 className="font-bold text-gray-800 text-base mb-1">
-                                                {mahasiswaData?.dospem_2?.name || 'Belum ditentukan'}
-                                            </h4>
-                                            <p className="text-sm text-gray-500">
-                                                NIP : <span className="font-semibold text-gray-700">{mahasiswaData?.dospem_2?.nim_nip || '-'}</span>
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    {/* Chat Button */}
-                                    <motion.button
-                                        className="w-12 h-12 bg-gradient-to-br from-gray-700 to-gray-800 rounded-xl flex items-center justify-center shadow-md hover:from-gray-800 hover:to-gray-900 transition-all flex-shrink-0"
-                                        whileHover={{ scale: 1.08 }}
-                                        whileTap={{ scale: 0.95 }}
-                                        onClick={() => handleChatDospem(2)}
-                                    >
-                                        <MessageCircle className="w-5 h-5 text-white" />
-                                    </motion.button>
-                                </div>
-                            </motion.div>
-                        </motion.div>
 
                         {/* Quick Actions */}
                         <motion.div

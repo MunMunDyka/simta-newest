@@ -18,6 +18,9 @@ const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess, sendPaginated, sendCreated } = require('../utils/responseHelper');
 const { notifyDosenBimbinganBaru, notifyMahasiswaFeedback } = require('../services/whatsappService');
+const { notifyDosenBimbinganBaruEmail, notifyMahasiswaFeedbackEmail } = require('../services/emailService');
+
+const MIN_BIMBINGAN_SEMPRO = 5;
 
 const MIN_BIMBINGAN_SEMPRO = 5;
 
@@ -177,7 +180,7 @@ const create = asyncHandler(async (req, res) => {
     });
 
     // Populate for response
-    await bimbingan.populate('dosen', 'name nim_nip whatsapp');
+    await bimbingan.populate('dosen', 'name nim_nip whatsapp email');
 
     console.log(`📤 Bimbingan submitted: ${mahasiswa.name} -> ${bimbingan.dosen.name} (${version})`);
 
@@ -194,6 +197,21 @@ const create = asyncHandler(async (req, res) => {
             .catch(err => console.error('WhatsApp error:', err));
     } else {
         console.log(`⚠️ Dosen ${bimbingan.dosen.name} doesn't have WhatsApp number`);
+    }
+
+    // Send email notification to dosen (non-blocking)
+    if (bimbingan.dosen.email) {
+        notifyDosenBimbinganBaruEmail(bimbingan.dosen.email, mahasiswa.name, judul, catatan)
+            .then(result => {
+                if (result.success) {
+                    console.log(`Email sent to dosen: ${bimbingan.dosen.name}`);
+                } else {
+                    console.log(`Email not sent to dosen: ${result.reason || result.error}`);
+                }
+            })
+            .catch(err => console.error('Email error:', err));
+    } else {
+        console.log(`Dosen ${bimbingan.dosen.name} doesn't have email address`);
     }
 
     sendCreated(res, 'Bimbingan berhasil dikirim. Menunggu feedback dari dosen.', bimbingan);
@@ -267,7 +285,7 @@ const giveFeedback = asyncHandler(async (req, res) => {
         }
     }
 
-    await bimbingan.populate('mahasiswa dosen', 'name nim_nip whatsapp');
+    await bimbingan.populate('mahasiswa dosen', 'name nim_nip whatsapp email');
 
     console.log(`💬 Feedback given: ${req.user.name} -> ${bimbingan.mahasiswa.name} (${status})`);
 
@@ -291,6 +309,28 @@ const giveFeedback = asyncHandler(async (req, res) => {
             .catch(err => console.error('WhatsApp error:', err));
     } else {
         console.log(`⚠️ Mahasiswa ${bimbingan.mahasiswa.name} doesn't have WhatsApp number`);
+    }
+
+    // Send email notification to mahasiswa (non-blocking)
+    if (bimbingan.mahasiswa.email) {
+        const statusText = status === 'acc'
+            ? 'ACC'
+            : status === 'revisi'
+                ? 'Revisi'
+                : status === 'acc_sempro'
+                    ? 'ACC Maju Sidang'
+                    : 'Lanjut BAB';
+        notifyMahasiswaFeedbackEmail(bimbingan.mahasiswa.email, req.user.name, statusText, feedback)
+            .then(result => {
+                if (result.success) {
+                    console.log(`Email sent to mahasiswa: ${bimbingan.mahasiswa.name}`);
+                } else {
+                    console.log(`Email not sent to mahasiswa: ${result.reason || result.error}`);
+                }
+            })
+            .catch(err => console.error('Email error:', err));
+    } else {
+        console.log(`Mahasiswa ${bimbingan.mahasiswa.name} doesn't have email address`);
     }
 
     sendSuccess(res, 200, 'Feedback berhasil diberikan', bimbingan);

@@ -44,6 +44,8 @@ import {
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
 import api from '@/lib/api'
+import { FeedbackAlert } from '@/components/FeedbackAlert'
+import { getApiErrorMessage } from '@/lib/errorMessage'
 
 // Types
 interface JadwalSidangItem {
@@ -88,12 +90,14 @@ export const JadwalSidang = () => {
     const [periode, setPeriode] = useState('1')
     const [jadwalData, setJadwalData] = useState<JadwalSidangItem[]>([])
     const [isLoading, setIsLoading] = useState(true)
+    const [loadError, setLoadError] = useState<string | null>(null)
 
     // Fetch jadwal data from API
     useEffect(() => {
         const fetchJadwal = async () => {
             try {
                 setIsLoading(true)
+                setLoadError(null)
                 const response = await api.get('/jadwal', {
                     params: { limit: 50, viewAll: 'true', status: 'dijadwalkan' }
                 })
@@ -138,6 +142,7 @@ export const JadwalSidang = () => {
                 setJadwalData(transformed)
             } catch (error) {
                 console.error('Failed to fetch jadwal:', error)
+                setLoadError(getApiErrorMessage(error, 'Gagal memuat jadwal sidang. Silakan refresh halaman.'))
                 // Fallback to empty array if API fails
                 setJadwalData([])
             } finally {
@@ -335,6 +340,7 @@ export const JadwalSidang = () => {
                 {/* Page Content */}
                 <main className="flex-1 p-6 overflow-auto">
                     <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6">
+                        <FeedbackAlert message={loadError} onClose={() => setLoadError(null)} />
 
                         {/* Header + Filter Combined */}
                         <motion.div variants={itemVariants} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">

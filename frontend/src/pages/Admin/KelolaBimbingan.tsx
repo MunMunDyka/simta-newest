@@ -25,6 +25,8 @@ import {
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
 import api from '@/lib/api'
+import { FeedbackAlert } from '@/components/FeedbackAlert'
+import { getApiErrorMessage } from '@/lib/errorMessage'
 import {
     getAdminBimbinganSummary, clearBimbinganHistory,
     type AdminBimbinganSummary, type Bimbingan,
@@ -64,6 +66,7 @@ export const KelolaBimbingan = () => {
     const [isLoading, setIsLoading] = useState(false)
     const [isFetchingList, setIsFetchingList] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const [listError, setListError] = useState<string | null>(null)
 
     // Clear modal state
     const [showClearModal, setShowClearModal] = useState(false)
@@ -76,9 +79,13 @@ export const KelolaBimbingan = () => {
         const fetchList = async () => {
             try {
                 setIsFetchingList(true)
+                setListError(null)
                 const res = await api.get('/users', { params: { role: 'mahasiswa', limit: 100 } })
                 setMahasiswaList(res.data.data || [])
-            } catch (e) { console.error(e) }
+            } catch (e) {
+                console.error(e)
+                setListError(getApiErrorMessage(e, 'Gagal memuat daftar mahasiswa. Silakan refresh halaman.'))
+            }
             finally { setIsFetchingList(false) }
         }
         fetchList()
@@ -95,8 +102,7 @@ export const KelolaBimbingan = () => {
                 setSummary(res.data)
             } catch (e: unknown) {
                 console.error(e)
-                const err = e as { response?: { data?: { message?: string }, status?: number } }
-                setError(err.response?.data?.message || `Error ${err.response?.status || 'unknown'}`)
+                setError(getApiErrorMessage(e, 'Gagal memuat data bimbingan mahasiswa. Silakan coba lagi.'))
                 setSummary(null)
             }
             finally { setIsLoading(false) }
@@ -213,6 +219,8 @@ export const KelolaBimbingan = () => {
                 {/* Page Content */}
                 <main className="flex-1 p-6 overflow-auto">
                     <motion.div variants={containerVariants} initial="hidden" animate="visible" className="max-w-6xl mx-auto space-y-6">
+                        <FeedbackAlert message={listError} onClose={() => setListError(null)} />
+
                         {/* Select Mahasiswa */}
                         <motion.div variants={itemVariants} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                             <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><Search className="w-5 h-5 text-orange-500" />Pilih Mahasiswa</h3>

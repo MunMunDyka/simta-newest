@@ -16,6 +16,18 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://lymun-simta.hf.spa
 const MAX_RETRIES = 3;
 const RETRY_DELAY_BASE = 1000; // 1 second base delay
 
+type ApiErrorData = {
+    message?: string;
+    code?: number;
+    errors?: Array<{ message?: string }>;
+};
+
+const getApiErrorMessage = (data: ApiErrorData | undefined, fallback: string) => {
+    const validationMessage = data?.errors?.find((item) => item.message)?.message;
+
+    return validationMessage || data?.message || fallback;
+};
+
 // Create axios instance with longer timeout for slow servers
 const api = axios.create({
     baseURL: API_BASE_URL,
@@ -49,11 +61,25 @@ api.interceptors.response.use(
         // Return data directly for convenience
         return response;
     },
-    async (error: AxiosError<{ message: string; code: number }>) => {
+    async (error: AxiosError<ApiErrorData>) => {
         const originalRequest = error.config as InternalAxiosRequestConfig & {
             _retry?: boolean;
             _retryCount?: number;
         };
+        const requestUrl = originalRequest.url || '';
+        const isLoginRequest = requestUrl.includes('/auth/login');
+        const isAuthRequest = isLoginRequest || requestUrl.includes('/auth/refresh');
+
+        if (isLoginRequest && error.response) {
+            const message = getApiErrorMessage(
+                error.response.data,
+                'Login gagal. Periksa kembali username dan password.'
+            );
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('simta:login-error', { detail: message }));
+            }
+            return Promise.reject(error);
+        }
 
         // Get current retry count
         const retryCount = originalRequest._retryCount || 0;
@@ -83,7 +109,7 @@ api.interceptors.response.use(
         }
 
         // Handle 401 Unauthorized - Token expired
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        if (error.response?.status === 401 && !originalRequest._retry && !isAuthRequest) {
             originalRequest._retry = true;
 
             const refreshToken = localStorage.getItem('refreshToken');

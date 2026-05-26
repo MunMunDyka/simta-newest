@@ -45,6 +45,8 @@ import {
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
 import api from '@/lib/api'
+import { FeedbackAlert } from '@/components/FeedbackAlert'
+import { getApiErrorMessage } from '@/lib/errorMessage'
 
 // Types
 interface MahasiswaData {
@@ -95,6 +97,7 @@ export const ManajemenUserMahasiswa = () => {
 
     const [mahasiswa, setMahasiswa] = useState<MahasiswaData | null>(null)
     const [isLoading, setIsLoading] = useState(true)
+    const [loadError, setLoadError] = useState<string | null>(null)
     const [newPassword, setNewPassword] = useState('')
     const [showPassword, setShowPassword] = useState(false)
     const [showResetModal, setShowResetModal] = useState(false)
@@ -105,10 +108,12 @@ export const ManajemenUserMahasiswa = () => {
         if (!id) return
         try {
             setIsLoading(true)
+            setLoadError(null)
             const response = await api.get(`/users/${id}`)
             setMahasiswa(response.data.data)
         } catch (error) {
             console.error('Failed to fetch mahasiswa:', error)
+            setLoadError(getApiErrorMessage(error, 'Gagal memuat detail mahasiswa. Silakan refresh halaman.'))
         } finally {
             setIsLoading(false)
         }
@@ -351,6 +356,8 @@ export const ManajemenUserMahasiswa = () => {
                         </div>
                     ) : mahasiswa ? (
                         <motion.div variants={containerVariants} initial="hidden" animate="visible" className="max-w-4xl mx-auto space-y-6">
+                            <FeedbackAlert message={loadError} onClose={() => setLoadError(null)} />
+
                             {/* Profile Card */}
                             <motion.div variants={itemVariants} className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
                                 <div className="flex items-start gap-6">
@@ -477,8 +484,8 @@ export const ManajemenUserMahasiswa = () => {
                             </motion.div>
                         </motion.div>
                     ) : (
-                        <div className="flex items-center justify-center h-64">
-                            <p className="text-gray-500">Data mahasiswa tidak ditemukan</p>
+                        <div className="mx-auto flex max-w-3xl flex-col gap-4">
+                            <FeedbackAlert message={loadError || 'Data mahasiswa tidak ditemukan.'} />
                         </div>
                     )}
                 </main>

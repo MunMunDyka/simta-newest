@@ -11,6 +11,7 @@
 'use strict';
 
 const User = require('../models/User');
+const Bimbingan = require('../models/Bimbingan');
 const mongoose = require('mongoose');
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
@@ -319,8 +320,76 @@ const getMahasiswaBimbingan = asyncHandler(async (req, res) => {
     }
 
     const mahasiswa = await User.findMahasiswaByDosen(dosenId);
+    const mahasiswaIds = mahasiswa.map((item) => item._id);
 
-    sendSuccess(res, 200, 'Data mahasiswa bimbingan berhasil diambil', mahasiswa);
+    const bimbinganList = await Bimbingan.find({
+        mahasiswa: { $in: mahasiswaIds },
+        dosen: dosenId
+    })
+        .select('mahasiswa status version judul feedback feedbackDate createdAt updatedAt')
+        .sort({ createdAt: -1 });
+
+    const bimbinganSummary = new Map();
+
+    bimbinganList.forEach((bimbingan) => {
+        const mahasiswaId = bimbingan.mahasiswa.toString();
+        const existing = bimbinganSummary.get(mahasiswaId);
+        const isDosenAction = bimbingan.status !== 'menunggu' && Boolean(bimbingan.feedbackDate);
+
+        if (!existing) {
+            bimbinganSummary.set(mahasiswaId, {
+                lastBimbinganStatus: bimbingan.status,
+                lastBimbinganVersion: bimbingan.version,
+                lastBimbinganJudul: bimbingan.judul,
+                lastBimbinganAt: bimbingan.createdAt,
+                lastFeedbackAt: bimbingan.feedbackDate,
+                pendingReviewCount: bimbingan.status === 'menunggu' ? 1 : 0,
+                lastActionStatus: isDosenAction ? bimbingan.status : null,
+                lastActionVersion: isDosenAction ? bimbingan.version : null,
+                lastActionJudul: isDosenAction ? bimbingan.judul : null,
+                lastActionAt: isDosenAction ? bimbingan.feedbackDate : null
+            });
+            return;
+        }
+
+        if (bimbingan.status === 'menunggu') {
+            existing.pendingReviewCount += 1;
+        }
+
+        if (isDosenAction && (!existing.lastActionAt || bimbingan.feedbackDate > existing.lastActionAt)) {
+            existing.lastActionStatus = bimbingan.status;
+            existing.lastActionVersion = bimbingan.version;
+            existing.lastActionJudul = bimbingan.judul;
+            existing.lastActionAt = bimbingan.feedbackDate;
+        }
+    });
+
+    const mahasiswaWithStatus = mahasiswa.map((item) => {
+        const data = item.toObject();
+        const summary = bimbinganSummary.get(item._id.toString());
+        const pendingReviewCount = summary?.pendingReviewCount || 0;
+
+        return {
+            ...data,
+            lastBimbinganStatus: summary?.lastBimbinganStatus || null,
+            lastBimbinganVersion: summary?.lastBimbinganVersion || null,
+            lastBimbinganJudul: summary?.lastBimbinganJudul || null,
+            lastBimbinganAt: summary?.lastBimbinganAt || null,
+            lastFeedbackAt: summary?.lastFeedbackAt || null,
+            lastActionStatus: summary?.lastActionStatus || null,
+            lastActionVersion: summary?.lastActionVersion || null,
+            lastActionJudul: summary?.lastActionJudul || null,
+            lastActionAt: summary?.lastActionAt || null,
+            pendingReviewCount,
+            reviewStatus: pendingReviewCount > 0
+                ? 'menunggu_review'
+                : summary
+                    ? 'sudah_direview'
+                    : 'belum_ada'
+        };
+    });
+
+    sendSuccess(res, 200, 'Data mahasiswa bimbingan berhasil diambil', mahasiswaWithStatus);
 });
 
 /**

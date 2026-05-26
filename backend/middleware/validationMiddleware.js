@@ -40,8 +40,8 @@ const handleValidationErrors = (req, res, next) => {
  */
 const loginValidation = [
     body('nim_nip')
-        .notEmpty().withMessage('NIM/NIP wajib diisi')
-        .isLength({ min: 5, max: 20 }).withMessage('NIM/NIP harus 5-20 karakter'),
+        .notEmpty().withMessage('Username wajib diisi')
+        .isLength({ min: 5, max: 20 }).withMessage('Username harus 5-20 karakter'),
 
     body('password')
         .notEmpty().withMessage('Password wajib diisi')
