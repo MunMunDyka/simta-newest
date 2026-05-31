@@ -4,13 +4,14 @@
  * ===========================================
  * Service untuk mengirim notifikasi email transactional.
  *
- * Provider: Resend / SMTP
+ * Provider: Resend / SMTP / Gmail API
  */
 
 'use strict';
 
 const axios = require('axios');
 const nodemailer = require('nodemailer');
+const dns = require('dns').promises;
 
 const parseBoolean = (value) => {
     if (typeof value === 'boolean') return value;
@@ -25,10 +26,21 @@ const config = {
     enabled: parseBoolean(process.env.EMAIL_ENABLED),
     from: process.env.EMAIL_FROM || 'SIMTA <noreply@example.com>',
     resendApiKey: process.env.RESEND_API_KEY || '',
+    gmailApi: {
+        clientId: process.env.GMAIL_CLIENT_ID || '',
+        clientSecret: process.env.GMAIL_CLIENT_SECRET || '',
+        refreshToken: process.env.GMAIL_REFRESH_TOKEN || '',
+        userId: process.env.GMAIL_USER_ID || 'me'
+    },
     smtp: {
         host: process.env.SMTP_HOST || 'smtp.gmail.com',
         port: Number(process.env.SMTP_PORT || 465),
         secure: parseBoolean(process.env.SMTP_SECURE ?? 'true'),
+        forceIPv4: parseBoolean(process.env.SMTP_FORCE_IPV4 ?? 'true'),
+        fallbackPorts: (process.env.SMTP_FALLBACK_PORTS || '465,587')
+            .split(',')
+            .map((port) => Number(port.trim()))
+            .filter(Boolean),
         user: process.env.SMTP_USER || '',
         pass: process.env.SMTP_PASS || ''
     },
@@ -52,6 +64,57 @@ const maskEmail = (email = '') => {
 const formatRecipients = (to) => {
     const recipients = Array.isArray(to) ? to : [to];
     return recipients.map(maskEmail).join(', ');
+};
+
+const normalizeRecipients = (to) => Array.isArray(to) ? to : [to];
+
+const encodeBase64Url = (value) => Buffer
+    .from(value, 'utf8')
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+
+const encodeMimeHeader = (value = '') => `=?UTF-8?B?${Buffer.from(String(value), 'utf8').toString('base64')}?=`;
+
+const buildMimeMessage = ({ to, subject, text, html }) => {
+    const recipients = normalizeRecipients(to).join(', ');
+    const headers = [
+        `From: ${config.from}`,
+        `To: ${recipients}`,
+        `Subject: ${encodeMimeHeader(subject)}`,
+        'MIME-Version: 1.0'
+    ];
+
+    if (!html) {
+        return [
+            ...headers,
+            'Content-Type: text/plain; charset="UTF-8"',
+            'Content-Transfer-Encoding: 8bit',
+            '',
+            text || ''
+        ].join('\r\n');
+    }
+
+    const boundary = `simta_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+
+    return [
+        ...headers,
+        `Content-Type: multipart/alternative; boundary="${boundary}"`,
+        '',
+        `--${boundary}`,
+        'Content-Type: text/plain; charset="UTF-8"',
+        'Content-Transfer-Encoding: 8bit',
+        '',
+        text || '',
+        `--${boundary}`,
+        'Content-Type: text/html; charset="UTF-8"',
+        'Content-Transfer-Encoding: 8bit',
+        '',
+        html,
+        `--${boundary}--`,
+        ''
+    ].join('\r\n');
 };
 
 const getStatusBadgeStyle = (status = '') => {
@@ -89,6 +152,8 @@ const logEmailDebug = ({ to, subject }) => {
                 host: config.smtp.host,
                 port: config.smtp.port,
                 secure: config.smtp.secure,
+                forceIPv4: config.smtp.forceIPv4,
+                fallbackPorts: config.smtp.fallbackPorts,
                 user: maskEmail(config.smtp.user),
                 hasPassword: Boolean(config.smtp.pass)
             }
@@ -96,6 +161,14 @@ const logEmailDebug = ({ to, subject }) => {
         resend: config.provider === 'resend'
             ? {
                 hasApiKey: Boolean(config.resendApiKey)
+            }
+            : undefined,
+        gmailApi: config.provider === 'gmail_api'
+            ? {
+                userId: config.gmailApi.userId,
+                hasClientId: Boolean(config.gmailApi.clientId),
+                hasClientSecret: Boolean(config.gmailApi.clientSecret),
+                hasRefreshToken: Boolean(config.gmailApi.refreshToken)
             }
             : undefined
     });
@@ -159,24 +232,123 @@ const sendViaResend = async ({ to, subject, text, html }) => {
     return response.data;
 };
 
-const sendViaSmtp = async ({ to, subject, text, html }) => {
-    const transporter = nodemailer.createTransport({
+const getSmtpConnectionOptions = async (port) => {
+    const secure = port === 465 ? true : port === 587 ? false : config.smtp.secure;
+    const options = {
         host: config.smtp.host,
-        port: config.smtp.port,
-        secure: config.smtp.secure,
+        port,
+        secure,
+        requireTLS: !secure,
+        connectionTimeout: 15000,
+        greetingTimeout: 15000,
+        socketTimeout: 30000,
         auth: {
             user: config.smtp.user,
             pass: config.smtp.pass
+        },
+        tls: {
+            servername: config.smtp.host
         }
-    });
+    };
 
-    return transporter.sendMail({
-        from: config.from,
-        to: Array.isArray(to) ? to.join(', ') : to,
-        subject,
-        text,
-        ...(html ? { html } : {})
-    });
+    if (!config.smtp.forceIPv4) {
+        return options;
+    }
+
+    const [ipv4Address] = await dns.resolve4(config.smtp.host);
+    if (!ipv4Address) {
+        throw new Error(`Tidak menemukan IPv4 untuk SMTP host ${config.smtp.host}`);
+    }
+
+    return {
+        ...options,
+        host: ipv4Address,
+        name: config.smtp.host,
+        tls: {
+            ...options.tls,
+            servername: config.smtp.host
+        }
+    };
+};
+
+const getSmtpAttemptPorts = () => {
+    const ports = [config.smtp.port, ...config.smtp.fallbackPorts];
+    return [...new Set(ports.filter(Boolean))];
+};
+
+const sendViaSmtp = async ({ to, subject, text, html }) => {
+    let lastError;
+
+    for (const port of getSmtpAttemptPorts()) {
+        try {
+            const connectionOptions = await getSmtpConnectionOptions(port);
+            console.log('[Email SMTP] Attempt:', {
+                host: config.smtp.forceIPv4 ? `${connectionOptions.host} (${config.smtp.host})` : connectionOptions.host,
+                port,
+                secure: connectionOptions.secure,
+                requireTLS: connectionOptions.requireTLS,
+                forceIPv4: config.smtp.forceIPv4
+            });
+
+            const transporter = nodemailer.createTransport(connectionOptions);
+
+            return await transporter.sendMail({
+                from: config.from,
+                to: Array.isArray(to) ? to.join(', ') : to,
+                subject,
+                text,
+                ...(html ? { html } : {})
+            });
+        } catch (error) {
+            lastError = error;
+            console.error('[Email SMTP] Attempt failed:', {
+                port,
+                message: error.message,
+                code: error.code,
+                command: error.command,
+                responseCode: error.responseCode,
+                response: error.response
+            });
+        }
+    }
+
+    throw lastError;
+};
+
+const getGmailAccessToken = async () => {
+    const response = await axios.post(
+        'https://oauth2.googleapis.com/token',
+        new URLSearchParams({
+            client_id: config.gmailApi.clientId,
+            client_secret: config.gmailApi.clientSecret,
+            refresh_token: config.gmailApi.refreshToken,
+            grant_type: 'refresh_token'
+        }).toString(),
+        {
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
+        }
+    );
+
+    return response.data.access_token;
+};
+
+const sendViaGmailApi = async ({ to, subject, text, html }) => {
+    const accessToken = await getGmailAccessToken();
+    const raw = encodeBase64Url(buildMimeMessage({ to, subject, text, html }));
+    const response = await axios.post(
+        `https://gmail.googleapis.com/gmail/v1/users/${encodeURIComponent(config.gmailApi.userId)}/messages/send`,
+        { raw },
+        {
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+            }
+        }
+    );
+
+    return response.data;
 };
 
 const sendEmail = async ({ to, subject, text, html }) => {
@@ -202,6 +374,11 @@ const sendEmail = async ({ to, subject, text, html }) => {
         return { success: false, reason: 'no_smtp_credentials' };
     }
 
+    if (config.provider === 'gmail_api' && (!config.gmailApi.clientId || !config.gmailApi.clientSecret || !config.gmailApi.refreshToken)) {
+        console.log('[Email] Gmail API credentials are not configured');
+        return { success: false, reason: 'no_gmail_api_credentials' };
+    }
+
     try {
         console.log(`[Email] Sending to ${formatRecipients(to)} via ${config.provider}`);
 
@@ -212,6 +389,9 @@ const sendEmail = async ({ to, subject, text, html }) => {
                 break;
             case 'smtp':
                 result = await sendViaSmtp({ to, subject, text, html });
+                break;
+            case 'gmail_api':
+                result = await sendViaGmailApi({ to, subject, text, html });
                 break;
             default:
                 console.log('[Email] Unknown provider:', config.provider);
