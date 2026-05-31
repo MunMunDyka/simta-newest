@@ -39,6 +39,7 @@ import {
     ArrowLeft,
     GraduationCap,
     Upload,
+    AlertCircle,
 } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
@@ -56,6 +57,12 @@ const managementItems = [
     { label: 'Jadwal Sidang', icon: Calendar, path: '/jadwal-sidang' },
 ]
 
+type FeedbackFieldErrors = {
+    status?: string
+    feedback?: string
+    feedbackFile?: string
+}
+
 export const BimbinganDosen = () => {
     const { mahasiswaId } = useParams()
     const navigate = useNavigate()
@@ -68,6 +75,9 @@ export const BimbinganDosen = () => {
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [, setIsLoading] = useState(true)
     const [loadError, setLoadError] = useState<string | null>(null)
+    const [formError, setFormError] = useState<string | null>(null)
+    const [formSuccess, setFormSuccess] = useState<string | null>(null)
+    const [fieldErrors, setFieldErrors] = useState<FeedbackFieldErrors>({})
     const [bimbinganData, setBimbinganData] = useState<{
         id: string
         mahasiswa: { name: string; nim_nip: string; prodi: string; currentProgress: string; judulTA: string }
@@ -189,9 +199,24 @@ export const BimbinganDosen = () => {
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
-        if (file) {
-            setSelectedFile(file)
+        if (!file) {
+            setSelectedFile(null)
+            setFieldErrors((current) => ({ ...current, feedbackFile: undefined }))
+            return
         }
+
+        if (file.type !== 'application/pdf') {
+            setSelectedFile(null)
+            setFormSuccess(null)
+            setFieldErrors((current) => ({ ...current, feedbackFile: 'Lampiran harus berformat PDF.' }))
+            if (fileInputRef.current) {
+                fileInputRef.current.value = ''
+            }
+            return
+        }
+
+        setSelectedFile(file)
+        setFieldErrors((current) => ({ ...current, feedbackFile: undefined }))
     }
 
     const handleDownload = async () => {
@@ -214,47 +239,91 @@ export const BimbinganDosen = () => {
             window.URL.revokeObjectURL(url)
         } catch (error) {
             console.error('Download failed:', error)
-            alert('Gagal mendownload file')
+            setFormSuccess(null)
+            setFormError('Gagal mendownload file')
         }
     }
 
-    const handleSubmit = async () => {
+    const validateFeedbackForm = () => {
+        const nextErrors: FeedbackFieldErrors = {}
+        const allowedStatuses = ['revisi', 'acc', 'lanjut_bab', 'acc_sempro']
+        const cleanFeedback = feedback.trim()
+
         if (!status) {
-            alert('Mohon pilih status!')
-            return
+            nextErrors.status = 'Status bimbingan wajib dipilih.'
+        } else if (!allowedStatuses.includes(status)) {
+            nextErrors.status = 'Status bimbingan tidak valid.'
         }
-        if (!feedback.trim()) {
-            alert('Mohon isi feedback!')
-            return
+
+        if (!cleanFeedback) {
+            nextErrors.feedback = 'Komentar atau feedback wajib diisi.'
+        } else if (cleanFeedback.length < 5) {
+            nextErrors.feedback = 'Feedback minimal 5 karakter.'
+        } else if (cleanFeedback.length > 2000) {
+            nextErrors.feedback = 'Feedback maksimal 2000 karakter.'
         }
+
+        if (selectedFile && selectedFile.type !== 'application/pdf') {
+            nextErrors.feedbackFile = 'Lampiran harus berformat PDF.'
+        }
+
         if (!bimbinganData?.id) {
-            alert('Data bimbingan tidak ditemukan')
+            setFormError('Data bimbingan tidak ditemukan.')
+        }
+
+        setFieldErrors(nextErrors)
+        return Object.keys(nextErrors).length === 0 && Boolean(bimbinganData?.id)
+    }
+
+    const mapBackendValidationErrors = (errors: Array<{ field?: string; message?: string }> = []) => {
+        const nextErrors: FeedbackFieldErrors = {}
+
+        errors.forEach((item) => {
+            if (!item.field || !item.message) return
+
+            if (item.field === 'status') nextErrors.status = item.message
+            if (item.field === 'feedback') nextErrors.feedback = item.message
+            if (item.field === 'feedbackFile') nextErrors.feedbackFile = item.message
+        })
+
+        setFieldErrors(nextErrors)
+        return Object.keys(nextErrors).length > 0
+    }
+
+    const handleSubmit = async () => {
+        setFormError(null)
+        setFormSuccess(null)
+
+        if (!validateFeedbackForm()) {
             return
         }
 
         setIsSubmitting(true)
+        const bimbinganId = bimbinganData?.id
 
         try {
             // Create FormData for file upload
             const formData = new FormData()
             formData.append('status', status)
-            formData.append('feedback', feedback)
+            formData.append('feedback', feedback.trim())
             if (selectedFile) {
                 formData.append('feedbackFile', selectedFile)
             }
 
             // Submit feedback via API
-            await api.put(`/bimbingan/${bimbinganData.id}/feedback`, formData, {
+            await api.put(`/bimbingan/${bimbinganId}/feedback`, formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data'
                 }
             })
 
-            alert('Feedback berhasil dikirim!')
+            setFormSuccess('Feedback berhasil dikirim. Mahasiswa akan menerima notifikasi jika email tersedia.')
+            setFieldErrors({})
             navigate('/dosen/mahasiswa')
         } catch (error: unknown) {
-            const err = error as { response?: { data?: { message?: string } } }
-            alert(err.response?.data?.message || 'Gagal mengirim feedback')
+            const err = error as { response?: { data?: { message?: string; errors?: Array<{ field?: string; message?: string }> } } }
+            const hasFieldError = mapBackendValidationErrors(err.response?.data?.errors || [])
+            setFormError(hasFieldError ? null : err.response?.data?.message || 'Gagal mengirim feedback')
         } finally {
             setIsSubmitting(false)
         }
@@ -550,12 +619,32 @@ export const BimbinganDosen = () => {
                                     </div>
                                 </div>
 
+                                {(formError || formSuccess) && (
+                                    <div className={`mb-4 flex items-center gap-3 rounded-xl border p-4 ${formError
+                                        ? 'border-red-200 bg-red-50 text-red-700'
+                                        : 'border-green-200 bg-green-50 text-green-700'
+                                        }`}>
+                                        {formError ? (
+                                            <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                                        ) : (
+                                            <CheckCircle className="h-5 w-5 flex-shrink-0" />
+                                        )}
+                                        <p className="text-sm font-medium">{formError || formSuccess}</p>
+                                    </div>
+                                )}
+
                                 <div className="space-y-4">
                                     {/* Status Selection */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">Status Bimbingan *</label>
-                                        <Select value={status} onValueChange={setStatus}>
-                                            <SelectTrigger className="w-full h-12 rounded-xl">
+                                        <Select
+                                            value={status}
+                                            onValueChange={(value) => {
+                                                setStatus(value)
+                                                setFieldErrors((current) => ({ ...current, status: undefined }))
+                                            }}
+                                        >
+                                            <SelectTrigger className={`w-full h-12 rounded-xl ${fieldErrors.status ? 'border-red-300 bg-red-50 focus:ring-red-200' : ''}`}>
                                                 <SelectValue placeholder="Pilih status..." />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -587,6 +676,12 @@ export const BimbinganDosen = () => {
                                                 </SelectItem>
                                             </SelectContent>
                                         </Select>
+                                        {fieldErrors.status && (
+                                            <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-red-600">
+                                                <AlertCircle className="h-3.5 w-3.5" />
+                                                {fieldErrors.status}
+                                            </p>
+                                        )}
                                     </div>
 
                                     {/* Status Preview */}
@@ -619,9 +714,25 @@ export const BimbinganDosen = () => {
                                         <Textarea
                                             placeholder="Tuliskan feedback, masukan, atau catatan revisi untuk mahasiswa..."
                                             value={feedback}
-                                            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFeedback(e.target.value)}
-                                            className="rounded-xl min-h-[150px]"
+                                            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
+                                                setFeedback(e.target.value)
+                                                setFieldErrors((current) => ({ ...current, feedback: undefined }))
+                                            }}
+                                            className={`rounded-xl min-h-[150px] ${fieldErrors.feedback ? 'border-red-300 bg-red-50 focus-visible:ring-red-200' : ''}`}
                                         />
+                                        <div className="mt-1.5 flex items-center justify-between gap-2">
+                                            {fieldErrors.feedback ? (
+                                                <p className="flex items-center gap-1 text-xs font-medium text-red-600">
+                                                    <AlertCircle className="h-3.5 w-3.5" />
+                                                    {fieldErrors.feedback}
+                                                </p>
+                                            ) : (
+                                                <span />
+                                            )}
+                                            <p className={`text-xs ${feedback.length > 2000 ? 'text-red-600' : 'text-gray-400'}`}>
+                                                {feedback.length}/2000
+                                            </p>
+                                        </div>
                                     </div>
 
                                     {/* Optional File Attachment */}
@@ -638,7 +749,10 @@ export const BimbinganDosen = () => {
                                         />
                                         <div
                                             onClick={() => fileInputRef.current?.click()}
-                                            className="border-2 border-dashed border-gray-200 rounded-xl p-4 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-all"
+                                            className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all ${fieldErrors.feedbackFile
+                                                ? 'border-red-300 bg-red-50 hover:border-red-400'
+                                                : 'border-gray-200 hover:border-blue-400 hover:bg-blue-50/50'
+                                                }`}
                                         >
                                             {selectedFile ? (
                                                 <div className="flex items-center justify-center gap-3">
@@ -653,6 +767,12 @@ export const BimbinganDosen = () => {
                                                 </div>
                                             )}
                                         </div>
+                                        {fieldErrors.feedbackFile && (
+                                            <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-red-600">
+                                                <AlertCircle className="h-3.5 w-3.5" />
+                                                {fieldErrors.feedbackFile}
+                                            </p>
+                                        )}
                                     </div>
 
                                     {/* Submit Button */}
@@ -678,7 +798,7 @@ export const BimbinganDosen = () => {
 
                                     {/* Info */}
                                     <p className="text-xs text-gray-400 text-center">
-                                        * Setelah mengirim feedback, mahasiswa akan menerima notifikasi WhatsApp secara otomatis
+                                        * Setelah mengirim feedback, mahasiswa akan menerima notifikasi email jika alamat email tersedia.
                                     </p>
                                 </div>
                             </div>

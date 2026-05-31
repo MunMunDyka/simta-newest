@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, type Variants } from 'framer-motion'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
-import { logout } from '@/store/slices/authSlice'
+import { logout, setUser } from '@/store/slices/authSlice'
 import api from '@/lib/api'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -64,6 +64,7 @@ export const ProfileDosen = () => {
     const [passwordBaru, setPasswordBaru] = useState('')
     const [konfirmasiPassword, setKonfirmasiPassword] = useState('')
     const [activeSection, setActiveSection] = useState<'info' | 'password' | 'whatsapp'>('info')
+    const [isUpdatingInfo, setIsUpdatingInfo] = useState(false)
     const [isUpdatingWhatsapp, setIsUpdatingWhatsapp] = useState(false)
 
     // Load user data
@@ -105,9 +106,30 @@ export const ProfileDosen = () => {
         },
     }
 
-    const handleUpdateInfo = () => {
-        console.log('Updating info:', { nama, email })
-        alert('Info akun berhasil diperbarui!')
+    const handleUpdateInfo = async () => {
+        if (!nama.trim() || !email.trim()) {
+            alert('Nama dan email wajib diisi!')
+            return
+        }
+
+        setIsUpdatingInfo(true)
+        try {
+            const response = await api.put('/users/profile', {
+                name: nama.trim(),
+                email: email.trim(),
+            })
+            const updatedUser = response.data.data
+            dispatch(setUser(updatedUser))
+            localStorage.setItem('user', JSON.stringify(updatedUser))
+            setNama(updatedUser.name || '')
+            setEmail(updatedUser.email || '')
+            alert('Info akun berhasil diperbarui!')
+        } catch (error: any) {
+            console.error('Error updating profile:', error)
+            alert(error.response?.data?.message || 'Gagal memperbarui info akun')
+        } finally {
+            setIsUpdatingInfo(false)
+        }
     }
 
     const handleUpdatePassword = () => {
@@ -476,9 +498,9 @@ export const ProfileDosen = () => {
                                             </div>
 
                                             <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
-                                                <Button onClick={handleUpdateInfo} className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl h-12">
+                                                <Button onClick={handleUpdateInfo} disabled={isUpdatingInfo} className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl h-12 disabled:opacity-50">
                                                     <Save className="w-5 h-5 mr-2" />
-                                                    Simpan Perubahan
+                                                    {isUpdatingInfo ? 'Menyimpan...' : 'Simpan Perubahan'}
                                                 </Button>
                                             </motion.div>
                                         </motion.div>

@@ -34,6 +34,8 @@ import {
 
 interface MahasiswaOption { _id: string; name: string; nim_nip: string }
 
+const progressOptions = ['BAB I', 'BAB II', 'BAB III', 'BAB IV', 'BAB V', 'Selesai']
+
 const menuItems = [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/admin/dashboard' },
 ]
@@ -72,6 +74,7 @@ export const KelolaBimbingan = () => {
     const [showClearModal, setShowClearModal] = useState(false)
     const [clearScope, setClearScope] = useState<'dospem_1' | 'dospem_2' | 'all'>('all')
     const [resetProgress, setResetProgress] = useState(false)
+    const [resetProgressTo, setResetProgressTo] = useState('BAB I')
     const [isClearing, setIsClearing] = useState(false)
 
     // Fetch mahasiswa list
@@ -114,10 +117,11 @@ export const KelolaBimbingan = () => {
         if (!selectedMhs) return
         try {
             setIsClearing(true)
-            const res = await clearBimbinganHistory(selectedMhs, clearScope, resetProgress)
-            alert(`✅ ${res.message}\n\nBimbingan dihapus: ${res.data.deletedBimbingan}\nReply dihapus: ${res.data.deletedReplies}\nFile dihapus: ${res.data.deletedFiles}${res.data.progressReset ? '\nProgress di-reset ke BAB I' : ''}`)
+            const res = await clearBimbinganHistory(selectedMhs, clearScope, resetProgress, resetProgressTo)
+            alert(`Berhasil: ${res.message}\n\nBimbingan dihapus: ${res.data.deletedBimbingan}\nReply dihapus: ${res.data.deletedReplies}\nFile dihapus: ${res.data.deletedFiles}${res.data.progressReset ? `\nProgress diatur ke ${res.data.progressResetTo || resetProgressTo}` : ''}`)
             setShowClearModal(false)
             setResetProgress(false)
+            setResetProgressTo('BAB I')
             // Refresh
             const refreshRes = await getAdminBimbinganSummary(selectedMhs)
             setSummary(refreshRes.data)
@@ -130,6 +134,7 @@ export const KelolaBimbingan = () => {
     const openClearModal = (scope: 'dospem_1' | 'dospem_2' | 'all') => {
         setClearScope(scope)
         setResetProgress(false)
+        setResetProgressTo('BAB I')
         setShowClearModal(true)
     }
 
@@ -381,13 +386,31 @@ export const KelolaBimbingan = () => {
                             <p className="text-sm text-red-600">Jumlah bimbingan yang akan dihapus: <strong>{getClearCount()}</strong></p>
                             <p className="text-xs text-red-500 mt-1">Termasuk semua reply dan file PDF terkait</p>
                         </div>
-                        <label className="flex items-center gap-3 p-3 bg-orange-50 rounded-xl border border-orange-200 cursor-pointer">
-                            <input type="checkbox" checked={resetProgress} onChange={(e) => setResetProgress(e.target.checked)} className="w-4 h-4 rounded border-orange-300 text-orange-500 focus:ring-orange-500" />
-                            <div>
-                                <p className="text-sm font-medium text-orange-800 flex items-center gap-1"><RotateCcw className="w-3 h-3" />Reset progress ke BAB I</p>
-                                <p className="text-xs text-orange-600">Progress saat ini: {summary?.mahasiswa.currentProgress || 'BAB I'}</p>
-                            </div>
-                        </label>
+                        <div className="p-3 bg-orange-50 rounded-xl border border-orange-200 space-y-3">
+                            <label className="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" checked={resetProgress} onChange={(e) => setResetProgress(e.target.checked)} className="w-4 h-4 rounded border-orange-300 text-orange-500 focus:ring-orange-500" />
+                                <div>
+                                    <p className="text-sm font-medium text-orange-800 flex items-center gap-1"><RotateCcw className="w-3 h-3" />Atur progress setelah hapus</p>
+                                    <p className="text-xs text-orange-600">Progress saat ini: {summary?.mahasiswa.currentProgress || 'BAB I'}</p>
+                                </div>
+                            </label>
+
+                            {resetProgress && (
+                                <div className="pl-7 space-y-1">
+                                    <p className="text-xs font-medium text-orange-700">Reset progress ke</p>
+                                    <Select value={resetProgressTo} onValueChange={setResetProgressTo}>
+                                        <SelectTrigger className="h-10 bg-white border-orange-200 text-orange-900">
+                                            <SelectValue placeholder="Pilih progress" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {progressOptions.map((progress) => (
+                                                <SelectItem key={progress} value={progress}>{progress}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
+                        </div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setShowClearModal(false)} disabled={isClearing}>Batal</Button>

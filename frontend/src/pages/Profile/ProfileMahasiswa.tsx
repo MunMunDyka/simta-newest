@@ -28,7 +28,7 @@ import {
     GraduationCap,
 } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
-import { logout } from '@/store/slices/authSlice'
+import { logout, setUser } from '@/store/slices/authSlice'
 
 // Menu items
 const menuItems = [
@@ -99,9 +99,30 @@ export const ProfileMahasiswa = () => {
         },
     }
 
-    const handleUpdateInfo = () => {
-        console.log('Updating info:', { nama, email })
-        alert('Info akun berhasil diperbarui!')
+    const handleUpdateInfo = async () => {
+        if (!nama.trim() || !email.trim()) {
+            alert('Nama dan email wajib diisi!')
+            return
+        }
+
+        setIsLoading(true)
+        try {
+            const response = await api.put('/users/profile', {
+                name: nama.trim(),
+                email: email.trim(),
+            })
+            const updatedUser = response.data.data
+            dispatch(setUser(updatedUser))
+            localStorage.setItem('user', JSON.stringify(updatedUser))
+            setNama(updatedUser.name || '')
+            setEmail(updatedUser.email || '')
+            alert('Info akun berhasil diperbarui!')
+        } catch (error: any) {
+            console.error('Error updating profile:', error)
+            alert(error.response?.data?.message || 'Gagal memperbarui info akun')
+        } finally {
+            setIsLoading(false)
+        }
     }
 
     const handleUpdatePassword = () => {
@@ -377,9 +398,9 @@ export const ProfileMahasiswa = () => {
                                             </div>
 
                                             <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
-                                                <Button onClick={handleUpdateInfo} className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl h-12">
+                                                <Button onClick={handleUpdateInfo} disabled={isLoading} className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl h-12 disabled:opacity-50">
                                                     <Save className="w-5 h-5 mr-2" />
-                                                    Simpan Perubahan
+                                                    {isLoading ? 'Menyimpan...' : 'Simpan Perubahan'}
                                                 </Button>
                                             </motion.div>
                                         </motion.div>

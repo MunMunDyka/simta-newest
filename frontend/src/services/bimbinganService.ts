@@ -190,6 +190,8 @@ export interface ClearBimbinganResult {
     deletedReplies: number;
     deletedFiles: number;
     progressReset: boolean;
+    progressResetTo?: string | null;
+    currentProgress?: string;
     scope: string;
 }
 
@@ -207,11 +209,12 @@ export const getAdminBimbinganSummary = async (mahasiswaId: string): Promise<Api
 export const clearBimbinganHistory = async (
     mahasiswaId: string,
     dosenType: 'dospem_1' | 'dospem_2' | 'all',
-    resetProgress: boolean = false
+    resetProgress: boolean = false,
+    resetProgressTo?: string
 ): Promise<ApiResponse<ClearBimbinganResult>> => {
     const response = await api.delete<ApiResponse<ClearBimbinganResult>>(
         `/bimbingan/admin/clear/${mahasiswaId}`,
-        { params: { dosenType, resetProgress: resetProgress.toString() } }
+        { params: { dosenType, resetProgress: resetProgress.toString(), ...(resetProgress && resetProgressTo ? { resetProgressTo } : {}) } }
     );
     return response.data;
 };

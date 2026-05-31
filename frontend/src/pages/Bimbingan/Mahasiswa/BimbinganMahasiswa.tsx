@@ -38,6 +38,13 @@ import { logout } from '@/store/slices/authSlice'
 import * as bimbinganService from '@/services/bimbinganService'
 import type { Bimbingan } from '@/services/bimbinganService'
 
+type UploadFieldErrors = {
+    judul?: string
+    dosenType?: string
+    file?: string
+    catatan?: string
+}
+
 // Menu items
 const menuItems = [
     { label: 'Dashboard', icon: LayoutDashboard, active: false, path: '/dashboard/mahasiswa' },
@@ -71,6 +78,7 @@ export const BimbinganMahasiswa = () => {
     const [error, setError] = useState<string | null>(null)
     const [successMessage, setSuccessMessage] = useState<string | null>(null)
     const [isUploadFormOpen, setIsUploadFormOpen] = useState(false)
+    const [fieldErrors, setFieldErrors] = useState<UploadFieldErrors>({})
 
     // Dospem info from user (handle both string and object types)
     const dospem1Name = typeof user?.dospem_1 === 'object' ? user.dospem_1?.name : 'Dosen Pembimbing 1'
@@ -114,6 +122,7 @@ export const BimbinganMahasiswa = () => {
         setSelectedFile(null)
         setError(null)
         setSuccessMessage(null)
+        setFieldErrors({})
         if (fileInputRef.current) {
             fileInputRef.current.value = ''
         }
@@ -150,18 +159,69 @@ export const BimbinganMahasiswa = () => {
         const file = e.target.files?.[0]
         if (file && file.type === 'application/pdf') {
             setError(null)
+            setFieldErrors((current) => ({ ...current, file: undefined }))
             setSelectedFile(file)
         } else {
             setSelectedFile(null)
             setSuccessMessage(null)
-            setError('Hanya file PDF yang diperbolehkan!')
+            setFieldErrors((current) => ({
+                ...current,
+                file: file ? 'File harus berformat PDF.' : 'File PDF wajib diunggah.'
+            }))
         }
     }
 
+    const validateUploadForm = () => {
+        const nextErrors: UploadFieldErrors = {}
+        const judul = judulBimbingan.trim()
+        const currentDosenType = activeTab === 'dospem1' ? 'dospem_1' : 'dospem_2'
+
+        if (!judul) {
+            nextErrors.judul = 'Judul bimbingan wajib diisi.'
+        } else if (judul.length < 5) {
+            nextErrors.judul = 'Judul bimbingan minimal 5 karakter.'
+        } else if (judul.length > 200) {
+            nextErrors.judul = 'Judul bimbingan maksimal 200 karakter.'
+        }
+
+        if (!currentDosenType) {
+            nextErrors.dosenType = 'Pilih dosen pembimbing terlebih dahulu.'
+        }
+
+        if (!selectedFile) {
+            nextErrors.file = 'File PDF wajib diunggah.'
+        } else if (selectedFile.type !== 'application/pdf') {
+            nextErrors.file = 'File harus berformat PDF.'
+        }
+
+        if (catatan.length > 1000) {
+            nextErrors.catatan = 'Catatan maksimal 1000 karakter.'
+        }
+
+        setFieldErrors(nextErrors)
+        return Object.keys(nextErrors).length === 0
+    }
+
+    const mapBackendValidationErrors = (errors: Array<{ field?: string; message?: string }> = []) => {
+        const nextErrors: UploadFieldErrors = {}
+
+        errors.forEach((item) => {
+            if (!item.field || !item.message) return
+
+            if (item.field === 'judul') nextErrors.judul = item.message
+            if (item.field === 'dosenType') nextErrors.dosenType = item.message
+            if (item.field === 'catatan') nextErrors.catatan = item.message
+            if (item.field === 'file') nextErrors.file = item.message
+        })
+
+        setFieldErrors(nextErrors)
+        return Object.keys(nextErrors).length > 0
+    }
+
     const handleSubmit = async () => {
-        if (!judulBimbingan || !selectedFile) {
+        if (!validateUploadForm()) {
             setSuccessMessage(null)
-            setError('Mohon lengkapi judul dan file!')
+            setError(null)
             return
         }
 
@@ -170,11 +230,13 @@ export const BimbinganMahasiswa = () => {
         setSuccessMessage(null)
 
         try {
+            const fileToUpload = selectedFile as File
+
             await bimbinganService.createBimbingan({
-                judul: judulBimbingan,
+                judul: judulBimbingan.trim(),
                 dosenType: activeTab === 'dospem1' ? 'dospem_1' : 'dospem_2',
-                catatan: catatan || undefined,
-                file: selectedFile
+                catatan: catatan.trim() || undefined,
+                file: fileToUpload
             })
 
             setSuccessMessage('Bimbingan berhasil dikirim! Menunggu feedback dari dosen.')
@@ -182,6 +244,7 @@ export const BimbinganMahasiswa = () => {
             setCatatan('')
             setSelectedFile(null)
             setIsUploadFormOpen(false)
+            setFieldErrors({})
             if (fileInputRef.current) {
                 fileInputRef.current.value = ''
             }
@@ -189,8 +252,9 @@ export const BimbinganMahasiswa = () => {
             // Refresh list
             await fetchBimbingan()
         } catch (err: unknown) {
-            const error = err as { response?: { data?: { message?: string } } }
-            setError(error.response?.data?.message || 'Gagal mengirim bimbingan. Silakan coba lagi.')
+            const error = err as { response?: { data?: { message?: string; errors?: Array<{ field?: string; message?: string }> } } }
+            const hasFieldError = mapBackendValidationErrors(error.response?.data?.errors || [])
+            setError(hasFieldError ? null : error.response?.data?.message || 'Gagal mengirim bimbingan. Silakan coba lagi.')
         } finally {
             setIsSubmitting(false)
         }
@@ -612,16 +676,32 @@ export const BimbinganMahasiswa = () => {
                                 </div>
                             )}
 
+                            {fieldErrors.dosenType && (
+                                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2">
+                                    <AlertCircle className="w-5 h-5 text-red-600" />
+                                    <p className="text-sm font-medium text-red-700">{fieldErrors.dosenType}</p>
+                                </div>
+                            )}
+
                             <div className="space-y-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Judul Bimbingan</label>
                                     <Input
                                         placeholder="Contoh: Revisi BAB III - Metodologi Penelitian"
                                         value={judulBimbingan}
-                                        onChange={(e) => setJudulBimbingan(e.target.value)}
+                                        onChange={(e) => {
+                                            setJudulBimbingan(e.target.value)
+                                            setFieldErrors((current) => ({ ...current, judul: undefined }))
+                                        }}
                                         disabled={isFormDisabled}
-                                        className="rounded-xl"
+                                        className={`rounded-xl ${fieldErrors.judul ? 'border-red-300 bg-red-50 focus-visible:ring-red-200' : ''}`}
                                     />
+                                    {fieldErrors.judul && (
+                                        <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-red-600">
+                                            <AlertCircle className="h-3.5 w-3.5" />
+                                            {fieldErrors.judul}
+                                        </p>
+                                    )}
                                 </div>
 
                                 <div>
@@ -636,7 +716,10 @@ export const BimbinganMahasiswa = () => {
                                     />
                                     <div
                                         onClick={() => !isFormDisabled && fileInputRef.current?.click()}
-                                        className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${isFormDisabled ? 'border-gray-200 bg-gray-50' : 'border-blue-200 hover:border-blue-400 hover:bg-blue-50/50'}`}
+                                        className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${fieldErrors.file
+                                            ? 'border-red-300 bg-red-50 hover:border-red-400'
+                                            : isFormDisabled ? 'border-gray-200 bg-gray-50' : 'border-blue-200 hover:border-blue-400 hover:bg-blue-50/50'
+                                            }`}
                                     >
                                         {selectedFile ? (
                                             <div className="flex items-center justify-center gap-3">
@@ -654,6 +737,12 @@ export const BimbinganMahasiswa = () => {
                                             </>
                                         )}
                                     </div>
+                                    {fieldErrors.file && (
+                                        <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-red-600">
+                                            <AlertCircle className="h-3.5 w-3.5" />
+                                            {fieldErrors.file}
+                                        </p>
+                                    )}
                                 </div>
 
                                 <div>
@@ -661,10 +750,26 @@ export const BimbinganMahasiswa = () => {
                                     <Textarea
                                         placeholder="Jelaskan apa saja yang sudah diperbaiki atau ditambahkan..."
                                         value={catatan}
-                                        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCatatan(e.target.value)}
+                                        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
+                                            setCatatan(e.target.value)
+                                            setFieldErrors((current) => ({ ...current, catatan: undefined }))
+                                        }}
                                         disabled={isFormDisabled}
-                                        className="rounded-xl min-h-[100px]"
+                                        className={`rounded-xl min-h-[100px] ${fieldErrors.catatan ? 'border-red-300 bg-red-50 focus-visible:ring-red-200' : ''}`}
                                     />
+                                    <div className="mt-1.5 flex items-center justify-between gap-2">
+                                        {fieldErrors.catatan ? (
+                                            <p className="flex items-center gap-1 text-xs font-medium text-red-600">
+                                                <AlertCircle className="h-3.5 w-3.5" />
+                                                {fieldErrors.catatan}
+                                            </p>
+                                        ) : (
+                                            <span />
+                                        )}
+                                        <p className={`text-xs ${catatan.length > 1000 ? 'text-red-600' : 'text-gray-400'}`}>
+                                            {catatan.length}/1000
+                                        </p>
+                                    </div>
                                 </div>
 
                                 <motion.div whileHover={{ scale: isFormDisabled ? 1 : 1.01 }} whileTap={{ scale: isFormDisabled ? 1 : 0.99 }}>

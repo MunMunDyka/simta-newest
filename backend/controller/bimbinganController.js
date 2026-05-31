@@ -21,6 +21,7 @@ const { notifyDosenBimbinganBaru, notifyMahasiswaFeedback } = require('../servic
 const { notifyDosenBimbinganBaruEmail, notifyMahasiswaFeedbackEmail } = require('../services/emailService');
 
 const MIN_BIMBINGAN_SEMPRO = 5;
+const PROGRESS_OPTIONS = ['BAB I', 'BAB II', 'BAB III', 'BAB IV', 'BAB V', 'Selesai'];
 
 /**
  * @desc    Get all bimbingan (filtered by role)
@@ -273,10 +274,9 @@ const giveFeedback = asyncHandler(async (req, res) => {
     if (status === 'lanjut_bab') {
         const mahasiswa = await User.findById(bimbingan.mahasiswa);
         if (mahasiswa) {
-            const progressOrder = ['BAB I', 'BAB II', 'BAB III', 'BAB IV', 'BAB V', 'Selesai'];
-            const currentIndex = progressOrder.indexOf(mahasiswa.currentProgress);
-            if (currentIndex < progressOrder.length - 1) {
-                mahasiswa.currentProgress = progressOrder[currentIndex + 1];
+            const currentIndex = PROGRESS_OPTIONS.indexOf(mahasiswa.currentProgress);
+            if (currentIndex < PROGRESS_OPTIONS.length - 1) {
+                mahasiswa.currentProgress = PROGRESS_OPTIONS[currentIndex + 1];
                 await mahasiswa.save();
                 console.log(`📈 Progress updated: ${mahasiswa.name} -> ${mahasiswa.currentProgress}`);
             }
@@ -674,10 +674,11 @@ const getAdminBimbinganSummary = asyncHandler(async (req, res) => {
  * @access  Admin
  * @query   dosenType - dospem_1 | dospem_2 | all
  * @query   resetProgress - true | false (optional, default false)
+ * @query   resetProgressTo - BAB I | BAB II | BAB III | BAB IV | BAB V | Selesai (optional)
  */
 const clearBimbinganHistory = asyncHandler(async (req, res) => {
     const { mahasiswaId } = req.params;
-    const { dosenType, resetProgress } = req.query;
+    const { dosenType, resetProgress, resetProgressTo } = req.query;
 
     // Get mahasiswa data
     const mahasiswa = await User.findById(mahasiswaId);
@@ -737,10 +738,18 @@ const clearBimbinganHistory = asyncHandler(async (req, res) => {
 
     // 4. Optionally reset mahasiswa progress
     let progressReset = false;
+    let progressResetTo = null;
     if (resetProgress === 'true') {
-        mahasiswa.currentProgress = 'BAB I';
+        const targetProgress = resetProgressTo || 'BAB I';
+
+        if (!PROGRESS_OPTIONS.includes(targetProgress)) {
+            throw ApiError.badRequest('Target reset progress tidak valid');
+        }
+
+        mahasiswa.currentProgress = targetProgress;
         await mahasiswa.save();
         progressReset = true;
+        progressResetTo = targetProgress;
     }
 
     const scopeLabel = dosenType === 'all' ? 'semua dospem' : dosenType === 'dospem_1' ? 'Dospem 1' : 'Dospem 2';
@@ -751,6 +760,8 @@ const clearBimbinganHistory = asyncHandler(async (req, res) => {
         deletedReplies: deletedReplies.deletedCount,
         deletedFiles: filesDeleted,
         progressReset,
+        progressResetTo,
+        currentProgress: mahasiswa.currentProgress,
         scope: dosenType,
     });
 });

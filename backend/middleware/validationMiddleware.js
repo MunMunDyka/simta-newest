@@ -268,7 +268,12 @@ const updateJadwalValidation = [
 const clearBimbinganValidation = [
     query('dosenType')
         .notEmpty().withMessage('Jenis dosen (dosenType) wajib diisi')
-        .isIn(['dospem_1', 'dospem_2', 'all']).withMessage('dosenType harus: dospem_1, dospem_2, atau all')
+        .isIn(['dospem_1', 'dospem_2', 'all']).withMessage('dosenType harus: dospem_1, dospem_2, atau all'),
+
+    query('resetProgressTo')
+        .optional()
+        .isIn(['BAB I', 'BAB II', 'BAB III', 'BAB IV', 'BAB V', 'Selesai'])
+        .withMessage('Target reset progress tidak valid')
 ];
 
 // ===== Common Validation Rules =====
