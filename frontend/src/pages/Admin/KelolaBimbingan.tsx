@@ -4,6 +4,7 @@ import { motion, type Variants } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Input } from '@/components/ui/input'
 import {
     Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
@@ -20,7 +21,7 @@ import {
 import {
     LayoutDashboard, Users, Calendar, ChevronDown, LogOut, User,
     FileText, BookOpen, Trash2, AlertTriangle, CheckCircle2, Clock, XCircle,
-    ArrowRight, RotateCcw, Search, BarChart3,
+    ArrowRight, RotateCcw, Search, BarChart3, X,
 } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
@@ -63,6 +64,8 @@ export const KelolaBimbingan = () => {
 
     const [mahasiswaList, setMahasiswaList] = useState<MahasiswaOption[]>([])
     const [selectedMhs, setSelectedMhs] = useState<string>('')
+    const [mahasiswaSearch, setMahasiswaSearch] = useState('')
+    const [isMahasiswaDropdownOpen, setIsMahasiswaDropdownOpen] = useState(false)
     const [summary, setSummary] = useState<AdminBimbinganSummary | null>(null)
     const [activeTab, setActiveTab] = useState<'dospem_1' | 'dospem_2'>('dospem_1')
     const [isLoading, setIsLoading] = useState(false)
@@ -140,6 +143,29 @@ export const KelolaBimbingan = () => {
 
     const currentData = summary ? (activeTab === 'dospem_1' ? summary.dospem1 : summary.dospem2) : null
     const currentDosen = summary?.mahasiswa ? (activeTab === 'dospem_1' ? summary.mahasiswa.dospem_1 : summary.mahasiswa.dospem_2) : null
+    const selectedMahasiswaData = mahasiswaList.find((mhs) => mhs._id === selectedMhs)
+    const filteredMahasiswaOptions = mahasiswaList.filter((mhs) => {
+        const keyword = mahasiswaSearch.toLowerCase()
+        return (
+            mhs.name.toLowerCase().includes(keyword) ||
+            mhs.nim_nip.toLowerCase().includes(keyword)
+        )
+    })
+
+    const handleMahasiswaSearchChange = (value: string) => {
+        setMahasiswaSearch(value)
+        setIsMahasiswaDropdownOpen(true)
+
+        if (selectedMahasiswaData && value !== `${selectedMahasiswaData.name} (${selectedMahasiswaData.nim_nip})`) {
+            setSelectedMhs('')
+        }
+    }
+
+    const handleSelectMahasiswa = (mhs: MahasiswaOption) => {
+        setSelectedMhs(mhs._id)
+        setMahasiswaSearch(`${mhs.name} (${mhs.nim_nip})`)
+        setIsMahasiswaDropdownOpen(false)
+    }
 
     const getScopeLabel = () => clearScope === 'all' ? 'Semua Dospem' : clearScope === 'dospem_1' ? 'Dospem 1' : 'Dospem 2'
     const getClearCount = () => {
@@ -229,14 +255,58 @@ export const KelolaBimbingan = () => {
                         {/* Select Mahasiswa */}
                         <motion.div variants={itemVariants} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                             <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><Search className="w-5 h-5 text-orange-500" />Pilih Mahasiswa</h3>
-                            <Select value={selectedMhs} onValueChange={setSelectedMhs} disabled={isFetchingList}>
-                                <SelectTrigger className="w-full"><SelectValue placeholder={isFetchingList ? 'Memuat data...' : 'Pilih mahasiswa...'} /></SelectTrigger>
-                                <SelectContent>
-                                    {mahasiswaList.map((m) => (
-                                        <SelectItem key={m._id} value={m._id}>{m.name} ({m.nim_nip})</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <div className="relative">
+                                <div className="relative">
+                                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                                    <Input
+                                        value={mahasiswaSearch}
+                                        onChange={(e) => handleMahasiswaSearchChange(e.target.value)}
+                                        onFocus={() => setIsMahasiswaDropdownOpen(true)}
+                                        onBlur={() => setTimeout(() => setIsMahasiswaDropdownOpen(false), 120)}
+                                        disabled={isFetchingList}
+                                        placeholder={isFetchingList ? 'Memuat data mahasiswa...' : 'Ketik nama atau NIM mahasiswa...'}
+                                        className="h-11 rounded-xl pl-9 pr-9"
+                                    />
+                                    {selectedMhs && (
+                                        <button
+                                            type="button"
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                                            onMouseDown={(e) => e.preventDefault()}
+                                            onClick={() => {
+                                                setSelectedMhs('')
+                                                setMahasiswaSearch('')
+                                                setIsMahasiswaDropdownOpen(true)
+                                            }}
+                                            aria-label="Hapus pilihan mahasiswa"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </button>
+                                    )}
+                                </div>
+
+                                {isMahasiswaDropdownOpen && !isFetchingList && (
+                                    <div className="absolute z-50 mt-2 max-h-72 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white p-1 shadow-lg">
+                                        {filteredMahasiswaOptions.length === 0 ? (
+                                            <div className="px-3 py-6 text-center text-sm text-gray-500">
+                                                Mahasiswa tidak ditemukan
+                                            </div>
+                                        ) : (
+                                            filteredMahasiswaOptions.map((mhs) => (
+                                                <button
+                                                    key={mhs._id}
+                                                    type="button"
+                                                    className="w-full rounded-lg px-3 py-2 text-left transition-colors hover:bg-orange-50"
+                                                    onMouseDown={(e) => e.preventDefault()}
+                                                    onClick={() => handleSelectMahasiswa(mhs)}
+                                                >
+                                                    <p className="truncate text-sm font-semibold text-gray-800">{mhs.name}</p>
+                                                    <p className="truncate text-xs text-gray-500">{mhs.nim_nip}</p>
+                                                </button>
+                                            ))
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         </motion.div>
 
                         {isLoading && (

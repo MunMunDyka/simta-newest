@@ -155,6 +155,8 @@ export const KelolaJadwal = () => {
     const [mahasiswaList, setMahasiswaList] = useState<UserOption[]>([])
     const [dosenList, setDosenList] = useState<UserOption[]>([])
     const [selectedMahasiswa, setSelectedMahasiswa] = useState('')
+    const [mahasiswaSearch, setMahasiswaSearch] = useState('')
+    const [isMahasiswaDropdownOpen, setIsMahasiswaDropdownOpen] = useState(false)
     const [jenisJadwal, setJenisJadwal] = useState('sidang_proposal')
     const [tanggal, setTanggal] = useState('')
     const [waktuMulai, setWaktuMulai] = useState('')
@@ -399,7 +401,35 @@ export const KelolaJadwal = () => {
         setRuangan('')
         setPenguji1('')
         setPenguji2('')
+        setMahasiswaSearch('')
+        setIsMahasiswaDropdownOpen(false)
     }
+
+    const selectedMahasiswaData = mahasiswaList.find((mhs) => mhs._id === selectedMahasiswa)
+    const filteredMahasiswaOptions = mahasiswaList.filter((mhs) => {
+        const keyword = mahasiswaSearch.toLowerCase()
+        return (
+            mhs.name.toLowerCase().includes(keyword) ||
+            mhs.nim_nip.toLowerCase().includes(keyword) ||
+            (mhs.judulTA || '').toLowerCase().includes(keyword)
+        )
+    })
+
+    const handleMahasiswaSearchChange = (value: string) => {
+        setMahasiswaSearch(value)
+        setIsMahasiswaDropdownOpen(true)
+        if (selectedMahasiswaData && value !== `${selectedMahasiswaData.name} (${selectedMahasiswaData.nim_nip})`) {
+            setSelectedMahasiswa('')
+        }
+    }
+
+    const handleSelectMahasiswa = (mhs: UserOption) => {
+        setSelectedMahasiswa(mhs._id)
+        setMahasiswaSearch(`${mhs.name} (${mhs.nim_nip})`)
+        setIsMahasiswaDropdownOpen(false)
+    }
+
+    const formatDosenOption = (dosen: UserOption) => `${dosen.name} (${dosen.nim_nip})`
 
     // Open Hapus Permanen modal
     const openHapusModal = (jadwal: JadwalSidang) => {
@@ -880,7 +910,7 @@ export const KelolaJadwal = () => {
 
             {/* Create Jadwal Modal */}
             <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                <DialogContent className="max-w-lg">
+                <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <Calendar className="w-5 h-5 text-orange-500" />
@@ -895,18 +925,60 @@ export const KelolaJadwal = () => {
                         {/* Mahasiswa */}
                         <div>
                             <Label className="text-sm font-medium">Mahasiswa *</Label>
-                            <Select value={selectedMahasiswa} onValueChange={setSelectedMahasiswa}>
-                                <SelectTrigger className="mt-1">
-                                    <SelectValue placeholder="Pilih mahasiswa..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {mahasiswaList.map(mhs => (
-                                        <SelectItem key={mhs._id} value={mhs._id}>
-                                            {mhs.name} ({mhs.nim_nip})
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <div className="relative mt-1">
+                                <div className="relative">
+                                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                                    <Input
+                                        value={mahasiswaSearch}
+                                        onChange={(e) => handleMahasiswaSearchChange(e.target.value)}
+                                        onFocus={() => setIsMahasiswaDropdownOpen(true)}
+                                        onBlur={() => setTimeout(() => setIsMahasiswaDropdownOpen(false), 120)}
+                                        placeholder="Ketik nama atau NIM mahasiswa..."
+                                        className="h-10 rounded-xl pl-9 pr-9"
+                                    />
+                                    {selectedMahasiswa && (
+                                        <button
+                                            type="button"
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                                            onMouseDown={(e) => e.preventDefault()}
+                                            onClick={() => {
+                                                setSelectedMahasiswa('')
+                                                setMahasiswaSearch('')
+                                                setIsMahasiswaDropdownOpen(true)
+                                            }}
+                                            aria-label="Hapus pilihan mahasiswa"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </button>
+                                    )}
+                                </div>
+
+                                {isMahasiswaDropdownOpen && (
+                                    <div className="absolute z-50 mt-2 max-h-64 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white p-1 shadow-lg">
+                                        {filteredMahasiswaOptions.length === 0 ? (
+                                            <div className="px-3 py-6 text-center text-sm text-gray-500">
+                                                Mahasiswa tidak ditemukan
+                                            </div>
+                                        ) : (
+                                            filteredMahasiswaOptions.map((mhs) => (
+                                                <button
+                                                    key={mhs._id}
+                                                    type="button"
+                                                    className="w-full rounded-lg px-3 py-2 text-left transition-colors hover:bg-orange-50"
+                                                    onMouseDown={(e) => e.preventDefault()}
+                                                    onClick={() => handleSelectMahasiswa(mhs)}
+                                                >
+                                                    <p className="truncate text-sm font-semibold text-gray-800">{mhs.name}</p>
+                                                    <p className="truncate text-xs text-gray-500">{mhs.nim_nip}</p>
+                                                    {mhs.judulTA && (
+                                                        <p className="mt-0.5 truncate text-xs text-gray-400">{mhs.judulTA}</p>
+                                                    )}
+                                                </button>
+                                            ))
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         {/* Jenis Jadwal */}
@@ -973,14 +1045,20 @@ export const KelolaJadwal = () => {
                         <div className="grid grid-cols-2 gap-3">
                             <div>
                                 <Label className="text-sm font-medium">Penguji 1</Label>
-                                <Select value={penguji1} onValueChange={setPenguji1}>
-                                    <SelectTrigger className="mt-1">
+                                <Select
+                                    value={penguji1}
+                                    onValueChange={(value) => {
+                                        setPenguji1(value)
+                                        if (value === penguji2) setPenguji2('')
+                                    }}
+                                >
+                                    <SelectTrigger className="mt-1 h-11 w-full rounded-xl [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:max-w-[calc(100%-1.5rem)] [&_[data-slot=select-value]]:truncate">
                                         <SelectValue placeholder="Pilih penguji..." />
                                     </SelectTrigger>
-                                    <SelectContent>
+                                    <SelectContent position="popper" align="start" className="z-[100] w-[var(--radix-select-trigger-width)] min-w-[280px]">
                                         {dosenList.map(dosen => (
-                                            <SelectItem key={dosen._id} value={dosen._id}>
-                                                {dosen.name}
+                                            <SelectItem key={dosen._id} value={dosen._id} className="max-w-[360px] truncate py-2 pr-8" textValue={formatDosenOption(dosen)}>
+                                                {formatDosenOption(dosen)}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -989,13 +1067,13 @@ export const KelolaJadwal = () => {
                             <div>
                                 <Label className="text-sm font-medium">Penguji 2</Label>
                                 <Select value={penguji2} onValueChange={setPenguji2}>
-                                    <SelectTrigger className="mt-1">
+                                    <SelectTrigger className="mt-1 h-11 w-full rounded-xl [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:max-w-[calc(100%-1.5rem)] [&_[data-slot=select-value]]:truncate">
                                         <SelectValue placeholder="Pilih penguji..." />
                                     </SelectTrigger>
-                                    <SelectContent>
+                                    <SelectContent position="popper" align="start" className="z-[100] w-[var(--radix-select-trigger-width)] min-w-[280px]">
                                         {dosenList.filter(d => d._id !== penguji1).map(dosen => (
-                                            <SelectItem key={dosen._id} value={dosen._id}>
-                                                {dosen.name}
+                                            <SelectItem key={dosen._id} value={dosen._id} className="max-w-[360px] truncate py-2 pr-8" textValue={formatDosenOption(dosen)}>
+                                                {formatDosenOption(dosen)}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -1097,14 +1175,20 @@ export const KelolaJadwal = () => {
                         <div className="grid grid-cols-2 gap-3">
                             <div>
                                 <Label className="text-sm font-medium">Penguji 1</Label>
-                                <Select value={penguji1} onValueChange={setPenguji1}>
-                                    <SelectTrigger className="mt-1">
+                                <Select
+                                    value={penguji1}
+                                    onValueChange={(value) => {
+                                        setPenguji1(value)
+                                        if (value === penguji2) setPenguji2('')
+                                    }}
+                                >
+                                    <SelectTrigger className="mt-1 h-11 w-full rounded-xl [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:max-w-[calc(100%-1.5rem)] [&_[data-slot=select-value]]:truncate">
                                         <SelectValue placeholder="Pilih penguji..." />
                                     </SelectTrigger>
-                                    <SelectContent>
+                                    <SelectContent position="popper" align="start" className="z-[100] w-[var(--radix-select-trigger-width)] min-w-[280px]">
                                         {dosenList.map(dosen => (
-                                            <SelectItem key={dosen._id} value={dosen._id}>
-                                                {dosen.name}
+                                            <SelectItem key={dosen._id} value={dosen._id} className="max-w-[360px] truncate py-2 pr-8" textValue={formatDosenOption(dosen)}>
+                                                {formatDosenOption(dosen)}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -1113,13 +1197,13 @@ export const KelolaJadwal = () => {
                             <div>
                                 <Label className="text-sm font-medium">Penguji 2</Label>
                                 <Select value={penguji2} onValueChange={setPenguji2}>
-                                    <SelectTrigger className="mt-1">
+                                    <SelectTrigger className="mt-1 h-11 w-full rounded-xl [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:max-w-[calc(100%-1.5rem)] [&_[data-slot=select-value]]:truncate">
                                         <SelectValue placeholder="Pilih penguji..." />
                                     </SelectTrigger>
-                                    <SelectContent>
+                                    <SelectContent position="popper" align="start" className="z-[100] w-[var(--radix-select-trigger-width)] min-w-[280px]">
                                         {dosenList.filter(d => d._id !== penguji1).map(dosen => (
-                                            <SelectItem key={dosen._id} value={dosen._id}>
-                                                {dosen.name}
+                                            <SelectItem key={dosen._id} value={dosen._id} className="max-w-[360px] truncate py-2 pr-8" textValue={formatDosenOption(dosen)}>
+                                                {formatDosenOption(dosen)}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>

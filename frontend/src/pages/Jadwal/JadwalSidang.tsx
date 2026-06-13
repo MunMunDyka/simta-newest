@@ -515,8 +515,8 @@ export const JadwalSidang = () => {
                                                             <p className="text-gray-400 text-xs">{jadwal.nim}</p>
                                                         </div>
                                                     </TableCell>
-                                                    <TableCell className="py-3 px-3" style={{ maxWidth: '250px' }}>
-                                                        <p className="text-gray-600 text-xs line-clamp-2">{jadwal.judul}</p>
+                                                    <TableCell className="py-3 px-3 align-top" style={{ maxWidth: '320px' }}>
+                                                        <p className="text-gray-600 text-xs leading-relaxed whitespace-normal break-words">{jadwal.judul}</p>
                                                     </TableCell>
                                                     <TableCell className="py-3 px-3">
                                                         <div className="space-y-0.5">

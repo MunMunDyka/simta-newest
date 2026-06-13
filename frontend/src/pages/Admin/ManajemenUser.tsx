@@ -334,7 +334,13 @@ export const ManajemenUser = () => {
         if (role === 'mahasiswa') {
             return <Badge className="bg-blue-100 text-blue-600 hover:bg-blue-100 border-0">Mahasiswa</Badge>
         }
-        return <Badge className="bg-purple-100 text-purple-600 hover:bg-purple-100 border-0">Dosen</Badge>
+        if (role === 'dosen') {
+            return <Badge className="bg-purple-100 text-purple-600 hover:bg-purple-100 border-0">Dosen</Badge>
+        }
+        if (role === 'admin') {
+            return <Badge className="bg-orange-100 text-orange-600 hover:bg-orange-100 border-0">Admin</Badge>
+        }
+        return <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 border-0">{role}</Badge>
     }
 
     return (

@@ -382,11 +382,41 @@ export const DashboardDosen = () => {
         student.nim.includes(searchQuery)
     )
 
-    const totalPages = Math.ceil(filteredStudents.length / parseInt(entriesPerPage))
+    const pageSize = parseInt(entriesPerPage, 10) || 10
+    const totalPages = Math.max(1, Math.ceil(filteredStudents.length / pageSize))
+    const safeCurrentPage = Math.min(currentPage, totalPages)
+    const startIndex = (safeCurrentPage - 1) * pageSize
+    const paginatedStudents = filteredStudents.slice(startIndex, startIndex + pageSize)
+    const getPageNumbers = () => {
+        const pages = []
+        const maxVisible = 5
+        let start = Math.max(1, safeCurrentPage - Math.floor(maxVisible / 2))
+        const end = Math.min(totalPages, start + maxVisible - 1)
+
+        if (end - start + 1 < maxVisible) {
+            start = Math.max(1, end - maxVisible + 1)
+        }
+
+        for (let page = start; page <= end; page++) {
+            pages.push(page)
+        }
+
+        return pages
+    }
     const recentActions = studentsData
         .filter((student) => Boolean(student.lastActionStatus && student.lastActionAt))
         .sort((a, b) => new Date(b.lastActionAt || 0).getTime() - new Date(a.lastActionAt || 0).getTime())
         .slice(0, 5)
+
+    useEffect(() => {
+        setCurrentPage(1)
+    }, [entriesPerPage, searchQuery])
+
+    useEffect(() => {
+        if (currentPage > totalPages) {
+            setCurrentPage(totalPages)
+        }
+    }, [currentPage, totalPages])
 
     return (
         <div className="min-h-screen flex bg-gradient-to-br from-gray-50 via-white to-gray-100">
@@ -819,7 +849,7 @@ export const DashboardDosen = () => {
                                                 </TableCell>
                                             </TableRow>
                                         ) : (
-                                            filteredStudents.map((student, index) => (
+                                            paginatedStudents.map((student, index) => (
                                                 <motion.tr
                                                     key={student.id}
                                                     initial={{ opacity: 0, y: 10 }}
@@ -857,18 +887,18 @@ export const DashboardDosen = () => {
                                     variant="ghost"
                                     size="sm"
                                     className="text-gray-600 hover:text-gray-800"
-                                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                                    disabled={currentPage === 1}
+                                    onClick={() => setCurrentPage(Math.max(1, safeCurrentPage - 1))}
+                                    disabled={safeCurrentPage === 1}
                                 >
                                     <ChevronLeft className="w-4 h-4 mr-1" />
                                     Previous
                                 </Button>
 
-                                {[1, 2, 3].map((page) => (
+                                {getPageNumbers().map((page) => (
                                     <motion.button
                                         key={page}
                                         onClick={() => setCurrentPage(page)}
-                                        className={`w-8 h-8 rounded-lg font-medium transition-all ${currentPage === page
+                                        className={`w-8 h-8 rounded-lg font-medium transition-all ${safeCurrentPage === page
                                             ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md'
                                             : 'text-gray-600 hover:bg-gray-100'
                                             }`}
@@ -883,8 +913,8 @@ export const DashboardDosen = () => {
                                     variant="ghost"
                                     size="sm"
                                     className="text-gray-600 hover:text-gray-800"
-                                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                                    disabled={currentPage === totalPages}
+                                    onClick={() => setCurrentPage(Math.min(totalPages, safeCurrentPage + 1))}
+                                    disabled={safeCurrentPage === totalPages}
                                 >
                                     Next
                                     <ChevronRight className="w-4 h-4 ml-1" />
