@@ -10,7 +10,7 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig, type AxiosRequestConfig } from 'axios';
 
 // API Base URL
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://lymun-simta.hf.space/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 // Retry Configuration
 const MAX_RETRIES = 3;

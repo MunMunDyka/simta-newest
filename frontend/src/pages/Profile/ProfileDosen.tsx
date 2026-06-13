@@ -209,7 +209,9 @@ export const ProfileDosen = () => {
         if (!avatarUrl) return undefined
         // If avatar starts with 'uploads/', prepend the backend base URL
         if (avatarUrl.startsWith('uploads/') || avatarUrl.startsWith('uploads\\')) {
-            return `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/${avatarUrl.replace(/\\/g, '/')}`
+            const apiBaseUrl = import.meta.env.VITE_API_URL || '/api'
+            const assetBaseUrl = apiBaseUrl.replace(/\/api\/?$/, '')
+            return `${assetBaseUrl}/${avatarUrl.replace(/\\/g, '/')}`
         }
         return avatarUrl
     }
