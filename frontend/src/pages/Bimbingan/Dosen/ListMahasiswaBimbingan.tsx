@@ -29,10 +29,12 @@ import {
     User,
     Eye,
     Clock,
+    Download,
 } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
 import { getBimbinganList, type Bimbingan } from '@/services/bimbinganService'
+import api from '@/lib/api'
 import { FeedbackAlert } from '@/components/FeedbackAlert'
 import { getApiErrorMessage } from '@/lib/errorMessage'
 
@@ -47,6 +49,7 @@ interface MahasiswaWithBimbingan {
     lastUpdate: string
     pendingCount: number
     status: 'menunggu' | 'revisi' | 'acc' | 'lanjut_bab' | 'acc_sempro'
+    isSemproReady: boolean
 }
 
 // Menu items untuk dosen
@@ -123,6 +126,7 @@ export const ListMahasiswaBimbingan = () => {
                             lastUpdate: new Date(bimbingan.createdAt).toLocaleDateString('id-ID'),
                             pendingCount: bimbingan.status === 'menunggu' ? 1 : 0,
                             status: bimbingan.status,
+                            isSemproReady: false,
                         })
                     } else {
                         // Update with latest info and count pending
@@ -138,7 +142,19 @@ export const ListMahasiswaBimbingan = () => {
                     }
                 })
 
-                setMahasiswaList(Array.from(mahasiswaMap.values()))
+                const mahasiswaArray = Array.from(mahasiswaMap.values())
+
+                // Fetch sempro readiness for each mahasiswa (parallel)
+                await Promise.all(mahasiswaArray.map(async (mhs) => {
+                    try {
+                        const res = await api.get(`/bimbingan/sempro-status/${mhs.id}`)
+                        mhs.isSemproReady = res.data.data?.isReady || false
+                    } catch {
+                        mhs.isSemproReady = false
+                    }
+                }))
+
+                setMahasiswaList(mahasiswaArray)
             } catch (error) {
                 console.error('Failed to fetch mahasiswa:', error)
                 setLoadError(getApiErrorMessage(error, 'Gagal memuat daftar mahasiswa bimbingan. Silakan refresh halaman.'))
@@ -176,6 +192,27 @@ export const ListMahasiswaBimbingan = () => {
                 return <Badge className="bg-purple-100 text-purple-600 hover:bg-purple-100 border-0">ACC Sempro</Badge>
             default:
                 return <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 border-0">-</Badge>
+        }
+    }
+
+    const handleDownloadSurat = async (e: React.MouseEvent, mhs: MahasiswaWithBimbingan) => {
+        e.stopPropagation()
+        try {
+            const response = await api.get(
+                `/bimbingan/generate-surat-sempro/${mhs.id}`,
+                { responseType: 'blob' }
+            )
+            const url = window.URL.createObjectURL(new Blob([response.data]))
+            const link = document.createElement('a')
+            link.href = url
+            link.setAttribute('download', `Surat_Persetujuan_Sempro_${mhs.nim || mhs.nama}.docx`)
+            document.body.appendChild(link)
+            link.click()
+            link.remove()
+            window.URL.revokeObjectURL(url)
+        } catch (error) {
+            console.error('Download surat failed:', error)
+            setLoadError('Gagal mengunduh surat persetujuan sempro. Silakan coba lagi.')
         }
     }
 
@@ -378,6 +415,17 @@ export const ListMahasiswaBimbingan = () => {
                                                     <p className="text-xs text-gray-500">Update: {mahasiswa.lastUpdate}</p>
                                                 </div>
                                                 {getStatusBadge(mahasiswa.status, mahasiswa.pendingCount)}
+                                                {mahasiswa.isSemproReady && (
+                                                    <motion.button
+                                                        className="p-2 rounded-lg bg-green-50 text-green-600 hover:bg-green-100"
+                                                        whileHover={{ scale: 1.1 }}
+                                                        whileTap={{ scale: 0.95 }}
+                                                        onClick={(e) => handleDownloadSurat(e, mahasiswa)}
+                                                        title="Download Surat Persetujuan Sempro"
+                                                    >
+                                                        <Download className="w-5 h-5" />
+                                                    </motion.button>
+                                                )}
                                                 <motion.button
                                                     className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100"
                                                     whileHover={{ scale: 1.1 }}

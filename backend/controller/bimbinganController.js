@@ -14,14 +14,68 @@ const fs = require('fs');
 const Bimbingan = require('../models/Bimbingan');
 const Reply = require('../models/Reply');
 const User = require('../models/User');
+const SystemSetting = require('../models/SystemSetting');
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess, sendPaginated, sendCreated } = require('../utils/responseHelper');
 const { notifyDosenBimbinganBaru, notifyMahasiswaFeedback } = require('../services/whatsappService');
 const { notifyDosenBimbinganBaruEmail, notifyMahasiswaFeedbackEmail } = require('../services/emailService');
 
-const MIN_BIMBINGAN_SEMPRO = 5;
+const DEFAULT_MIN_BIMBINGAN_SEMPRO = parseInt(process.env.MIN_BIMBINGAN_SEMPRO, 10) || 5;
+const MIN_BIMBINGAN_SETTING_PREFIX = 'min_bimbingan_sempro';
 const PROGRESS_OPTIONS = ['BAB I', 'BAB II', 'BAB III', 'BAB IV', 'BAB V', 'Selesai'];
+
+const getMinBimbinganSettingKey = (mahasiswaId) => `${MIN_BIMBINGAN_SETTING_PREFIX}:${mahasiswaId}`;
+
+const getValidMinBimbingan = (value) => {
+    const parsed = parseInt(value, 10);
+
+    return Number.isInteger(parsed) && parsed >= 1 && parsed <= 20 ? parsed : DEFAULT_MIN_BIMBINGAN_SEMPRO;
+};
+
+const getMinBimbinganSetting = async (mahasiswaId) => {
+    if (!mahasiswaId) return null;
+    return SystemSetting.findOne({ key: getMinBimbinganSettingKey(mahasiswaId) }).lean();
+};
+
+const getMinBimbinganRequirementsFromSetting = (setting) => {
+    const value = setting?.value;
+
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+        return {
+            dospem1: getValidMinBimbingan(value.dospem1 ?? value.dospem_1 ?? value.minBimbinganDospem1),
+            dospem2: getValidMinBimbingan(value.dospem2 ?? value.dospem_2 ?? value.minBimbinganDospem2)
+        };
+    }
+
+    const fallback = getValidMinBimbingan(value);
+    return { dospem1: fallback, dospem2: fallback };
+};
+
+const getMinBimbinganRequirements = async (mahasiswaId) => {
+    const setting = await getMinBimbinganSetting(mahasiswaId);
+    return getMinBimbinganRequirementsFromSetting(setting);
+};
+
+const getMinBimbinganForDosenType = async (mahasiswaId, dosenType) => {
+    const requirements = await getMinBimbinganRequirements(mahasiswaId);
+    return dosenType === 'dospem_2' ? requirements.dospem2 : requirements.dospem1;
+};
+
+const normalizeMinBimbinganValue = (value) => {
+    const parsed = parseInt(value, 10);
+
+    if (!Number.isInteger(parsed) || parsed < 1 || parsed > 20) {
+        throw ApiError.badRequest('Minimal bimbingan harus berupa angka 1 sampai 20');
+    }
+
+    return parsed;
+};
+
+const normalizeMinBimbinganPair = (body) => ({
+    dospem1: normalizeMinBimbinganValue(body.minBimbinganDospem1 ?? body.dospem1 ?? body.minBimbinganSempro),
+    dospem2: normalizeMinBimbinganValue(body.minBimbinganDospem2 ?? body.dospem2 ?? body.minBimbinganSempro)
+});
 
 /**
  * @desc    Get all bimbingan (filtered by role)
@@ -245,14 +299,15 @@ const giveFeedback = asyncHandler(async (req, res) => {
     }
 
     if (status === 'acc_sempro') {
+        const minBimbinganSempro = await getMinBimbinganForDosenType(bimbingan.mahasiswa, bimbingan.dosenType);
         const totalBimbinganDospem = await Bimbingan.countDocuments({
             mahasiswa: bimbingan.mahasiswa,
             dosenType: bimbingan.dosenType
         });
 
-        if (totalBimbinganDospem < MIN_BIMBINGAN_SEMPRO) {
+        if (totalBimbinganDospem < minBimbinganSempro) {
             throw ApiError.badRequest(
-                `ACC Maju Sempro hanya dapat diberikan setelah minimal ${MIN_BIMBINGAN_SEMPRO} kali bimbingan dengan dosen pembimbing ini.`
+                `ACC Maju Sempro hanya dapat diberikan setelah minimal ${minBimbinganSempro} kali bimbingan dengan dosen pembimbing ini.`
             );
         }
     }
@@ -436,6 +491,7 @@ const getSemproStatus = asyncHandler(async (req, res) => {
     const { mahasiswaId } = req.params;
     const userId = req.user._id;
     const userRole = req.user.role;
+    const minRequirements = await getMinBimbinganRequirements(mahasiswaId);
 
     // Authorization check
     if (userRole === 'mahasiswa' && userId.toString() !== mahasiswaId) {
@@ -470,8 +526,8 @@ const getSemproStatus = asyncHandler(async (req, res) => {
         })
     ]);
 
-    const dospem1MeetsMinimum = totalDospem1 >= MIN_BIMBINGAN_SEMPRO;
-    const dospem2MeetsMinimum = totalDospem2 >= MIN_BIMBINGAN_SEMPRO;
+    const dospem1MeetsMinimum = totalDospem1 >= minRequirements.dospem1;
+    const dospem2MeetsMinimum = totalDospem2 >= minRequirements.dospem2;
     const dospem1Approved = accSemproDospem1 > 0;
     const dospem2Approved = accSemproDospem2 > 0;
 
@@ -485,7 +541,11 @@ const getSemproStatus = asyncHandler(async (req, res) => {
 
     const response = {
         isReady,
-        minRequired: MIN_BIMBINGAN_SEMPRO,
+        minRequired: Math.max(minRequirements.dospem1, minRequirements.dospem2),
+        minRequiredByDospem: {
+            dospem1: minRequirements.dospem1,
+            dospem2: minRequirements.dospem2
+        },
         dospem1: {
             dosen: mahasiswa.dospem_1 ? {
                 name: mahasiswa.dospem_1.name,
@@ -493,8 +553,8 @@ const getSemproStatus = asyncHandler(async (req, res) => {
             } : null,
             accCount: accSemproDospem1,
             totalBimbingan: totalDospem1,
-            required: MIN_BIMBINGAN_SEMPRO,
-            needed: Math.max(0, MIN_BIMBINGAN_SEMPRO - totalDospem1),
+            required: minRequirements.dospem1,
+            needed: Math.max(0, minRequirements.dospem1 - totalDospem1),
             meetsMinimum: dospem1MeetsMinimum,
             approved: dospem1Approved,
             ready: dospem1Ready
@@ -506,15 +566,15 @@ const getSemproStatus = asyncHandler(async (req, res) => {
             } : null,
             accCount: accSemproDospem2,
             totalBimbingan: totalDospem2,
-            required: MIN_BIMBINGAN_SEMPRO,
-            needed: Math.max(0, MIN_BIMBINGAN_SEMPRO - totalDospem2),
+            required: minRequirements.dospem2,
+            needed: Math.max(0, minRequirements.dospem2 - totalDospem2),
             meetsMinimum: dospem2MeetsMinimum,
             approved: dospem2Approved,
             ready: dospem2Ready
         },
         message: isReady
             ? 'Selamat! Anda sudah memenuhi syarat untuk mengajukan Seminar Proposal.'
-            : `Syarat Sempro: minimal ${MIN_BIMBINGAN_SEMPRO} kali bimbingan dan ACC Maju Sempro dari masing-masing dosen pembimbing.`
+            : `Syarat Sempro: minimal ${minRequirements.dospem1} kali bimbingan Dospem 1, minimal ${minRequirements.dospem2} kali bimbingan Dospem 2, dan ACC Maju Sempro dari masing-masing dosen pembimbing.`
     };
 
     sendSuccess(res, 200, 'Status kesiapan sempro', response);
@@ -529,6 +589,7 @@ const generateSuratSempro = asyncHandler(async (req, res) => {
     const { mahasiswaId } = req.params;
     const userId = req.user._id;
     const userRole = req.user.role;
+    const minRequirements = await getMinBimbinganRequirements(mahasiswaId);
 
     // Authorization check
     if (userRole === 'mahasiswa' && userId.toString() !== mahasiswaId) {
@@ -563,15 +624,15 @@ const generateSuratSempro = asyncHandler(async (req, res) => {
         })
     ]);
 
-    const isReady = totalDospem1 >= MIN_BIMBINGAN_SEMPRO
-        && totalDospem2 >= MIN_BIMBINGAN_SEMPRO
+    const isReady = totalDospem1 >= minRequirements.dospem1
+        && totalDospem2 >= minRequirements.dospem2
         && accSemproDospem1 > 0
         && accSemproDospem2 > 0;
 
     if (!isReady) {
         throw ApiError.badRequest(
             'Anda belum memenuhi syarat untuk mengunduh surat persetujuan sempro. ' +
-            `Dibutuhkan minimal ${MIN_BIMBINGAN_SEMPRO} kali bimbingan dan ACC Maju Sempro dari masing-masing dosen pembimbing.`
+            `Dibutuhkan minimal ${minRequirements.dospem1} kali bimbingan Dospem 1, minimal ${minRequirements.dospem2} kali bimbingan Dospem 2, dan ACC Maju Sempro dari masing-masing dosen pembimbing.`
         );
     }
 
@@ -767,6 +828,74 @@ const clearBimbinganHistory = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @desc    Get bimbingan settings for selected mahasiswa
+ * @route   GET /api/bimbingan/admin/settings/:mahasiswaId
+ * @access  Admin
+ */
+const getBimbinganSettings = asyncHandler(async (req, res) => {
+    const { mahasiswaId } = req.params;
+    const mahasiswa = await User.findById(mahasiswaId).select('name nim_nip role');
+
+    if (!mahasiswa || mahasiswa.role !== 'mahasiswa') {
+        throw ApiError.notFound('Mahasiswa tidak ditemukan');
+    }
+
+    const setting = await getMinBimbinganSetting(mahasiswaId);
+    const minRequirements = getMinBimbinganRequirementsFromSetting(setting);
+
+    sendSuccess(res, 200, 'Setting bimbingan berhasil diambil', {
+        minBimbinganSempro: Math.max(minRequirements.dospem1, minRequirements.dospem2),
+        minBimbinganDospem1: minRequirements.dospem1,
+        minBimbinganDospem2: minRequirements.dospem2,
+        defaultMinBimbinganSempro: DEFAULT_MIN_BIMBINGAN_SEMPRO,
+        isCustom: Boolean(setting),
+        mahasiswa: {
+            _id: mahasiswa._id,
+            name: mahasiswa.name,
+            nim_nip: mahasiswa.nim_nip
+        }
+    });
+});
+
+/**
+ * @desc    Update bimbingan settings for selected mahasiswa
+ * @route   PUT /api/bimbingan/admin/settings/:mahasiswaId
+ * @access  Admin
+ */
+const updateBimbinganSettings = asyncHandler(async (req, res) => {
+    const { mahasiswaId } = req.params;
+    const minRequirements = normalizeMinBimbinganPair(req.body);
+    const mahasiswa = await User.findById(mahasiswaId).select('name nim_nip role');
+
+    if (!mahasiswa || mahasiswa.role !== 'mahasiswa') {
+        throw ApiError.notFound('Mahasiswa tidak ditemukan');
+    }
+
+    await SystemSetting.findOneAndUpdate(
+        { key: getMinBimbinganSettingKey(mahasiswaId) },
+        {
+            value: minRequirements,
+            label: `Minimal bimbingan sidang - ${mahasiswa.name}`,
+            description: 'Override khusus mahasiswa untuk kebutuhan demo/pengujian. Default sistem tetap 5 bimbingan.'
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    sendSuccess(res, 200, 'Setting bimbingan berhasil diperbarui', {
+        minBimbinganSempro: Math.max(minRequirements.dospem1, minRequirements.dospem2),
+        minBimbinganDospem1: minRequirements.dospem1,
+        minBimbinganDospem2: minRequirements.dospem2,
+        defaultMinBimbinganSempro: DEFAULT_MIN_BIMBINGAN_SEMPRO,
+        isCustom: true,
+        mahasiswa: {
+            _id: mahasiswa._id,
+            name: mahasiswa.name,
+            nim_nip: mahasiswa.nim_nip
+        }
+    });
+});
+
+/**
  * @desc    Get bimbingan progress report for all mahasiswa (Admin only)
  * @route   GET /api/bimbingan/admin/progress-report
  * @access  Admin
@@ -778,6 +907,16 @@ const getProgressReport = asyncHandler(async (req, res) => {
         .populate('dospem_1', 'name nim_nip')
         .populate('dospem_2', 'name nim_nip')
         .sort({ name: 1 });
+
+    const settingDocs = await SystemSetting.find({
+        key: { $regex: `^${MIN_BIMBINGAN_SETTING_PREFIX}:` }
+    }).lean();
+    const minByMahasiswa = new Map(
+        settingDocs.map(setting => [
+            setting.key.replace(`${MIN_BIMBINGAN_SETTING_PREFIX}:`, ''),
+            getMinBimbinganRequirementsFromSetting(setting)
+        ])
+    );
 
     // Aggregate bimbingan counts per mahasiswa per dosenType
     const bimbinganAgg = await Bimbingan.aggregate([
@@ -810,8 +949,12 @@ const getProgressReport = asyncHandler(async (req, res) => {
         const d2Acc = dospem2Data?.acc || 0;
         const d1AccSempro = dospem1Data?.acc_sempro || 0;
         const d2AccSempro = dospem2Data?.acc_sempro || 0;
-        const d1MeetsMinimum = d1Total >= MIN_BIMBINGAN_SEMPRO;
-        const d2MeetsMinimum = d2Total >= MIN_BIMBINGAN_SEMPRO;
+        const minRequirements = minByMahasiswa.get(mhs._id.toString()) || {
+            dospem1: DEFAULT_MIN_BIMBINGAN_SEMPRO,
+            dospem2: DEFAULT_MIN_BIMBINGAN_SEMPRO
+        };
+        const d1MeetsMinimum = d1Total >= minRequirements.dospem1;
+        const d2MeetsMinimum = d2Total >= minRequirements.dospem2;
         const d1IsSufficient = d1MeetsMinimum && d1AccSempro > 0;
         const d2IsSufficient = d2MeetsMinimum && d2AccSempro > 0;
 
@@ -848,6 +991,9 @@ const getProgressReport = asyncHandler(async (req, res) => {
             },
             totalBimbingan: d1Total + d2Total,
             totalAcc: d1Acc + d2Acc,
+            minBimbinganSempro: Math.max(minRequirements.dospem1, minRequirements.dospem2),
+            minBimbinganDospem1: minRequirements.dospem1,
+            minBimbinganDospem2: minRequirements.dospem2,
             isBothSufficient: d1IsSufficient && d2IsSufficient,
             isSemproReady: d1IsSufficient && d2IsSufficient,
             lastActivity: dospem1Data?.lastActivity > dospem2Data?.lastActivity
@@ -862,7 +1008,7 @@ const getProgressReport = asyncHandler(async (req, res) => {
         sufficientBoth: report.filter(r => r.isBothSufficient).length,
         sufficientOne: report.filter(r => (r.dospem1.isSufficient || r.dospem2.isSufficient) && !r.isBothSufficient).length,
         insufficientBoth: report.filter(r => !r.dospem1.isSufficient && !r.dospem2.isSufficient).length,
-        minAccRequired: MIN_BIMBINGAN_SEMPRO
+        minAccRequired: DEFAULT_MIN_BIMBINGAN_SEMPRO
     };
 
     sendSuccess(res, 200, 'Progress report berhasil diambil', { summary, report });
@@ -880,5 +1026,7 @@ module.exports = {
     generateSuratSempro,
     getAdminBimbinganSummary,
     clearBimbinganHistory,
+    getBimbinganSettings,
+    updateBimbinganSettings,
     getProgressReport
 };

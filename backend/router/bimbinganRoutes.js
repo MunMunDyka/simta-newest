@@ -87,6 +87,32 @@ router.get(
 );
 
 /**
+ * @route   GET /api/bimbingan/admin/settings/:mahasiswaId
+ * @desc    Get bimbingan settings for selected mahasiswa
+ * @access  Admin
+ */
+router.get(
+    '/admin/settings/:mahasiswaId',
+    roleMiddleware(['admin']),
+    mongoIdParam('mahasiswaId'),
+    handleValidationErrors,
+    bimbinganController.getBimbinganSettings
+);
+
+/**
+ * @route   PUT /api/bimbingan/admin/settings/:mahasiswaId
+ * @desc    Update bimbingan settings for selected mahasiswa
+ * @access  Admin
+ */
+router.put(
+    '/admin/settings/:mahasiswaId',
+    roleMiddleware(['admin']),
+    mongoIdParam('mahasiswaId'),
+    handleValidationErrors,
+    bimbinganController.updateBimbinganSettings
+);
+
+/**
  * @route   GET /api/bimbingan/admin/mahasiswa/:mahasiswaId
  * @desc    Get bimbingan summary for admin (all bimbingan + stats per dospem)
  * @access  Admin

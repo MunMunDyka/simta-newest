@@ -21,7 +21,7 @@ import {
 import {
     LayoutDashboard, Users, Calendar, ChevronDown, LogOut, User,
     FileText, BookOpen, Trash2, AlertTriangle, CheckCircle2, Clock, XCircle,
-    ArrowRight, RotateCcw, Search, BarChart3, X,
+    ArrowRight, RotateCcw, Search, BarChart3, X, Settings,
 } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
@@ -30,7 +30,8 @@ import { FeedbackAlert } from '@/components/FeedbackAlert'
 import { getApiErrorMessage } from '@/lib/errorMessage'
 import {
     getAdminBimbinganSummary, clearBimbinganHistory,
-    type AdminBimbinganSummary, type Bimbingan,
+    getBimbinganSettings, updateBimbinganSettings,
+    type AdminBimbinganSummary, type Bimbingan, type BimbinganSettings,
 } from '@/services/bimbinganService'
 
 interface MahasiswaOption { _id: string; name: string; nim_nip: string }
@@ -72,6 +73,13 @@ export const KelolaBimbingan = () => {
     const [isFetchingList, setIsFetchingList] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [listError, setListError] = useState<string | null>(null)
+    const [settings, setSettings] = useState<BimbinganSettings | null>(null)
+    const [minDospem1Input, setMinDospem1Input] = useState('5')
+    const [minDospem2Input, setMinDospem2Input] = useState('5')
+    const [isFetchingSettings, setIsFetchingSettings] = useState(false)
+    const [isSavingSettings, setIsSavingSettings] = useState(false)
+    const [settingsMessage, setSettingsMessage] = useState<string | null>(null)
+    const [settingsError, setSettingsError] = useState<string | null>(null)
 
     // Clear modal state
     const [showClearModal, setShowClearModal] = useState(false)
@@ -99,19 +107,55 @@ export const KelolaBimbingan = () => {
 
     // Fetch bimbingan summary when mahasiswa selected
     useEffect(() => {
-        if (!selectedMhs) { setSummary(null); setError(null); return }
+        if (!selectedMhs) {
+            console.log('[SIMTA KelolaBimbingan Debug] no selected mahasiswa, reset summary/settings', {
+                selectedMhs,
+                mahasiswaSearch,
+            })
+            setSummary(null)
+            setSettings(null)
+            setMinDospem1Input('5')
+            setMinDospem2Input('5')
+            setError(null)
+            setSettingsError(null)
+            setSettingsMessage(null)
+            setIsFetchingSettings(false)
+            return
+        }
         const fetchSummary = async () => {
             try {
                 setIsLoading(true)
+                setIsFetchingSettings(true)
                 setError(null)
-                const res = await getAdminBimbinganSummary(selectedMhs)
-                setSummary(res.data)
+                setSettingsError(null)
+                setSettingsMessage(null)
+                console.log('[SIMTA KelolaBimbingan Debug] fetching selected mahasiswa data', {
+                    selectedMhs,
+                    mahasiswaSearch,
+                })
+                const [summaryRes, settingsRes] = await Promise.all([
+                    getAdminBimbinganSummary(selectedMhs),
+                    getBimbinganSettings(selectedMhs),
+                ])
+                console.log('[SIMTA KelolaBimbingan Debug] fetched summary/settings', {
+                    selectedMhs,
+                    summary: summaryRes.data,
+                    settings: settingsRes.data,
+                })
+                setSummary(summaryRes.data)
+                setSettings(settingsRes.data)
+                setMinDospem1Input(String(settingsRes.data.minBimbinganDospem1 ?? settingsRes.data.minBimbinganSempro))
+                setMinDospem2Input(String(settingsRes.data.minBimbinganDospem2 ?? settingsRes.data.minBimbinganSempro))
             } catch (e: unknown) {
-                console.error(e)
+                console.error('[SIMTA KelolaBimbingan Debug] failed fetching selected mahasiswa data', e)
                 setError(getApiErrorMessage(e, 'Gagal memuat data bimbingan mahasiswa. Silakan coba lagi.'))
                 setSummary(null)
+                setSettings(null)
             }
-            finally { setIsLoading(false) }
+            finally {
+                setIsLoading(false)
+                setIsFetchingSettings(false)
+            }
         }
         fetchSummary()
     }, [selectedMhs])
@@ -141,6 +185,51 @@ export const KelolaBimbingan = () => {
         setShowClearModal(true)
     }
 
+    const handleSaveSettings = async () => {
+        const targetMahasiswaId = selectedMhs || summary?.mahasiswa?._id || ''
+
+        if (!targetMahasiswaId) {
+            setSettingsError('Pilih mahasiswa terlebih dahulu sebelum mengubah setting.')
+            setSettingsMessage(null)
+            return
+        }
+
+        const nextMinDospem1 = Number(minDospem1Input)
+        const nextMinDospem2 = Number(minDospem2Input)
+
+        if (
+            !Number.isInteger(nextMinDospem1) ||
+            !Number.isInteger(nextMinDospem2) ||
+            nextMinDospem1 < 1 ||
+            nextMinDospem2 < 1 ||
+            nextMinDospem1 > 20 ||
+            nextMinDospem2 > 20
+        ) {
+            setSettingsError('Minimal bimbingan Dospem 1 dan Dospem 2 harus berupa angka 1 sampai 20.')
+            setSettingsMessage(null)
+            return
+        }
+
+        try {
+            setIsSavingSettings(true)
+            setSettingsError(null)
+            setSettingsMessage(null)
+            const res = await updateBimbinganSettings(targetMahasiswaId, nextMinDospem1, nextMinDospem2)
+            setSettings(res.data)
+            setMinDospem1Input(String(res.data.minBimbinganDospem1 ?? res.data.minBimbinganSempro))
+            setMinDospem2Input(String(res.data.minBimbinganDospem2 ?? res.data.minBimbinganSempro))
+            setSettingsMessage(`Setting minimal bimbingan untuk ${res.data.mahasiswa?.name || 'mahasiswa terpilih'} berhasil disimpan.`)
+
+            const refreshRes = await getAdminBimbinganSummary(targetMahasiswaId)
+            setSummary(refreshRes.data)
+        } catch (e) {
+            console.error(e)
+            setSettingsError(getApiErrorMessage(e, 'Gagal menyimpan setting bimbingan.'))
+        } finally {
+            setIsSavingSettings(false)
+        }
+    }
+
     const currentData = summary ? (activeTab === 'dospem_1' ? summary.dospem1 : summary.dospem2) : null
     const currentDosen = summary?.mahasiswa ? (activeTab === 'dospem_1' ? summary.mahasiswa.dospem_1 : summary.mahasiswa.dospem_2) : null
     const selectedMahasiswaData = mahasiswaList.find((mhs) => mhs._id === selectedMhs)
@@ -162,10 +251,26 @@ export const KelolaBimbingan = () => {
     }
 
     const handleSelectMahasiswa = (mhs: MahasiswaOption) => {
+        console.log('[SIMTA KelolaBimbingan Debug] mahasiswa selected from dropdown', mhs)
         setSelectedMhs(mhs._id)
         setMahasiswaSearch(`${mhs.name} (${mhs.nim_nip})`)
         setIsMahasiswaDropdownOpen(false)
     }
+
+    useEffect(() => {
+        console.log('[SIMTA KelolaBimbingan Debug] render state', {
+            selectedMhs,
+            mahasiswaSearch,
+            hasSummary: Boolean(summary),
+            summaryMahasiswaId: summary?.mahasiswa?._id,
+            summaryMahasiswaName: summary?.mahasiswa?.name,
+            hasSettings: Boolean(settings),
+            settings,
+            shouldShowSettingsCard: Boolean(selectedMhs || summary),
+            minDospem1Input,
+            minDospem2Input,
+        })
+    }, [selectedMhs, mahasiswaSearch, summary, settings, minDospem1Input, minDospem2Input])
 
     const getScopeLabel = () => clearScope === 'all' ? 'Semua Dospem' : clearScope === 'dospem_1' ? 'Dospem 1' : 'Dospem 2'
     const getClearCount = () => {
@@ -251,6 +356,13 @@ export const KelolaBimbingan = () => {
                 <main className="flex-1 p-6 overflow-auto">
                     <motion.div variants={containerVariants} initial="hidden" animate="visible" className="max-w-6xl mx-auto space-y-6">
                         <FeedbackAlert message={listError} onClose={() => setListError(null)} />
+                        <FeedbackAlert message={settingsError} onClose={() => setSettingsError(null)} />
+
+                        {settingsMessage && (
+                            <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
+                                {settingsMessage}
+                            </div>
+                        )}
 
                         {/* Select Mahasiswa */}
                         <motion.div variants={itemVariants} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
@@ -308,6 +420,72 @@ export const KelolaBimbingan = () => {
                                 )}
                             </div>
                         </motion.div>
+
+                        {(selectedMhs || summary) && (
+                            <motion.div variants={itemVariants} initial="hidden" animate="visible" className="bg-white rounded-2xl p-6 shadow-sm border border-orange-100">
+                                <div className="flex items-start gap-3 mb-4">
+                                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-600">
+                                        <Settings className="h-5 w-5" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold text-gray-800">Setting Syarat Sidang Mahasiswa</h3>
+                                        <p className="text-sm text-gray-500">
+                                            Khusus untuk {selectedMahasiswaData?.name || summary?.mahasiswa?.name || 'mahasiswa terpilih'}. Target minimal bisa dibedakan untuk Dospem 1 dan Dospem 2, tapi ACC Maju Sidang tetap wajib dari kedua dosen pembimbing.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-wrap items-end gap-4">
+                                    <div className="flex items-end gap-4 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                                        <label className="space-y-1">
+                                            <span className="text-xs font-medium text-gray-500">Dospem 1</span>
+                                            <div className="flex items-center gap-2">
+                                                <Input
+                                                    type="number"
+                                                    min={1}
+                                                    max={20}
+                                                    value={minDospem1Input}
+                                                    onChange={(e) => setMinDospem1Input(e.target.value)}
+                                                    disabled={isFetchingSettings || isSavingSettings}
+                                                    className="h-10 w-24 rounded-lg bg-white text-center font-bold"
+                                                />
+                                                <span className="text-xs text-gray-500">kali</span>
+                                            </div>
+                                        </label>
+                                        <label className="space-y-1">
+                                            <span className="text-xs font-medium text-gray-500">Dospem 2</span>
+                                            <div className="flex items-center gap-2">
+                                                <Input
+                                                    type="number"
+                                                    min={1}
+                                                    max={20}
+                                                    value={minDospem2Input}
+                                                    onChange={(e) => setMinDospem2Input(e.target.value)}
+                                                    disabled={isFetchingSettings || isSavingSettings}
+                                                    className="h-10 w-24 rounded-lg bg-white text-center font-bold"
+                                                />
+                                                <span className="text-xs text-gray-500">kali</span>
+                                            </div>
+                                        </label>
+                                    </div>
+
+                                    <Button
+                                        onClick={handleSaveSettings}
+                                        disabled={isFetchingSettings || isSavingSettings}
+                                        className="h-10 bg-gradient-to-r from-orange-500 to-orange-600"
+                                    >
+                                        {isSavingSettings ? 'Menyimpan...' : 'Simpan Target'}
+                                    </Button>
+                                </div>
+
+                                {settings && (
+                                    <p className="mt-3 text-xs text-gray-400">
+                                        Syarat aktif mahasiswa ini: Dospem 1 minimal {settings.minBimbinganDospem1 ?? settings.minBimbinganSempro} kali, Dospem 2 minimal {settings.minBimbinganDospem2 ?? settings.minBimbinganSempro} kali
+                                        {settings.isCustom ? ' (custom demo aktif).' : ` (default ${settings.defaultMinBimbinganSempro}).`}
+                                    </p>
+                                )}
+                            </motion.div>
+                        )}
 
                         {isLoading && (
                             <div className="flex items-center justify-center h-32"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div></div>

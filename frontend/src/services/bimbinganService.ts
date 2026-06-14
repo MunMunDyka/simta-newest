@@ -195,11 +195,47 @@ export interface ClearBimbinganResult {
     scope: string;
 }
 
+export interface BimbinganSettings {
+    minBimbinganSempro: number;
+    minBimbinganDospem1: number;
+    minBimbinganDospem2: number;
+    defaultMinBimbinganSempro: number;
+    isCustom: boolean;
+    mahasiswa?: {
+        _id: string;
+        name: string;
+        nim_nip: string;
+    };
+}
+
 /**
  * Get admin bimbingan summary for a mahasiswa
  */
 export const getAdminBimbinganSummary = async (mahasiswaId: string): Promise<ApiResponse<AdminBimbinganSummary>> => {
     const response = await api.get<ApiResponse<AdminBimbinganSummary>>(`/bimbingan/admin/mahasiswa/${mahasiswaId}`);
+    return response.data;
+};
+
+/**
+ * Get admin bimbingan settings
+ */
+export const getBimbinganSettings = async (mahasiswaId: string): Promise<ApiResponse<BimbinganSettings>> => {
+    const response = await api.get<ApiResponse<BimbinganSettings>>(`/bimbingan/admin/settings/${mahasiswaId}`);
+    return response.data;
+};
+
+/**
+ * Update admin bimbingan settings
+ */
+export const updateBimbinganSettings = async (
+    mahasiswaId: string,
+    minBimbinganDospem1: number,
+    minBimbinganDospem2: number
+): Promise<ApiResponse<BimbinganSettings>> => {
+    const response = await api.put<ApiResponse<BimbinganSettings>>(`/bimbingan/admin/settings/${mahasiswaId}`, {
+        minBimbinganDospem1,
+        minBimbinganDospem2,
+    });
     return response.data;
 };
 

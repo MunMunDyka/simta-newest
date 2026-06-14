@@ -78,6 +78,7 @@ export const BimbinganDosen = () => {
     const [formError, setFormError] = useState<string | null>(null)
     const [formSuccess, setFormSuccess] = useState<string | null>(null)
     const [fieldErrors, setFieldErrors] = useState<FeedbackFieldErrors>({})
+    const [minBimbinganSempro, setMinBimbinganSempro] = useState(5)
     const [bimbinganData, setBimbinganData] = useState<{
         id: string
         mahasiswa: { name: string; nim_nip: string; prodi: string; currentProgress: string; judulTA: string }
@@ -123,6 +124,19 @@ export const BimbinganDosen = () => {
 
                 const bimbinganList = response.data.data
                 console.log('Bimbingan API Response:', bimbinganList)
+
+                try {
+                    const semproResponse = await api.get(`/bimbingan/sempro-status/${mahasiswaId}`)
+                    const semproData = semproResponse.data.data
+                    const currentDosenType = bimbinganList?.[0]?.dosenType
+                    const requiredByDosen = currentDosenType === 'dospem_2'
+                        ? semproData.dospem2?.required
+                        : semproData.dospem1?.required
+                    setMinBimbinganSempro(requiredByDosen || semproData.minRequired || 5)
+                } catch (semproError) {
+                    console.warn('Failed to fetch sempro requirement:', semproError)
+                }
+
                 if (bimbinganList && bimbinganList.length > 0) {
                     // Set the latest bimbingan as primary data
                     const data = bimbinganList[0]
@@ -666,11 +680,11 @@ export const BimbinganDosen = () => {
                                                         <span>Lanjut BAB - Silakan lanjut ke bab berikutnya</span>
                                                     </div>
                                                 </SelectItem>
-                                                <SelectItem value="acc_sempro" disabled={bimbinganHistory.length < 5}>
+                                                <SelectItem value="acc_sempro" disabled={bimbinganHistory.length < minBimbinganSempro}>
                                                     <div className="flex items-center gap-2">
                                                         <GraduationCap className="w-4 h-4 text-purple-500" />
                                                         <span>
-                                                            ACC Maju Sempro - {bimbinganHistory.length >= 5 ? 'Disetujui maju sidang' : 'minimal 5x bimbingan'}
+                                                            ACC Maju Sempro - {bimbinganHistory.length >= minBimbinganSempro ? 'Disetujui maju sidang' : `minimal ${minBimbinganSempro}x bimbingan`}
                                                         </span>
                                                     </div>
                                                 </SelectItem>
