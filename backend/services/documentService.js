@@ -8,8 +8,11 @@
 
 'use strict';
 
+const fs = require('fs');
+const path = require('path');
 const {
     Document,
+    ImageRun,
     Packer,
     Paragraph,
     TextRun,
@@ -22,6 +25,34 @@ const {
     WidthType,
     convertInchesToTwip,
 } = require('docx');
+
+const signatureAssetsDir = path.join(__dirname, '..', 'assets', 'signatures');
+
+const loadSignatureAsset = (fileName) => {
+    const filePath = path.join(signatureAssetsDir, fileName);
+
+    if (!fs.existsSync(filePath)) {
+        return null;
+    }
+
+    return fs.readFileSync(filePath);
+};
+
+const createSignatureParagraph = (signatureBuffer) => new Paragraph({
+    alignment: AlignmentType.CENTER,
+    children: signatureBuffer ? [
+        new ImageRun({
+            type: 'png',
+            data: signatureBuffer,
+            transformation: {
+                width: 150,
+                height: 45,
+            },
+        })
+    ] : [
+        new TextRun({ text: '' })
+    ],
+});
 
 /**
  * Format tanggal ke format Indonesia
@@ -48,6 +79,7 @@ const formatTanggalIndonesia = (date = new Date()) => {
 const generateSuratPersetujuanSempro = async (data) => {
     const { mahasiswa, dospem1, dospem2 } = data;
     const tanggal = formatTanggalIndonesia();
+    const sampleSignature = loadSignatureAsset('sample-ttd.png');
 
     const doc = new Document({
         sections: [{
@@ -253,16 +285,14 @@ const generateSuratPersetujuanSempro = async (data) => {
                                 new TableCell({
                                     children: [
                                         new Paragraph({ text: '' }),
-                                        new Paragraph({ text: '' }),
-                                        new Paragraph({ text: '' }),
+                                        createSignatureParagraph(sampleSignature),
                                         new Paragraph({ text: '' }),
                                     ]
                                 }),
                                 new TableCell({
                                     children: [
                                         new Paragraph({ text: '' }),
-                                        new Paragraph({ text: '' }),
-                                        new Paragraph({ text: '' }),
+                                        createSignatureParagraph(sampleSignature),
                                         new Paragraph({ text: '' }),
                                     ]
                                 }),
