@@ -29,7 +29,7 @@ import api from '@/lib/api'
 import { FeedbackAlert } from '@/components/FeedbackAlert'
 import { getApiErrorMessage } from '@/lib/errorMessage'
 import {
-    getAdminBimbinganSummary, clearBimbinganHistory,
+    getAdminBimbinganSummary, clearBimbinganHistory, clearAllBimbinganGlobal,
     getBimbinganSettings, updateBimbinganSettings,
     type AdminBimbinganSummary, type Bimbingan, type BimbinganSettings,
 } from '@/services/bimbinganService'
@@ -87,6 +87,14 @@ export const KelolaBimbingan = () => {
     const [resetProgress, setResetProgress] = useState(false)
     const [resetProgressTo, setResetProgressTo] = useState('BAB I')
     const [isClearing, setIsClearing] = useState(false)
+
+    // Global Clear modal state
+    const [showGlobalClearModal, setShowGlobalClearModal] = useState(false)
+    const [globalResetProgress, setGlobalResetProgress] = useState(false)
+    const [globalResetProgressTo, setGlobalResetProgressTo] = useState('BAB I')
+    const [globalClearSettings, setGlobalClearSettings] = useState(false)
+    const [globalConfirmationText, setGlobalConfirmationText] = useState('')
+    const [isClearingGlobal, setIsClearingGlobal] = useState(false)
 
     // Fetch mahasiswa list
     useEffect(() => {
@@ -176,6 +184,28 @@ export const KelolaBimbingan = () => {
             const err = e as { response?: { data?: { message?: string } } }
             alert('Gagal: ' + (err.response?.data?.message || 'Unknown error'))
         } finally { setIsClearing(false) }
+    }
+
+    const handleGlobalClear = async () => {
+        if (globalConfirmationText !== 'HAPUS SEMUA BIMBINGAN') return
+        try {
+            setIsClearingGlobal(true)
+            const res = await clearAllBimbinganGlobal(globalResetProgress, globalResetProgressTo, globalClearSettings)
+            alert(`Berhasil: ${res.message}\n\nBimbingan dihapus: ${res.data.deletedBimbingan}\nReply dihapus: ${res.data.deletedReplies}\nFile dihapus: ${res.data.deletedFiles}\nSetting custom dihapus: ${res.data.settingsCleared}${res.data.progressReset ? `\nProgress seluruh mahasiswa diatur ke ${res.data.progressResetTo || globalResetProgressTo}` : ''}`)
+            setShowGlobalClearModal(false)
+            setGlobalResetProgress(false)
+            setGlobalResetProgressTo('BAB I')
+            setGlobalClearSettings(false)
+            setGlobalConfirmationText('')
+            // Refresh selected student if any
+            if (selectedMhs) {
+                const refreshRes = await getAdminBimbinganSummary(selectedMhs)
+                setSummary(refreshRes.data)
+            }
+        } catch (e: unknown) {
+            const err = e as { response?: { data?: { message?: string } } }
+            alert('Gagal: ' + (err.response?.data?.message || 'Unknown error'))
+        } finally { setIsClearingGlobal(false) }
     }
 
     const openClearModal = (scope: 'dospem_1' | 'dospem_2' | 'all') => {
@@ -604,10 +634,33 @@ export const KelolaBimbingan = () => {
                         )}
 
                         {!selectedMhs && !isLoading && (
-                            <motion.div variants={itemVariants} className="text-center py-16 text-gray-400">
-                                <Search className="w-16 h-16 mx-auto mb-4 opacity-30" />
-                                <p className="text-lg">Pilih mahasiswa untuk melihat riwayat bimbingan</p>
-                            </motion.div>
+                            <div className="space-y-6">
+                                <motion.div variants={itemVariants} className="text-center py-16 text-gray-400 bg-white rounded-2xl shadow-sm border border-gray-100">
+                                    <Search className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                                    <p className="text-lg">Pilih mahasiswa untuk melihat riwayat bimbingan</p>
+                                </motion.div>
+
+                                <motion.div variants={itemVariants} className="bg-white rounded-2xl p-6 shadow-sm border border-red-200">
+                                    <h3 className="text-lg font-bold text-red-700 mb-2 flex items-center gap-2">
+                                        <AlertTriangle className="w-5 h-5 text-red-600" /> Bersih-bersih Database (Global Clear)
+                                    </h3>
+                                    <p className="text-sm text-gray-500 mb-4">
+                                        Ingin menghapus seluruh riwayat bimbingan dari semua mahasiswa sekaligus? Fitur ini akan menghapus semua record bimbingan, reply, dan file PDF secara permanen di database. Cocok digunakan saat ingin membersihkan data uji coba/dummy.
+                                    </p>
+                                    <Button 
+                                        variant="destructive" 
+                                        onClick={() => {
+                                            setGlobalConfirmationText('')
+                                            setGlobalResetProgress(false)
+                                            setGlobalResetProgressTo('BAB I')
+                                            setGlobalClearSettings(false)
+                                            setShowGlobalClearModal(true)
+                                        }}
+                                    >
+                                        <Trash2 className="w-4 h-4 mr-2" /> Clear Seluruh Bimbingan Global
+                                    </Button>
+                                </motion.div>
+                            </div>
                         )}
 
                         {error && (
@@ -663,6 +716,100 @@ export const KelolaBimbingan = () => {
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setShowClearModal(false)} disabled={isClearing}>Batal</Button>
                         <Button variant="destructive" onClick={handleClear} disabled={isClearing}>{isClearing ? 'Menghapus...' : 'Hapus Permanen'}</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Global Clear Confirmation Modal */}
+            <Dialog open={showGlobalClearModal} onOpenChange={setShowGlobalClearModal}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-red-600">
+                            <AlertTriangle className="w-5 h-5" /> Konfirmasi HAPUS GLOBAL
+                        </DialogTitle>
+                        <DialogDescription>
+                            Anda akan menghapus seluruh data bimbingan dari **SEMUA MAHASISWA** secara permanen. Tindakan ini tidak dapat di-undo!
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4 space-y-4">
+                        <div className="p-4 bg-red-50 rounded-xl border border-red-200">
+                            <p className="text-sm font-semibold text-red-800 mb-1">Dampak Tindakan ini:</p>
+                            <ul className="text-xs text-red-600 list-disc pl-5 space-y-1">
+                                <li>Seluruh bimbingan (semua bab & progress) mahasiswa akan terhapus.</li>
+                                <li>Seluruh file PDF (dokumen skripsi & dosen feedback) terhapus dari server.</li>
+                                <li>Seluruh riwayat diskusi & reply bimbingan terhapus.</li>
+                            </ul>
+                        </div>
+
+                        <div className="p-3 bg-orange-50 rounded-xl border border-orange-200 space-y-3">
+                            <label className="flex items-start gap-3 cursor-pointer">
+                                <input 
+                                    type="checkbox" 
+                                    checked={globalResetProgress} 
+                                    onChange={(e) => setGlobalResetProgress(e.target.checked)} 
+                                    className="w-4 h-4 mt-0.5 rounded border-orange-300 text-orange-500 focus:ring-orange-500" 
+                                />
+                                <div>
+                                    <p className="text-sm font-medium text-orange-800 flex items-center gap-1">
+                                        <RotateCcw className="w-3 h-3" /> Reset progress semua mahasiswa
+                                    </p>
+                                    <p className="text-xs text-orange-600">Mengembalikan progress skripsi semua mahasiswa ke status awal.</p>
+                                </div>
+                            </label>
+
+                            {globalResetProgress && (
+                                <div className="pl-7 space-y-1">
+                                    <p className="text-xs font-medium text-orange-700">Reset progress ke</p>
+                                    <Select value={globalResetProgressTo} onValueChange={setGlobalResetProgressTo}>
+                                        <SelectTrigger className="h-10 bg-white border-orange-200 text-orange-900">
+                                            <SelectValue placeholder="Pilih progress" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {progressOptions.map((progress) => (
+                                                <SelectItem key={progress} value={progress}>{progress}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
+
+                            <label className="flex items-start gap-3 cursor-pointer border-t border-orange-100 pt-3">
+                                <input 
+                                    type="checkbox" 
+                                    checked={globalClearSettings} 
+                                    onChange={(e) => setGlobalClearSettings(e.target.checked)} 
+                                    className="w-4 h-4 mt-0.5 rounded border-orange-300 text-orange-500 focus:ring-orange-500" 
+                                />
+                                <div>
+                                    <p className="text-sm font-medium text-orange-800">
+                                        Reset setting batas minimal bimbingan
+                                    </p>
+                                    <p className="text-xs text-orange-600">Menghapus setting custom per mahasiswa & kembali ke default sistem.</p>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-700 block">
+                                Konfirmasi dengan mengetik <span className="font-bold text-red-600">HAPUS SEMUA BIMBINGAN</span>:
+                            </label>
+                            <Input
+                                value={globalConfirmationText}
+                                onChange={(e) => setGlobalConfirmationText(e.target.value)}
+                                placeholder="HAPUS SEMUA BIMBINGAN"
+                                className="h-10 border-red-200 focus:border-red-500 focus:ring-red-500"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowGlobalClearModal(false)} disabled={isClearingGlobal}>Batal</Button>
+                        <Button 
+                            variant="destructive" 
+                            onClick={handleGlobalClear} 
+                            disabled={isClearingGlobal || globalConfirmationText !== 'HAPUS SEMUA BIMBINGAN'}
+                        >
+                            {isClearingGlobal ? 'Memproses...' : 'Hapus Seluruh Database Bimbingan'}
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

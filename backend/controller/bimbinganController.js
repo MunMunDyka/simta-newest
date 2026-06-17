@@ -828,6 +828,94 @@ const clearBimbinganHistory = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @desc    Clear ALL bimbingan history globally (hard delete for all mahasiswas)
+ * @route   DELETE /api/bimbingan/admin/clear-all-global
+ * @access  Admin
+ * @query   resetProgress - true | false (optional, default false)
+ * @query   resetProgressTo - BAB I | BAB II | BAB III | BAB IV | BAB V | Selesai (optional)
+ * @query   clearSettings - true | false (optional, default false)
+ */
+const clearAllBimbinganGlobal = asyncHandler(async (req, res) => {
+    const { resetProgress, resetProgressTo, clearSettings } = req.query;
+
+    // Find all bimbingan to delete (need paths to physically delete PDFs)
+    const bimbinganToDelete = await Bimbingan.find({});
+
+    // Delete physical files
+    let filesDeleted = 0;
+    for (const bimbingan of bimbinganToDelete) {
+        // Delete submission file
+        if (bimbingan.filePath) {
+            const filePath = path.resolve(bimbingan.filePath);
+            if (fs.existsSync(filePath)) {
+                try {
+                    fs.unlinkSync(filePath);
+                    filesDeleted++;
+                } catch (err) {
+                    console.error(`⚠️ Failed to delete file: ${filePath}`, err.message);
+                }
+            }
+        }
+        // Delete feedback file if exists
+        if (bimbingan.feedbackFile) {
+            const feedbackPath = path.resolve(bimbingan.feedbackFile);
+            if (fs.existsSync(feedbackPath)) {
+                try {
+                    fs.unlinkSync(feedbackPath);
+                    filesDeleted++;
+                } catch (err) {
+                    console.error(`⚠️ Failed to delete feedback file: ${feedbackPath}`, err.message);
+                }
+            }
+        }
+    }
+
+    const bimbinganIds = bimbinganToDelete.map(b => b._id);
+
+    // 1. Delete replies associated with these bimbingans
+    const deletedReplies = await Reply.deleteMany({ bimbingan: { $in: bimbinganIds } });
+
+    // 2. Delete all bimbingan records from database
+    const deletedBimbingan = await Bimbingan.deleteMany({ _id: { $in: bimbinganIds } });
+
+    // 3. Optionally reset all mahasiswa progress
+    let progressReset = false;
+    let progressResetTo = null;
+    if (resetProgress === 'true') {
+        const targetProgress = resetProgressTo || 'BAB I';
+
+        if (!PROGRESS_OPTIONS.includes(targetProgress)) {
+            throw ApiError.badRequest('Target reset progress tidak valid');
+        }
+
+        await User.updateMany({ role: 'mahasiswa' }, { $set: { currentProgress: targetProgress } });
+        progressReset = true;
+        progressResetTo = targetProgress;
+    }
+
+    // 4. Optionally clear custom settings
+    let settingsClearedCount = 0;
+    if (clearSettings === 'true') {
+        const deletedSettings = await SystemSetting.deleteMany({
+            key: { $regex: new RegExp(`^${MIN_BIMBINGAN_SETTING_PREFIX}:`) }
+        });
+        settingsClearedCount = deletedSettings.deletedCount;
+    }
+
+    console.log(`🗑️ GLOBAL CLEAR: All Bimbingan wiped. ${deletedBimbingan.deletedCount} bimbingan, ${deletedReplies.deletedCount} replies, ${filesDeleted} files, ${settingsClearedCount} settings cleared.`);
+
+    sendSuccess(res, 200, 'Seluruh riwayat bimbingan berhasil dihapus secara global', {
+        deletedBimbingan: deletedBimbingan.deletedCount,
+        deletedReplies: deletedReplies.deletedCount,
+        deletedFiles: filesDeleted,
+        settingsCleared: settingsClearedCount,
+        progressReset,
+        progressResetTo,
+    });
+});
+
+
+/**
  * @desc    Get bimbingan settings for selected mahasiswa
  * @route   GET /api/bimbingan/admin/settings/:mahasiswaId
  * @access  Admin
@@ -1026,6 +1114,7 @@ module.exports = {
     generateSuratSempro,
     getAdminBimbinganSummary,
     clearBimbinganHistory,
+    clearAllBimbinganGlobal,
     getBimbinganSettings,
     updateBimbinganSettings,
     getProgressReport

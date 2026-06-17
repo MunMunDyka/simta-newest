@@ -276,6 +276,16 @@ const clearBimbinganValidation = [
         .withMessage('Target reset progress tidak valid')
 ];
 
+/**
+ * Clear all bimbingan history validation (Admin only)
+ */
+const clearAllBimbinganGlobalValidation = [
+    query('resetProgressTo')
+        .optional()
+        .isIn(['BAB I', 'BAB II', 'BAB III', 'BAB IV', 'BAB V', 'Selesai'])
+        .withMessage('Target reset progress tidak valid')
+];
+
 // ===== Common Validation Rules =====
 
 /**
@@ -313,6 +323,7 @@ module.exports = {
     feedbackValidation,
     replyValidation,
     clearBimbinganValidation,
+    clearAllBimbinganGlobalValidation,
     // Jadwal
     createJadwalValidation,
     updateJadwalValidation,

@@ -254,3 +254,33 @@ export const clearBimbinganHistory = async (
     );
     return response.data;
 };
+
+export interface ClearBimbinganGlobalResult {
+    deletedBimbingan: number;
+    deletedReplies: number;
+    deletedFiles: number;
+    settingsCleared: number;
+    progressReset: boolean;
+    progressResetTo: string | null;
+}
+
+/**
+ * Clear ALL bimbingan history globally (admin only, hard delete)
+ */
+export const clearAllBimbinganGlobal = async (
+    resetProgress: boolean = false,
+    resetProgressTo?: string,
+    clearSettings: boolean = false
+): Promise<ApiResponse<ClearBimbinganGlobalResult>> => {
+    const response = await api.delete<ApiResponse<ClearBimbinganGlobalResult>>(
+        '/bimbingan/admin/clear-all-global',
+        {
+            params: {
+                resetProgress: resetProgress.toString(),
+                clearSettings: clearSettings.toString(),
+                ...(resetProgress && resetProgressTo ? { resetProgressTo } : {}),
+            }
+        }
+    );
+    return response.data;
+};

@@ -24,6 +24,7 @@ const {
     feedbackValidation,
     replyValidation,
     clearBimbinganValidation,
+    clearAllBimbinganGlobalValidation,
     mongoIdParam,
     paginationQuery,
     handleValidationErrors
@@ -138,6 +139,20 @@ router.delete(
     handleValidationErrors,
     bimbinganController.clearBimbinganHistory
 );
+
+/**
+ * @route   DELETE /api/bimbingan/admin/clear-all-global
+ * @desc    Clear ALL bimbingan history globally (hard delete for all mahasiswas)
+ * @access  Admin
+ */
+router.delete(
+    '/admin/clear-all-global',
+    roleMiddleware(['admin']),
+    clearAllBimbinganGlobalValidation,
+    handleValidationErrors,
+    bimbinganController.clearAllBimbinganGlobal
+);
+
 
 /**
  * @route   GET /api/bimbingan/pending-count
