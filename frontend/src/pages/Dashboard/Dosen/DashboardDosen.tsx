@@ -135,6 +135,7 @@ export const DashboardDosen = () => {
                     nim_nip: string;
                     name: string;
                     currentProgress?: string;
+                    statusMahasiswa?: string;
                     updatedAt?: string;
                     lastBimbinganStatus?: Student['status'] | null;
                     lastBimbinganVersion?: string | number | null;

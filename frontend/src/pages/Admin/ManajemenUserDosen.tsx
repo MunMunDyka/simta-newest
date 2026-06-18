@@ -59,7 +59,6 @@ import {
     CheckCircle,
     XCircle,
     ChevronRight,
-    Plus,
     BookOpen,
     UserPlus,
     X,
@@ -155,7 +154,6 @@ export const ManajemenUserDosen = () => {
 
     // Inline Add States
     const [students, setStudents] = useState<MahasiswaData[]>([])
-    const [allDosen, setAllDosen] = useState<{ _id: string; name: string }[]>([])
     const [showAddBimbingan, setShowAddBimbingan] = useState(false)
     const [showAddPengujian, setShowAddPengujian] = useState(false)
     const [addBimbinganMhs, setAddBimbinganMhs] = useState('')

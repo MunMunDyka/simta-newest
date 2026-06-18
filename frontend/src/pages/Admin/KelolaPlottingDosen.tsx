@@ -31,8 +31,7 @@ import {
     Search,
     FileText,
     GraduationCap,
-    Eye,
-    BookOpen
+    Eye
 } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
@@ -58,24 +57,6 @@ interface DosenWorkload {
         totalPenguji: number
         total: number
     }
-}
-
-interface MahasiswaData {
-    _id: string
-    name: string
-    nim_nip: string
-    prodi?: string
-    statusMahasiswa?: string
-}
-
-interface MahasiswaBimbingan {
-    _id: string
-    name: string
-    nim_nip: string
-    prodi?: string
-    currentProgress?: string
-    judulTA?: string
-    dosenRelation: 'pembimbing' | 'penguji'
 }
 
 const menuItems = [
