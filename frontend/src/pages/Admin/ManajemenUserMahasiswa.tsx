@@ -56,6 +56,7 @@ interface MahasiswaData {
     email: string
     prodi?: string
     currentProgress?: string
+    statusMahasiswa?: string
     judulTA?: string
     semester?: string
     plainPassword?: string
@@ -69,9 +70,57 @@ interface MahasiswaData {
         name: string
         nim_nip: string
     }
+    penguji_1?: {
+        _id: string
+        name: string
+        nim_nip: string
+    }
+    penguji_2?: {
+        _id: string
+        name: string
+        nim_nip: string
+    }
     status: 'aktif' | 'nonaktif'
     avatar?: string
     whatsapp?: string
+}
+
+// Helpers for Status Akademik Mahasiswa
+const getStatusMahasiswaLabel = (status: string | undefined) => {
+    switch (status) {
+        case 'pra_sempro': return 'Pra-Sempro (BAB I-III)'
+        case 'menunggu_sempro': return 'Menunggu Sempro'
+        case 'revisi_sempro': return 'Revisi Sempro'
+        case 'bimbingan_lanjut': return 'Bimbingan Lanjut (BAB IV-V)'
+        case 'menunggu_semhas': return 'Menunggu Semhas'
+        case 'revisi_semhas': return 'Revisi Semhas'
+        case 'bimbingan_akhir': return 'Bimbingan Akhir (BAB VI)'
+        case 'menunggu_sidang': return 'Menunggu Sidang Akhir'
+        case 'revisi_sidang': return 'Revisi Sidang Akhir'
+        case 'selesai': return 'Selesai'
+        default: return 'Pra-Sempro'
+    }
+}
+
+const getStatusMahasiswaColor = (status: string | undefined) => {
+    switch (status) {
+        case 'pra_sempro':
+        case 'bimbingan_lanjut':
+        case 'bimbingan_akhir':
+            return 'bg-blue-100 text-blue-600'
+        case 'menunggu_sempro':
+        case 'menunggu_semhas':
+        case 'menunggu_sidang':
+            return 'bg-yellow-100 text-yellow-600'
+        case 'revisi_sempro':
+        case 'revisi_semhas':
+        case 'revisi_sidang':
+            return 'bg-purple-100 text-purple-600'
+        case 'selesai':
+            return 'bg-green-100 text-green-600'
+        default:
+            return 'bg-gray-100 text-gray-600'
+    }
 }
 
 // Menu items
@@ -81,6 +130,7 @@ const menuItems = [
 
 const managementItems = [
     { label: 'Manajemen User', icon: Users, active: true, path: '/admin/users' },
+    { label: 'Manajemen Dosen', icon: GraduationCap, path: '/admin/plotting' },
     { label: 'Kelola Bimbingan', icon: FileText, path: '/admin/bimbingan' },
     { label: 'Kelola Jadwal', icon: Calendar, path: '/admin/jadwal' },
 ]
@@ -421,30 +471,54 @@ export const ManajemenUserMahasiswa = () => {
                                         <p className="text-sm text-gray-500 mb-1">Judul Tugas Akhir</p>
                                         <p className="font-medium text-gray-800">{mahasiswa.judulTA || 'Belum ada judul'}</p>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                         <div>
                                             <p className="text-sm text-gray-500 mb-1">Progress Saat Ini</p>
-                                            <Badge className="bg-blue-100 text-blue-600">{mahasiswa.currentProgress || 'BAB I'}</Badge>
+                                            <Badge className="bg-blue-100 text-blue-600 hover:bg-blue-100">{mahasiswa.currentProgress || 'BAB I'}</Badge>
                                         </div>
                                         <div>
-                                            <p className="text-sm text-gray-500 mb-1">Status Bimbingan</p>
-                                            <Badge className="bg-green-100 text-green-600">Aktif</Badge>
+                                            <p className="text-sm text-gray-500 mb-1">Status Akademik</p>
+                                            <Badge className={`${getStatusMahasiswaColor(mahasiswa.statusMahasiswa)} hover:bg-transparent`}>
+                                                {getStatusMahasiswaLabel(mahasiswa.statusMahasiswa)}
+                                            </Badge>
+                                        </div>
+                                        <div>
+                                            <p className="text-sm text-gray-500 mb-1">Status Akun</p>
+                                            <Badge className={mahasiswa.status === 'aktif' ? 'bg-green-100 text-green-600 hover:bg-green-100' : 'bg-red-100 text-red-600 hover:bg-red-100'}>
+                                                {mahasiswa.status === 'aktif' ? 'Aktif' : 'Nonaktif'}
+                                            </Badge>
                                         </div>
                                     </div>
                                 </div>
                             </motion.div>
 
-                            {/* Dosen Pembimbing */}
+                            {/* Dosen Pembimbing & Penguji */}
                             <motion.div variants={itemVariants} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                                 <h3 className="text-lg font-bold text-gray-800 mb-4">Dosen Pembimbing</h3>
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                                     <div className="p-4 bg-gray-50 rounded-xl">
                                         <p className="text-sm text-gray-500 mb-2">Pembimbing 1</p>
                                         <p className="font-medium text-gray-800">{mahasiswa.dospem_1?.name || 'Belum ditentukan'}</p>
+                                        {mahasiswa.dospem_1?.nim_nip && <p className="text-xs text-gray-400 mt-0.5">NIDN: {mahasiswa.dospem_1.nim_nip}</p>}
                                     </div>
                                     <div className="p-4 bg-gray-50 rounded-xl">
                                         <p className="text-sm text-gray-500 mb-2">Pembimbing 2</p>
                                         <p className="font-medium text-gray-800">{mahasiswa.dospem_2?.name || 'Belum ditentukan'}</p>
+                                        {mahasiswa.dospem_2?.nim_nip && <p className="text-xs text-gray-400 mt-0.5">NIDN: {mahasiswa.dospem_2.nim_nip}</p>}
+                                    </div>
+                                </div>
+
+                                <h3 className="text-lg font-bold text-gray-800 mb-4 pt-4 border-t border-gray-100">Dosen Penguji</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="p-4 bg-gray-50 rounded-xl">
+                                        <p className="text-sm text-gray-500 mb-2">Penguji 1</p>
+                                        <p className="font-medium text-gray-800">{mahasiswa.penguji_1?.name || 'Belum ditentukan'}</p>
+                                        {mahasiswa.penguji_1?.nim_nip && <p className="text-xs text-gray-400 mt-0.5">NIP: {mahasiswa.penguji_1.nim_nip}</p>}
+                                    </div>
+                                    <div className="p-4 bg-gray-50 rounded-xl">
+                                        <p className="text-sm text-gray-500 mb-2">Penguji 2</p>
+                                        <p className="font-medium text-gray-800">{mahasiswa.penguji_2?.name || 'Belum ditentukan'}</p>
+                                        {mahasiswa.penguji_2?.nim_nip && <p className="text-xs text-gray-400 mt-0.5">NIP: {mahasiswa.penguji_2.nim_nip}</p>}
                                     </div>
                                 </div>
                             </motion.div>

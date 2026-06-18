@@ -51,6 +51,9 @@ interface MahasiswaData {
     semester: string
     judulTA: string
     currentProgress: string
+    statusMahasiswa?: string
+    penguji_1?: DosenInfo
+    penguji_2?: DosenInfo
     dospem_1?: DosenInfo
     dospem_2?: DosenInfo
 }
@@ -64,6 +67,8 @@ interface DospemStatus {
 interface BimbinganStats {
     dospem1Status: DospemStatus
     dospem2Status: DospemStatus
+    penguji1Status: DospemStatus
+    penguji2Status: DospemStatus
     totalBimbingan: number
     pendingCount: number
 }
@@ -117,6 +122,8 @@ export const DashboardMhs = () => {
     const [bimbinganStats, setBimbinganStats] = useState<BimbinganStats>({
         dospem1Status: { status: null },
         dospem2Status: { status: null },
+        penguji1Status: { status: null },
+        penguji2Status: { status: null },
         totalBimbingan: 0,
         pendingCount: 0
     })
@@ -147,9 +154,11 @@ export const DashboardMhs = () => {
                     // Calculate stats
                     const pendingCount = bimbinganList.filter((b: { status: string }) => b.status === 'menunggu').length
 
-                    // Get last status per dospem
+                    // Get last status per dospem and penguji
                     const lastDospem1 = bimbinganList.find((b: { dosenType: string }) => b.dosenType === 'dospem_1')
                     const lastDospem2 = bimbinganList.find((b: { dosenType: string }) => b.dosenType === 'dospem_2')
+                    const lastPenguji1 = bimbinganList.find((b: { dosenType: string }) => b.dosenType === 'penguji_1')
+                    const lastPenguji2 = bimbinganList.find((b: { dosenType: string }) => b.dosenType === 'penguji_2')
 
                     setBimbinganStats({
                         dospem1Status: {
@@ -157,6 +166,12 @@ export const DashboardMhs = () => {
                         },
                         dospem2Status: {
                             status: lastDospem2?.status || null,
+                        },
+                        penguji1Status: {
+                            status: lastPenguji1?.status || null,
+                        },
+                        penguji2Status: {
+                            status: lastPenguji2?.status || null,
                         },
                         totalBimbingan: bimbinganList.length,
                         pendingCount
@@ -282,6 +297,8 @@ export const DashboardMhs = () => {
         navigate('/bimbingan/mahasiswa')
     }
 
+    const isRevisionPhase = ['revisi_sempro', 'revisi_semhas', 'revisi_sidang'].includes(mahasiswaData?.statusMahasiswa || 'pra_sempro')
+
     // Loading state
     if (isLoading) {
         return (
@@ -402,7 +419,7 @@ export const DashboardMhs = () => {
                                 <motion.button className="flex items-center gap-2 p-1.5 pr-3 rounded-xl hover:bg-gray-50 transition-colors" whileHover={{ scale: 1.02 }}>
                                     <Avatar className="w-8 h-8">
                                         <AvatarImage src={user?.avatar || undefined} />
-                                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-blue-600 text-white text-sm">
+                                        <AvatarFallback className="bg-gradient-to-br from-blue-50 to-blue-600 text-white text-sm">
                                             {user?.name?.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() || 'U'}
                                         </AvatarFallback>
                                     </Avatar>
@@ -527,40 +544,44 @@ export const DashboardMhs = () => {
                                 </div>
                             </motion.div>
 
-                            {/* Card 2 - Status Dospem 1 */}
+                            {/* Card 2 - Status Dospem 1 / Penguji 1 */}
                             <motion.div
                                 variants={cardVariants}
                                 className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
                                 whileHover={{ y: -2 }}
                             >
-                                <p className="text-xs text-gray-400 font-semibold mb-3 text-center uppercase tracking-wider">Status Dospem 1</p>
-                                <div className={`bg-gradient-to-r ${getStatusColor(bimbinganStats.dospem1Status.status)} rounded-xl p-4`}>
+                                <p className="text-xs text-gray-400 font-semibold mb-3 text-center uppercase tracking-wider">
+                                    {isRevisionPhase ? 'Status Penguji 1' : 'Status Dospem 1'}
+                                </p>
+                                <div className={`bg-gradient-to-r ${getStatusColor(isRevisionPhase ? bimbinganStats.penguji1Status.status : bimbinganStats.dospem1Status.status)} rounded-xl p-4`}>
                                     <motion.span
                                         className="text-lg font-bold text-white block"
                                         initial={{ opacity: 0, x: -10 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: 0.4 }}
                                     >
-                                        {getStatusText(bimbinganStats.dospem1Status.status)}
+                                        {getStatusText(isRevisionPhase ? bimbinganStats.penguji1Status.status : bimbinganStats.dospem1Status.status)}
                                     </motion.span>
                                 </div>
                             </motion.div>
 
-                            {/* Card 3 - Status Dospem 2 */}
+                            {/* Card 3 - Status Dospem 2 / Penguji 2 */}
                             <motion.div
                                 variants={cardVariants}
                                 className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
                                 whileHover={{ y: -2 }}
                             >
-                                <p className="text-xs text-gray-400 font-semibold mb-3 text-center uppercase tracking-wider">Status Dospem 2</p>
-                                <div className={`bg-gradient-to-r ${getStatusColor(bimbinganStats.dospem2Status.status)} rounded-xl p-4`}>
+                                <p className="text-xs text-gray-400 font-semibold mb-3 text-center uppercase tracking-wider">
+                                    {isRevisionPhase ? 'Status Penguji 2' : 'Status Dospem 2'}
+                                </p>
+                                <div className={`bg-gradient-to-r ${getStatusColor(isRevisionPhase ? bimbinganStats.penguji2Status.status : bimbinganStats.dospem2Status.status)} rounded-xl p-4`}>
                                     <motion.span
                                         className="text-lg font-bold text-white block"
                                         initial={{ opacity: 0, x: -10 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: 0.45 }}
                                     >
-                                        {getStatusText(bimbinganStats.dospem2Status.status)}
+                                        {getStatusText(isRevisionPhase ? bimbinganStats.penguji2Status.status : bimbinganStats.dospem2Status.status)}
                                     </motion.span>
                                 </div>
                             </motion.div>
@@ -708,8 +729,11 @@ export const DashboardMhs = () => {
                                     </p>
                                 </div>
 
-                                {/* Download Button - Only show when ready */}
-                                {semproStatus.isReady && mahasiswaData && (
+                                {/* Download Button - Only show when ready and status is pra_sempro / menunggu_sempro */}
+                                {semproStatus.isReady && mahasiswaData && 
+                                    (!mahasiswaData.statusMahasiswa || 
+                                     mahasiswaData.statusMahasiswa === 'pra_sempro' || 
+                                     mahasiswaData.statusMahasiswa === 'menunggu_sempro') && (
                                     <motion.button
                                         className="mt-4 w-full bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
                                         whileHover={{ scale: 1.02 }}

@@ -50,7 +50,7 @@ const getAll = asyncHandler(async (req, res) => {
     const [users, total] = await Promise.all([
         User.find(query)
             .select('-password')
-            .populate('dospem_1 dospem_2', 'name nim_nip')
+            .populate('dospem_1 dospem_2 penguji_1 penguji_2', 'name nim_nip')
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(parseInt(limit)),
@@ -72,7 +72,7 @@ const getAll = asyncHandler(async (req, res) => {
 const getById = asyncHandler(async (req, res) => {
     // If admin, include plainPassword
     let query = User.findById(req.params.id)
-        .populate('dospem_1 dospem_2', 'name nim_nip email');
+        .populate('dospem_1 dospem_2 penguji_1 penguji_2', 'name nim_nip email');
 
     if (req.user.role === 'admin') {
         query = query.select('+plainPassword');
@@ -166,7 +166,7 @@ const update = asyncHandler(async (req, res) => {
 
     if (isAdmin) {
         // Admin can update all fields except password (use change-password)
-        allowedFields = ['name', 'email', 'prodi', 'semester', 'judulTA', 'currentProgress', 'status', 'avatar', 'whatsapp'];
+        allowedFields = ['name', 'email', 'prodi', 'semester', 'judulTA', 'currentProgress', 'statusMahasiswa', 'penguji_1', 'penguji_2', 'status', 'avatar', 'whatsapp'];
     } else {
         // Self can only update limited fields
         allowedFields = ['email', 'avatar'];
@@ -256,7 +256,7 @@ const hardDelete = asyncHandler(async (req, res) => {
  * @access  Admin
  */
 const assignDospem = asyncHandler(async (req, res) => {
-    const { dospem_1, dospem_2 } = req.body;
+    const { dospem_1, dospem_2, penguji_1, penguji_2 } = req.body;
 
     const mahasiswa = await User.findById(req.params.id);
 
@@ -265,7 +265,7 @@ const assignDospem = asyncHandler(async (req, res) => {
     }
 
     if (mahasiswa.role !== 'mahasiswa') {
-        throw ApiError.badRequest('Hanya mahasiswa yang dapat di-assign dosen pembimbing');
+        throw ApiError.badRequest('Hanya mahasiswa yang dapat di-assign dosen');
     }
 
     // Validate dospem_1 if provided
@@ -290,18 +290,56 @@ const assignDospem = asyncHandler(async (req, res) => {
         mahasiswa.dospem_2 = null;
     }
 
+    // Validate penguji_1 if provided
+    if (penguji_1) {
+        const penguji1 = await User.findById(penguji_1);
+        if (!penguji1 || penguji1.role !== 'dosen') {
+            throw ApiError.badRequest('Dosen penguji 1 tidak valid atau bukan dosen');
+        }
+        mahasiswa.penguji_1 = penguji_1;
+    } else if (penguji_1 === null) {
+        mahasiswa.penguji_1 = null;
+    }
+
+    // Validate penguji_2 if provided
+    if (penguji_2) {
+        const penguji2 = await User.findById(penguji_2);
+        if (!penguji2 || penguji2.role !== 'dosen') {
+            throw ApiError.badRequest('Dosen penguji 2 tidak valid atau bukan dosen');
+        }
+        mahasiswa.penguji_2 = penguji_2;
+    } else if (penguji_2 === null) {
+        mahasiswa.penguji_2 = null;
+    }
+
     // Check if dospem_1 and dospem_2 are the same
     if (mahasiswa.dospem_1 && mahasiswa.dospem_2 &&
         mahasiswa.dospem_1.toString() === mahasiswa.dospem_2.toString()) {
         throw ApiError.badRequest('Dosen pembimbing 1 dan 2 tidak boleh sama');
     }
 
+    // Check if penguji_1 and penguji_2 are the same
+    if (mahasiswa.penguji_1 && mahasiswa.penguji_2 &&
+        mahasiswa.penguji_1.toString() === mahasiswa.penguji_2.toString()) {
+        throw ApiError.badRequest('Dosen penguji 1 dan 2 tidak boleh sama');
+    }
+
+    // Ensure dospem is not assigned as penguji
+    const dospemIds = [mahasiswa.dospem_1?.toString(), mahasiswa.dospem_2?.toString()].filter(Boolean);
+    const pengujiIds = [mahasiswa.penguji_1?.toString(), mahasiswa.penguji_2?.toString()].filter(Boolean);
+    
+    pengujiIds.forEach(pId => {
+        if (dospemIds.includes(pId)) {
+            throw ApiError.badRequest('Dosen Pembimbing tidak boleh ditugaskan sebagai Dosen Penguji');
+        }
+    });
+
     await mahasiswa.save();
-    await mahasiswa.populate('dospem_1 dospem_2', 'name nim_nip');
+    await mahasiswa.populate('dospem_1 dospem_2 penguji_1 penguji_2', 'name nim_nip');
 
-    console.log(`👥 Dosen pembimbing assigned for ${mahasiswa.name}`);
+    console.log(`👥 Dosen pembimbing and penguji assigned for ${mahasiswa.name}`);
 
-    sendSuccess(res, 200, 'Dosen pembimbing berhasil di-assign', mahasiswa.toPublicJSON());
+    sendSuccess(res, 200, 'Plotting dosen berhasil diupdate', mahasiswa.toPublicJSON());
 });
 
 /**
@@ -319,7 +357,11 @@ const getMahasiswaBimbingan = asyncHandler(async (req, res) => {
         dosenId = req.user._id;
     }
 
-    const mahasiswa = await User.findMahasiswaByDosen(dosenId);
+    // Filter: 'pembimbing', 'penguji', or 'semua' (default: 'semua')
+    const filterRole = req.query.filterRole || 'semua';
+    console.log(`🔍 getMahasiswaBimbingan: Dosen ID: ${dosenId}, Filter Role: ${filterRole}`);
+
+    const mahasiswa = await User.findMahasiswaByDosen(dosenId, filterRole);
     const mahasiswaIds = mahasiswa.map((item) => item._id);
 
     const bimbinganList = await Bimbingan.find({
@@ -369,8 +411,22 @@ const getMahasiswaBimbingan = asyncHandler(async (req, res) => {
         const summary = bimbinganSummary.get(item._id.toString());
         const pendingReviewCount = summary?.pendingReviewCount || 0;
 
+        // Determine dosenRelation: pembimbing or penguji
+        const dosenIdStr = dosenId.toString();
+        let dosenRelation = 'pembimbing';
+        if (
+            (data.penguji_1 && data.penguji_1._id?.toString() === dosenIdStr) ||
+            (data.penguji_2 && data.penguji_2._id?.toString() === dosenIdStr)
+        ) {
+            // Check if also pembimbing
+            const isPembimbing = (data.dospem_1 && data.dospem_1._id?.toString() === dosenIdStr) ||
+                                  (data.dospem_2 && data.dospem_2._id?.toString() === dosenIdStr);
+            dosenRelation = isPembimbing ? 'pembimbing' : 'penguji';
+        }
+
         return {
             ...data,
+            dosenRelation,
             lastBimbinganStatus: summary?.lastBimbinganStatus || null,
             lastBimbinganVersion: summary?.lastBimbinganVersion || null,
             lastBimbinganJudul: summary?.lastBimbinganJudul || null,
@@ -387,6 +443,19 @@ const getMahasiswaBimbingan = asyncHandler(async (req, res) => {
                     ? 'sudah_direview'
                     : 'belum_ada'
         };
+    });
+
+    // Sort: pending review first, then recent activity/bimbingan date desc, then alphabetical
+    mahasiswaWithStatus.sort((a, b) => {
+        if (a.pendingReviewCount !== b.pendingReviewCount) {
+            return b.pendingReviewCount - a.pendingReviewCount;
+        }
+        const dateA = a.lastBimbinganAt ? new Date(a.lastBimbinganAt).getTime() : 0;
+        const dateB = b.lastBimbinganAt ? new Date(b.lastBimbinganAt).getTime() : 0;
+        if (dateA !== dateB) {
+            return dateB - dateA;
+        }
+        return a.name.localeCompare(b.name);
     });
 
     sendSuccess(res, 200, 'Data mahasiswa bimbingan berhasil diambil', mahasiswaWithStatus);
@@ -506,6 +575,52 @@ const resetPassword = asyncHandler(async (req, res) => {
     sendSuccess(res, 200, 'Password berhasil direset', { name: user.name, nim_nip: user.nim_nip });
 });
 
+/**
+ * @desc    Get workload statistics for all dosen
+ * @route   GET /api/users/dosen-workloads
+ * @access  Admin
+ */
+const getDosenWorkloads = asyncHandler(async (req, res) => {
+    const lecturers = await User.find({ role: 'dosen' })
+        .select('name nim_nip prodi status avatar whatsapp email')
+        .lean();
+    
+    // Fetch active student user assignments
+    const students = await User.find({ role: 'mahasiswa', status: 'aktif' })
+        .select('dospem_1 dospem_2 penguji_1 penguji_2')
+        .lean();
+        
+    const lecturersWithWorkloads = lecturers.map(dosen => {
+        const dosenIdStr = dosen._id.toString();
+        let pembimbing1Count = 0;
+        let pembimbing2Count = 0;
+        let penguji1Count = 0;
+        let penguji2Count = 0;
+        
+        students.forEach(student => {
+            if (student.dospem_1?.toString() === dosenIdStr) pembimbing1Count++;
+            if (student.dospem_2?.toString() === dosenIdStr) pembimbing2Count++;
+            if (student.penguji_1?.toString() === dosenIdStr) penguji1Count++;
+            if (student.penguji_2?.toString() === dosenIdStr) penguji2Count++;
+        });
+        
+        return {
+            ...dosen,
+            workload: {
+                pembimbing1: pembimbing1Count,
+                pembimbing2: pembimbing2Count,
+                penguji1: penguji1Count,
+                penguji2: penguji2Count,
+                totalPembimbing: pembimbing1Count + pembimbing2Count,
+                totalPenguji: penguji1Count + penguji2Count,
+                total: pembimbing1Count + pembimbing2Count + penguji1Count + penguji2Count
+            }
+        };
+    });
+    
+    sendSuccess(res, 200, 'Workload dosen berhasil diambil', lecturersWithWorkloads);
+});
+
 module.exports = {
     getAll,
     getById,
@@ -519,5 +634,6 @@ module.exports = {
     getStatistics,
     uploadAvatar,
     updateProfile,
-    resetPassword
+    resetPassword,
+    getDosenWorkloads
 };

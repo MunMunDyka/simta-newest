@@ -84,6 +84,7 @@ const menuItems = [
 
 const managementItems = [
     { label: 'Manajemen User', icon: Users, active: true, path: '/admin/users' },
+    { label: 'Manajemen Dosen', icon: GraduationCap, path: '/admin/plotting' },
     { label: 'Kelola Bimbingan', icon: FileText, path: '/admin/bimbingan' },
     { label: 'Kelola Jadwal', icon: Calendar, path: '/admin/jadwal' },
 ]
@@ -123,10 +124,12 @@ export const ManajemenUser = () => {
         judulTA: '',
     })
 
-    // Form state for Edit Dospem
+    // Form state for Edit Dospem (Plotting)
     const [editDospem, setEditDospem] = useState({
         dospem_1: '',
-        dospem_2: ''
+        dospem_2: '',
+        penguji_1: '',
+        penguji_2: ''
     })
 
     // Fetch users from database
@@ -188,18 +191,43 @@ export const ManajemenUser = () => {
         }
     }
 
-    // Handle Edit Dospem
+    // Handle Edit Dospem (Plotting)
     const handleEditDospem = async () => {
         if (!selectedUser) return
         try {
-            await api.put(`/users/${selectedUser._id}/assign-dospem`, editDospem)
+            // Prepare payload
+            const payload = {
+                dospem_1: editDospem.dospem_1 === 'none' ? null : editDospem.dospem_1,
+                dospem_2: editDospem.dospem_2 === 'none' ? null : editDospem.dospem_2,
+                penguji_1: editDospem.penguji_1 === 'none' ? null : editDospem.penguji_1,
+                penguji_2: editDospem.penguji_2 === 'none' ? null : editDospem.penguji_2
+            }
+
+            // Front-end Validations
+            if (payload.dospem_1 && payload.dospem_2 && payload.dospem_1 === payload.dospem_2) {
+                alert('Dosen Pembimbing 1 dan 2 tidak boleh sama')
+                return
+            }
+            if (payload.penguji_1 && payload.penguji_2 && payload.penguji_1 === payload.penguji_2) {
+                alert('Dosen Penguji 1 dan 2 tidak boleh sama')
+                return
+            }
+            const pembimbingIds = [payload.dospem_1, payload.dospem_2].filter(Boolean)
+            const pengujiIds = [payload.penguji_1, payload.penguji_2].filter(Boolean)
+            const overlaps = pengujiIds.filter(id => pembimbingIds.includes(id))
+            if (overlaps.length > 0) {
+                alert('Dosen Pembimbing tidak boleh ditugaskan sebagai Dosen Penguji')
+                return
+            }
+
+            await api.put(`/users/${selectedUser._id}/assign-dospem`, payload)
             setShowEditModal(false)
             setSelectedUser(null)
             refetchUsers()
-            alert('Dosen pembimbing berhasil diupdate!')
+            alert('Plotting dosen berhasil diupdate!')
         } catch (error: unknown) {
             const err = error as { response?: { data?: { message?: string } } }
-            alert('Gagal mengupdate dospem: ' + (err.response?.data?.message || 'Unknown error'))
+            alert('Gagal mengupdate plotting: ' + (err.response?.data?.message || 'Unknown error'))
         }
     }
 
@@ -238,12 +266,26 @@ export const ManajemenUser = () => {
 
 
     // Open Edit Modal
-    const openEditModal = (userData: UserData) => {
+    const openEditModal = async (userData: UserData) => {
         setSelectedUser(userData)
-        setEditDospem({
-            dospem_1: '',
-            dospem_2: ''
-        })
+        try {
+            const response = await api.get(`/users/${userData._id}`)
+            const data = response.data.data
+            setEditDospem({
+                dospem_1: data.dospem_1?._id || 'none',
+                dospem_2: data.dospem_2?._id || 'none',
+                penguji_1: data.penguji_1?._id || 'none',
+                penguji_2: data.penguji_2?._id || 'none'
+            })
+        } catch (error) {
+            console.error('Failed to fetch user plotting data:', error)
+            setEditDospem({
+                dospem_1: 'none',
+                dospem_2: 'none',
+                penguji_1: 'none',
+                penguji_2: 'none'
+            })
+        }
         setShowEditModal(true)
     }
 
@@ -695,7 +737,7 @@ export const ManajemenUser = () => {
                                                                             className="cursor-pointer"
                                                                             onClick={() => openEditModal(userData)}
                                                                         >
-                                                                            <Edit className="w-4 h-4 mr-2" />Edit Dospem
+                                                                            <Edit className="w-4 h-4 mr-2" />Atur Plotting Dosen
                                                                         </DropdownMenuItem>
                                                                     )}
                                                                     <DropdownMenuItem
@@ -856,52 +898,99 @@ export const ManajemenUser = () => {
                 </DialogContent>
             </Dialog>
 
-            {/* Edit Dospem Modal */}
+            {/* Edit Plotting Modal */}
             <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
-                <DialogContent className="sm:max-w-md">
+                <DialogContent className="sm:max-w-xl">
                     <DialogHeader>
-                        <DialogTitle>Edit Dosen Pembimbing</DialogTitle>
+                        <DialogTitle>Atur Plotting Dosen</DialogTitle>
                         <DialogDescription>
-                            Pilih dosen pembimbing untuk {selectedUser?.name}
+                            Pilih dosen pembimbing dan penguji untuk <strong>{selectedUser?.name}</strong>
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                            <Label>Dosen Pembimbing 1</Label>
-                            <Select
-                                value={editDospem.dospem_1}
-                                onValueChange={(v) => setEditDospem({ ...editDospem, dospem_1: v })}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Pilih dosen pembimbing 1" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {dosenList.map((d) => (
-                                        <SelectItem key={d._id} value={d._id}>{d.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                    <div className="space-y-6 py-4">
+                        <div>
+                            <h4 className="text-sm font-semibold text-gray-800 mb-3 border-b pb-1">Dosen Pembimbing</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Dosen Pembimbing 1</Label>
+                                    <Select
+                                        value={editDospem.dospem_1}
+                                        onValueChange={(v) => setEditDospem({ ...editDospem, dospem_1: v })}
+                                    >
+                                        <SelectTrigger className="bg-white border-gray-200">
+                                            <SelectValue placeholder="Pilih dospem 1" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="none">-- Belum Ditugaskan --</SelectItem>
+                                            {dosenList.map((d) => (
+                                                <SelectItem key={d._id} value={d._id}>{d.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Dosen Pembimbing 2</Label>
+                                    <Select
+                                        value={editDospem.dospem_2}
+                                        onValueChange={(v) => setEditDospem({ ...editDospem, dospem_2: v })}
+                                    >
+                                        <SelectTrigger className="bg-white border-gray-200">
+                                            <SelectValue placeholder="Pilih dospem 2" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="none">-- Belum Ditugaskan --</SelectItem>
+                                            {dosenList.map((d) => (
+                                                <SelectItem key={d._id} value={d._id}>{d.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
                         </div>
-                        <div className="space-y-2">
-                            <Label>Dosen Pembimbing 2</Label>
-                            <Select
-                                value={editDospem.dospem_2}
-                                onValueChange={(v) => setEditDospem({ ...editDospem, dospem_2: v })}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Pilih dosen pembimbing 2" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {dosenList.map((d) => (
-                                        <SelectItem key={d._id} value={d._id}>{d.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+
+                        <div>
+                            <h4 className="text-sm font-semibold text-gray-800 mb-3 border-b pb-1">Dosen Penguji</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Dosen Penguji 1</Label>
+                                    <Select
+                                        value={editDospem.penguji_1}
+                                        onValueChange={(v) => setEditDospem({ ...editDospem, penguji_1: v })}
+                                    >
+                                        <SelectTrigger className="bg-white border-gray-200">
+                                            <SelectValue placeholder="Pilih penguji 1" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="none">-- Belum Ditugaskan --</SelectItem>
+                                            {dosenList.map((d) => (
+                                                <SelectItem key={d._id} value={d._id}>{d.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Dosen Penguji 2</Label>
+                                    <Select
+                                        value={editDospem.penguji_2}
+                                        onValueChange={(v) => setEditDospem({ ...editDospem, penguji_2: v })}
+                                    >
+                                        <SelectTrigger className="bg-white border-gray-200">
+                                            <SelectValue placeholder="Pilih penguji 2" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="none">-- Belum Ditugaskan --</SelectItem>
+                                            {dosenList.map((d) => (
+                                                <SelectItem key={d._id} value={d._id}>{d.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setShowEditModal(false)}>Batal</Button>
-                        <Button onClick={handleEditDospem} className="bg-orange-500 hover:bg-orange-600">Simpan</Button>
+                        <Button onClick={handleEditDospem} className="bg-orange-500 hover:bg-orange-600">Simpan Plotting</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

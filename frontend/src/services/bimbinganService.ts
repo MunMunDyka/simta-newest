@@ -46,6 +46,11 @@ export interface Bimbingan {
     tanggalKirim?: string; // alias for createdAt
     feedbackFile?: string;
     feedbackFileName?: string;
+    draftFeedback?: string;
+    draftStatus?: string;
+    draftFeedbackFile?: string;
+    draftFeedbackFileName?: string;
+    hasDraft?: boolean;
     replies?: Reply[];
     createdAt: string;
     updatedAt: string;
@@ -66,6 +71,12 @@ export interface FeedbackRequest {
 
 export interface ReplyRequest {
     message: string;
+}
+
+export interface FeedbackDraftRequest {
+    status?: string;
+    feedback?: string;
+    feedbackFile?: File;
 }
 
 // ===== Bimbingan API Functions =====
@@ -120,6 +131,23 @@ export const giveFeedback = async (id: string, data: FeedbackRequest): Promise<A
     if (data.feedbackFile) formData.append('feedbackFile', data.feedbackFile);
 
     const response = await api.put<ApiResponse<Bimbingan>>(`/bimbingan/${id}/feedback`, formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data',
+        },
+    });
+    return response.data;
+};
+
+/**
+ * Save feedback draft to bimbingan (dosen only)
+ */
+export const saveFeedbackDraft = async (id: string, data: FeedbackDraftRequest): Promise<ApiResponse<Bimbingan>> => {
+    const formData = new FormData();
+    if (data.status) formData.append('status', data.status);
+    if (data.feedback) formData.append('feedback', data.feedback);
+    if (data.feedbackFile) formData.append('feedbackFile', data.feedbackFile);
+
+    const response = await api.put<ApiResponse<Bimbingan>>(`/bimbingan/${id}/draft-feedback`, formData, {
         headers: {
             'Content-Type': 'multipart/form-data',
         },

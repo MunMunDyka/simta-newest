@@ -61,9 +61,20 @@ export const BimbinganMahasiswa = () => {
     const [searchParams] = useSearchParams()
     const { user } = useAppSelector((state) => state.auth)
 
-    // Get tab from URL query parameter
-    const tabFromUrl = searchParams.get('tab') as 'dospem1' | 'dospem2' | null
-    const [activeTab, setActiveTab] = useState<'dospem1' | 'dospem2'>(tabFromUrl || 'dospem1')
+    // Check if in revision phase
+    const isRevisionPhase = ['revisi_sempro', 'revisi_semhas', 'revisi_sidang'].includes(user?.statusMahasiswa || 'pra_sempro')
+
+    // Sub-navigation tabs: Pembimbing vs. Penguji
+    const [activeCategory, setActiveCategory] = useState<'pembimbing' | 'penguji'>(
+        isRevisionPhase ? 'penguji' : 'pembimbing'
+    )
+
+    // Sub-tab: dospem1 | dospem2 | penguji1 | penguji2
+    const tabFromUrl = searchParams.get('tab') as 'dospem1' | 'dospem2' | 'penguji1' | 'penguji2' | null
+    const [activeSubTab, setActiveSubTab] = useState<'dospem1' | 'dospem2' | 'penguji1' | 'penguji2'>(
+        tabFromUrl || (isRevisionPhase ? 'penguji1' : 'dospem1')
+    )
+
     const [judulBimbingan, setJudulBimbingan] = useState('')
     const [catatan, setCatatan] = useState('')
     const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -83,6 +94,27 @@ export const BimbinganMahasiswa = () => {
     // Dospem info from user (handle both string and object types)
     const dospem1Name = typeof user?.dospem_1 === 'object' ? user.dospem_1?.name : 'Dosen Pembimbing 1'
     const dospem2Name = typeof user?.dospem_2 === 'object' ? user.dospem_2?.name : 'Dosen Pembimbing 2'
+    const penguji1Name = typeof user?.penguji_1 === 'object' ? user.penguji_1?.name : 'Dosen Penguji 1'
+    const penguji2Name = typeof user?.penguji_2 === 'object' ? user.penguji_2?.name : 'Dosen Penguji 2'
+
+    const getDosenTypeFromSubTab = (subTab: string) => {
+        switch (subTab) {
+            case 'dospem1': return 'dospem_1';
+            case 'dospem2': return 'dospem_2';
+            case 'penguji1': return 'penguji_1';
+            case 'penguji2': return 'penguji_2';
+            default: return 'dospem_1';
+        }
+    }
+
+    const handleCategoryChange = (category: 'pembimbing' | 'penguji') => {
+        setActiveCategory(category)
+        if (category === 'pembimbing') {
+            setActiveSubTab('dospem1')
+        } else {
+            setActiveSubTab('penguji1')
+        }
+    }
 
     // Fetch bimbingan data
     const fetchBimbingan = useCallback(async () => {
@@ -90,7 +122,7 @@ export const BimbinganMahasiswa = () => {
         setError(null)
         try {
             const response = await bimbinganService.getBimbinganList({
-                dosenType: activeTab === 'dospem1' ? 'dospem_1' : 'dospem_2',
+                dosenType: getDosenTypeFromSubTab(activeSubTab),
                 limit: 50
             })
             setBimbinganList(response.data || [])
@@ -100,13 +132,13 @@ export const BimbinganMahasiswa = () => {
         } finally {
             setIsLoading(false)
         }
-    }, [activeTab])
+    }, [activeSubTab])
 
     useEffect(() => {
         fetchBimbingan()
     }, [fetchBimbingan])
 
-    const currentDosenType = activeTab === 'dospem1' ? 'dospem_1' : 'dospem_2'
+    const currentDosenType = getDosenTypeFromSubTab(activeSubTab)
     const currentHistory = bimbinganList.filter((item) => item.dosenType === currentDosenType)
     const latestStatus = currentHistory[0]?.status
     const isFormDisabled = latestStatus === 'menunggu'
@@ -126,7 +158,7 @@ export const BimbinganMahasiswa = () => {
         if (fileInputRef.current) {
             fileInputRef.current.value = ''
         }
-    }, [activeTab])
+    }, [activeSubTab])
 
     // Animation variants
     const containerVariants: Variants = {
@@ -174,7 +206,7 @@ export const BimbinganMahasiswa = () => {
     const validateUploadForm = () => {
         const nextErrors: UploadFieldErrors = {}
         const judul = judulBimbingan.trim()
-        const currentDosenType = activeTab === 'dospem1' ? 'dospem_1' : 'dospem_2'
+        const currentDosenType = getDosenTypeFromSubTab(activeSubTab)
 
         if (!judul) {
             nextErrors.judul = 'Judul bimbingan wajib diisi.'
@@ -185,7 +217,7 @@ export const BimbinganMahasiswa = () => {
         }
 
         if (!currentDosenType) {
-            nextErrors.dosenType = 'Pilih dosen pembimbing terlebih dahulu.'
+            nextErrors.dosenType = 'Pilih dosen terlebih dahulu.'
         }
 
         if (!selectedFile) {
@@ -234,7 +266,7 @@ export const BimbinganMahasiswa = () => {
 
             await bimbinganService.createBimbingan({
                 judul: judulBimbingan.trim(),
-                dosenType: activeTab === 'dospem1' ? 'dospem_1' : 'dospem_2',
+                dosenType: getDosenTypeFromSubTab(activeSubTab) as any,
                 catatan: catatan.trim() || undefined,
                 file: fileToUpload
             })
@@ -319,151 +351,573 @@ export const BimbinganMahasiswa = () => {
         })
     }
 
-    const historySection = (
-        <motion.div variants={itemVariants}>
-            <h3 className="text-lg font-bold text-gray-800 mb-4">Riwayat Bimbingan</h3>
+    const renderProgressTimeline = () => {
+        const status = user?.statusMahasiswa || 'pra_sempro';
+        
+        const getStepStatus = (step: 'sempro' | 'semhas' | 'sidang') => {
+            if (step === 'sempro') {
+                if (['pra_sempro', 'menunggu_sempro'].includes(status)) return 'active';
+                if (status === 'revisi_sempro') return 'revision';
+                return 'completed';
+            }
+            if (step === 'semhas') {
+                if (['pra_sempro', 'menunggu_sempro', 'revisi_sempro', 'bimbingan_lanjut'].includes(status)) return 'upcoming';
+                if (status === 'menunggu_semhas') return 'active';
+                if (status === 'revisi_semhas') return 'revision';
+                return 'completed';
+            }
+            if (step === 'sidang') {
+                if (['menunggu_sidang'].includes(status)) return 'active';
+                if (status === 'revisi_sidang') return 'revision';
+                if (status === 'selesai') return 'completed';
+                return 'upcoming';
+            }
+            return 'upcoming';
+        };
 
-            <div className="space-y-3">
-                {currentHistory.length === 0 ? (
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-                        <div className="flex flex-col items-center justify-center text-center">
-                            <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-                                <FileText className="w-8 h-8 text-gray-400" />
-                            </div>
-                            <h3 className="text-lg font-medium text-gray-700 mb-1">Belum ada riwayat bimbingan</h3>
-                            <p className="text-sm text-gray-500">
-                                Mulai kirim bimbingan pertama Anda dengan mengisi form di bawah
-                            </p>
-                        </div>
-                    </div>
-                ) : (
-                    currentHistory.map((item, index) => (
-                        <motion.div
-                            key={item._id}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.05 }}
-                            className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
-                        >
-                            <div
-                                className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
-                                onClick={() => setExpandedId(expandedId === item._id ? null : item._id)}
-                            >
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                                            <span className="font-bold text-gray-600 text-sm">{item.version}</span>
-                                        </div>
-                                        <div>
-                                            <h4 className="font-semibold text-gray-800">{item.judul}</h4>
-                                            <div className="flex items-center gap-2 text-xs text-gray-500">
-                                                <Paperclip className="w-3 h-3" />
-                                                <span>{item.fileName}</span>
-                                                <span>-</span>
-                                                <span>{item.fileSize}</span>
-                                            </div>
-                                        </div>
+        const steps = [
+            { key: 'sempro', label: 'Seminar Proposal', desc: ['revisi_sempro'].includes(status) ? 'Revisi Penguji' : ['menunggu_sempro'].includes(status) ? 'Menunggu Jadwal' : 'Bimbingan Dospem' },
+            { key: 'semhas', label: 'Seminar Hasil', desc: ['revisi_semhas'].includes(status) ? 'Revisi Penguji' : ['menunggu_semhas'].includes(status) ? 'Menunggu Jadwal' : 'Bimbingan Dospem' },
+            { key: 'sidang', label: 'Sidang Akhir', desc: ['revisi_sidang'].includes(status) ? 'Revisi Penguji' : ['menunggu_sidang'].includes(status) ? 'Menunggu Jadwal' : status === 'selesai' ? 'Selesai' : 'Bimbingan Dospem' }
+        ];
+
+        return (
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
+                <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Timeline Progres Tugas Akhir</h3>
+                <div className="flex flex-col md:flex-row items-center justify-between gap-6 md:gap-4 text-center md:text-left">
+                    {steps.map((step, idx) => {
+                        const stepStatus = getStepStatus(step.key as any);
+                        let circleClass = 'bg-gray-100 text-gray-400';
+                        let textClass = 'text-gray-500';
+                        let descClass = 'text-gray-400';
+                        
+                        if (stepStatus === 'completed') {
+                            circleClass = 'bg-green-500 text-white shadow-md shadow-green-500/20';
+                            textClass = 'text-green-700 font-semibold';
+                            descClass = 'text-green-500 font-medium';
+                        } else if (stepStatus === 'active') {
+                            circleClass = 'bg-blue-500 text-white shadow-md shadow-blue-500/20 animate-pulse';
+                            textClass = 'text-blue-700 font-bold';
+                            descClass = 'text-blue-500 font-medium';
+                        } else if (stepStatus === 'revision') {
+                            circleClass = 'bg-red-500 text-white shadow-md shadow-red-500/20';
+                            textClass = 'text-red-700 font-bold';
+                            descClass = 'text-red-500 font-medium';
+                        }
+
+                        return (
+                            <div key={step.key} className="flex-1 flex flex-col md:flex-row items-center w-full relative">
+                                <div className="flex flex-col items-center text-center md:text-left md:items-start z-10">
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold mb-2 ${circleClass}`}>
+                                        {idx + 1}
                                     </div>
-                                    <div className="flex items-center gap-3">
-                                        {getStatusBadge(item.status)}
-                                        <motion.div animate={{ rotate: expandedId === item._id ? 90 : 0 }}>
-                                            <ChevronRight className="w-5 h-5 text-gray-400" />
-                                        </motion.div>
-                                    </div>
+                                    <span className={`text-sm ${textClass}`}>{step.label}</span>
+                                    <span className={`text-xs ${descClass}`}>{step.desc}</span>
                                 </div>
-                                <p className="text-xs text-gray-400 mt-2">Dikirim: {item.tanggalKirim}</p>
+                                {idx < steps.length - 1 && (
+                                    <div className={`hidden md:block absolute left-10 right-0 top-5 h-0.5 -z-0 ${
+                                        getStepStatus(steps[idx+1].key as any) !== 'upcoming' ? 'bg-green-500' : 'bg-gray-100'
+                                    }`} />
+                                )}
                             </div>
+                        );
+                    })}
+                </div>
+            </div>
+        );
+    };
 
-                            <AnimatePresence>
-                                {expandedId === item._id && (
-                                    <motion.div
-                                        initial={{ height: 0, opacity: 0 }}
-                                        animate={{ height: 'auto', opacity: 1 }}
-                                        exit={{ height: 0, opacity: 0 }}
-                                        className="border-t border-gray-100"
+    const renderHistoryAndForm = () => {
+        return (
+            <>
+                <AnimatePresence>
+                    {(error || successMessage) && (
+                        <motion.div
+                            variants={itemVariants}
+                            initial={{ opacity: 0, y: -8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -8 }}
+                            className={`flex items-center gap-3 rounded-xl border p-4 ${error
+                                ? 'border-red-200 bg-red-50 text-red-700'
+                                : 'border-green-200 bg-green-50 text-green-700'
+                                }`}
+                        >
+                            {error ? (
+                                <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                            ) : (
+                                <CheckCircle className="h-5 w-5 flex-shrink-0" />
+                            )}
+                            <p className="text-sm font-medium">{error || successMessage}</p>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* History Section */}
+                <motion.div variants={itemVariants}>
+                    <h3 className="text-lg font-bold text-gray-800 mb-4">Riwayat Bimbingan</h3>
+
+                    <div className="space-y-3">
+                        {currentHistory.length === 0 ? (
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+                                <div className="flex flex-col items-center justify-center text-center">
+                                    <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+                                        <FileText className="w-8 h-8 text-gray-400" />
+                                    </div>
+                                    <h3 className="text-lg font-medium text-gray-700 mb-1">Belum ada riwayat bimbingan</h3>
+                                    <p className="text-sm text-gray-500">
+                                        Mulai kirim bimbingan pertama Anda dengan mengisi form di bawah
+                                    </p>
+                                </div>
+                            </div>
+                        ) : (
+                            currentHistory.map((item, index) => (
+                                <motion.div
+                                    key={item._id}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: index * 0.05 }}
+                                    className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
+                                >
+                                    <div
+                                        className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                                        onClick={() => setExpandedId(expandedId === item._id ? null : item._id)}
                                     >
-                                        <div className="p-4 space-y-4">
-                                            <div className="bg-blue-50 rounded-xl p-3">
-                                                <p className="text-xs font-medium text-blue-600 mb-1">Catatan Anda:</p>
-                                                <p className="text-sm text-gray-700">{item.catatan}</p>
-                                            </div>
-
-                                            {item.feedback && (
-                                                <div className="bg-gray-50 rounded-xl p-3">
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <MessageSquare className="w-4 h-4 text-gray-500" />
-                                                        <p className="text-xs font-medium text-gray-600">Feedback Dosen ({item.tanggalFeedback}):</p>
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                                                    <span className="font-bold text-gray-600 text-sm">{item.version}</span>
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-semibold text-gray-800">{item.judul}</h4>
+                                                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                                                        <Paperclip className="w-3 h-3" />
+                                                        <span>{item.fileName}</span>
+                                                        <span>-</span>
+                                                        <span>{item.fileSize}</span>
                                                     </div>
-                                                    <p className="text-sm text-gray-700">{item.feedback}</p>
                                                 </div>
-                                            )}
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                {getStatusBadge(item.status)}
+                                                <motion.div animate={{ rotate: expandedId === item._id ? 90 : 0 }}>
+                                                    <ChevronRight className="w-5 h-5 text-gray-400" />
+                                                </motion.div>
+                                            </div>
+                                        </div>
+                                        <p className="text-xs text-gray-400 mt-2">Dikirim: {item.tanggalKirim}</p>
+                                    </div>
 
-                                            {item.replies && item.replies.length > 0 && (
-                                                <div className="space-y-2 pl-4 border-l-2 border-gray-200">
-                                                    {item.replies.map((reply) => (
-                                                        <div key={reply._id || reply.id} className={`p-3 rounded-xl ${reply.senderRole === 'mahasiswa' ? 'bg-blue-50' : 'bg-gray-50'}`}>
+                                    <AnimatePresence>
+                                        {expandedId === item._id && (
+                                            <motion.div
+                                                initial={{ height: 0, opacity: 0 }}
+                                                animate={{ height: 'auto', opacity: 1 }}
+                                                exit={{ height: 0, opacity: 0 }}
+                                                className="border-t border-gray-100"
+                                            >
+                                                <div className="p-4 space-y-4">
+                                                    <div className="bg-blue-50 rounded-xl p-3">
+                                                        <p className="text-xs font-medium text-blue-600 mb-1">Catatan Anda:</p>
+                                                        <p className="text-sm text-gray-700">{item.catatan}</p>
+                                                    </div>
+
+                                                    {item.feedback && (
+                                                        <div className="bg-gray-50 rounded-xl p-3">
                                                             <div className="flex items-center gap-2 mb-1">
-                                                                <span className={`text-xs font-medium ${reply.senderRole === 'mahasiswa' ? 'text-blue-600' : 'text-gray-600'}`}>
-                                                                    {reply.senderRole === 'mahasiswa' ? 'Anda' : 'Dosen'}
-                                                                </span>
-                                                                <span className="text-xs text-gray-400">{reply.timestamp || reply.formattedTime}</span>
+                                                                <MessageSquare className="w-4 h-4 text-gray-500" />
+                                                                <p className="text-xs font-medium text-gray-600">Feedback Dosen ({item.tanggalFeedback}):</p>
                                                             </div>
-                                                            <p className="text-sm text-gray-700">{reply.message}</p>
+                                                            <p className="text-sm text-gray-700">{item.feedback}</p>
                                                         </div>
-                                                    ))}
-                                                </div>
-                                            )}
+                                                    )}
 
-                                            {item.status !== 'menunggu' && (
-                                                <div className="flex gap-2">
-                                                    <Input
-                                                        placeholder="Tulis balasan..."
-                                                        value={replyText}
-                                                        onChange={(e) => setReplyText(e.target.value)}
-                                                        className="flex-1 rounded-xl"
-                                                    />
-                                                    <Button onClick={() => handleSendReply(item._id)} className="rounded-xl bg-blue-500 hover:bg-blue-600">
-                                                        <Send className="w-4 h-4" />
+                                                    {item.replies && item.replies.length > 0 && (
+                                                        <div className="space-y-2 pl-4 border-l-2 border-gray-200">
+                                                            {item.replies.map((reply) => (
+                                                                <div key={reply._id || reply.id} className={`p-3 rounded-xl ${reply.senderRole === 'mahasiswa' ? 'bg-blue-50' : 'bg-gray-50'}`}>
+                                                                    <div className="flex items-center gap-2 mb-1">
+                                                                        <span className={`text-xs font-medium ${reply.senderRole === 'mahasiswa' ? 'text-blue-600' : 'text-gray-600'}`}>
+                                                                            {reply.senderRole === 'mahasiswa' ? 'Anda' : 'Dosen'}
+                                                                        </span>
+                                                                        <span className="text-xs text-gray-400">{reply.timestamp || reply.formattedTime}</span>
+                                                                    </div>
+                                                                    <p className="text-sm text-gray-700">{reply.message}</p>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+
+                                                    {item.status !== 'menunggu' && (
+                                                        <div className="flex gap-2">
+                                                            <Input
+                                                                placeholder="Tulis balasan..."
+                                                                value={replyText}
+                                                                onChange={(e) => setReplyText(e.target.value)}
+                                                                className="flex-1 rounded-xl"
+                                                            />
+                                                            <Button onClick={() => handleSendReply(item._id)} className="rounded-xl bg-blue-500 hover:bg-blue-600">
+                                                                <Send className="w-4 h-4" />
+                                                            </Button>
+                                                        </div>
+                                                    )}
+
+                                                    <Button
+                                                        variant="outline"
+                                                        className="w-full rounded-xl"
+                                                        onClick={() => handleDownload(item.id || item._id, item.fileName)}
+                                                    >
+                                                        <Download className="w-4 h-4 mr-2" />
+                                                        Download {item.fileName}
                                                     </Button>
                                                 </div>
-                                            )}
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </motion.div>
+                            ))
+                        )}
+                    </div>
 
-                                            <Button
-                                                variant="outline"
-                                                className="w-full rounded-xl"
-                                                onClick={() => handleDownload(item.id || item._id, item.fileName)}
-                                            >
-                                                <Download className="w-4 h-4 mr-2" />
-                                                Download {item.fileName}
-                                            </Button>
-                                        </div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
+                    {hasHistory && !isFormDisabled && (
+                        <div className="mt-4 flex justify-end">
+                            <button
+                                type="button"
+                                onClick={handleToggleUploadForm}
+                                style={{
+                                    backgroundColor: isUploadFormOpen ? '#ffffff' : '#2563eb',
+                                    borderColor: isUploadFormOpen ? '#93c5fd' : '#2563eb',
+                                    color: isUploadFormOpen ? '#2563eb' : '#ffffff',
+                                }}
+                                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold shadow-sm transition hover:shadow-md"
+                            >
+                                <Upload className="w-4 h-4" />
+                                {isUploadFormOpen ? 'Tutup Form' : 'Kirim Bimbingan Baru'}
+                            </button>
+                        </div>
+                    )}
+                </motion.div>
+
+                {/* Upload Form */}
+                <AnimatePresence initial={false}>
+                    {shouldShowUploadForm && (
+                        <motion.div
+                            variants={itemVariants}
+                            initial={{ opacity: 0, y: 16 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 12 }}
+                            className={`bg-white rounded-2xl p-6 shadow-sm border border-gray-100 ${isFormDisabled ? 'opacity-60' : ''}`}
+                        >
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                                    <Upload className="w-5 h-5 text-white" />
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-bold text-gray-800">Kirim Bimbingan Baru</h2>
+                                    <p className="text-sm text-gray-500">Upload file revisi atau progres terbaru</p>
+                                </div>
+                            </div>
+
+                            {isFormDisabled && (
+                                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-xl flex items-center gap-2">
+                                    <AlertCircle className="w-5 h-5 text-yellow-600" />
+                                    <p className="text-sm text-yellow-700">Anda masih memiliki bimbingan yang menunggu review. Harap tunggu feedback dosen sebelum mengirim yang baru.</p>
+                                </div>
+                            )}
+
+                            {fieldErrors.dosenType && (
+                                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2">
+                                    <AlertCircle className="w-5 h-5 text-red-600" />
+                                    <p className="text-sm font-medium text-red-700">{fieldErrors.dosenType}</p>
+                                </div>
+                            )}
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Judul Bimbingan</label>
+                                    <Input
+                                        placeholder="Contoh: Revisi BAB III - Metodologi Penelitian"
+                                        value={judulBimbingan}
+                                        onChange={(e) => {
+                                            setJudulBimbingan(e.target.value)
+                                            setFieldErrors((current) => ({ ...current, judul: undefined }))
+                                        }}
+                                        disabled={isFormDisabled}
+                                        className={`rounded-xl ${fieldErrors.judul ? 'border-red-300 bg-red-50 focus-visible:ring-red-200' : ''}`}
+                                    />
+                                    {fieldErrors.judul && (
+                                        <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-red-600">
+                                            <AlertCircle className="h-3.5 w-3.5" />
+                                            {fieldErrors.judul}
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Upload File (PDF)</label>
+                                    <input
+                                        type="file"
+                                        accept=".pdf"
+                                        ref={fileInputRef}
+                                        onChange={handleFileSelect}
+                                        disabled={isFormDisabled}
+                                        className="hidden"
+                                    />
+                                    <div
+                                        onClick={() => !isFormDisabled && fileInputRef.current?.click()}
+                                        className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${fieldErrors.file
+                                            ? 'border-red-300 bg-red-50 hover:border-red-400'
+                                            : isFormDisabled ? 'border-gray-200 bg-gray-50' : 'border-blue-200 hover:border-blue-400 hover:bg-blue-50/50'
+                                            }`}
+                                    >
+                                        {selectedFile ? (
+                                            <div className="flex items-center justify-center gap-3">
+                                                <FileText className="w-8 h-8 text-blue-500" />
+                                                <div className="text-left">
+                                                    <p className="font-medium text-gray-800">{selectedFile.name}</p>
+                                                    <p className="text-sm text-gray-500">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <Upload className="w-10 h-10 text-gray-400 mx-auto mb-2" />
+                                                <p className="text-gray-600">Klik atau drag file PDF ke sini</p>
+                                                <p className="text-xs text-gray-400 mt-1">Maksimal 10MB</p>
+                                            </>
+                                        )}
+                                    </div>
+                                    {fieldErrors.file && (
+                                        <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-red-600">
+                                            <AlertCircle className="h-3.5 w-3.5" />
+                                            {fieldErrors.file}
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Catatan Tambahan (Opsional)</label>
+                                    <Textarea
+                                        placeholder="Jelaskan apa saja yang sudah diperbaiki atau ditambahkan..."
+                                        value={catatan}
+                                        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
+                                            setCatatan(e.target.value)
+                                            setFieldErrors((current) => ({ ...current, catatan: undefined }))
+                                        }}
+                                        disabled={isFormDisabled}
+                                        className={`rounded-xl min-h-[100px] ${fieldErrors.catatan ? 'border-red-300 bg-red-50 focus-visible:ring-red-200' : ''}`}
+                                    />
+                                    <div className="mt-1.5 flex items-center justify-between gap-2">
+                                        {fieldErrors.catatan ? (
+                                            <p className="flex items-center gap-1 text-xs font-medium text-red-600">
+                                                <AlertCircle className="h-3.5 w-3.5" />
+                                                {fieldErrors.catatan}
+                                            </p>
+                                        ) : (
+                                            <span />
+                                        )}
+                                        <p className={`text-xs ${catatan.length > 1000 ? 'text-red-600' : 'text-gray-400'}`}>
+                                            {catatan.length}/1000
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <motion.div whileHover={{ scale: isFormDisabled ? 1 : 1.01 }} whileTap={{ scale: isFormDisabled ? 1 : 0.99 }}>
+                                    <Button
+                                        onClick={handleSubmit}
+                                        disabled={isFormDisabled || isSubmitting}
+                                        className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl py-6"
+                                    >
+                                        <Send className="w-5 h-5 mr-2" />
+                                        {isSubmitting ? 'Mengirim...' : 'Kirim Bimbingan'}
+                                    </Button>
+                                </motion.div>
+                            </div>
                         </motion.div>
-                    ))
-                )}
-            </div>
+                    )}
+                </AnimatePresence>
+            </>
+        );
+    };
 
-            {hasHistory && !isFormDisabled && (
-                <div className="mt-4 flex justify-end">
-                    <button
-                        type="button"
-                        onClick={handleToggleUploadForm}
-                        style={{
-                            backgroundColor: isUploadFormOpen ? '#ffffff' : '#2563eb',
-                            borderColor: isUploadFormOpen ? '#93c5fd' : '#2563eb',
-                            color: isUploadFormOpen ? '#2563eb' : '#ffffff',
-                        }}
-                        className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold shadow-sm transition hover:shadow-md"
+    const isPembimbingLocked = isRevisionPhase;
+    const isPengujiLocked = !isRevisionPhase;
+    const currentPenguji = activeSubTab === 'penguji1' ? user?.penguji_1 : user?.penguji_2;
+    const hasCurrentPenguji = typeof currentPenguji === 'object' ? Boolean((currentPenguji as any)?._id) : Boolean(currentPenguji);
+
+    const renderContent = () => {
+        if (activeCategory === 'pembimbing') {
+            if (isPembimbingLocked) {
+                return (
+                    <motion.div
+                        key="pembimbing_locked"
+                        initial="hidden"
+                        animate="visible"
+                        variants={itemVariants}
+                        className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center flex flex-col items-center justify-center"
                     >
-                        <Upload className="w-4 h-4" />
-                        {isUploadFormOpen ? 'Tutup Form' : 'Kirim Bimbingan Baru'}
-                    </button>
-                </div>
-            )}
-        </motion.div>
-    )
+                        <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mb-4">
+                            <AlertCircle className="w-8 h-8 text-red-500" />
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-800 mb-2">Bimbingan Pembimbing Dikunci Sementara</h3>
+                        <p className="text-sm text-gray-500 max-w-md">
+                            Anda sedang dalam fase revisi pasca ujian. Silakan selesaikan bimbingan revisi dengan <strong>Dosen Penguji</strong> terlebih dahulu hingga mendapatkan ACC dari kedua penguji untuk membuka kembali bimbingan pembimbing.
+                        </p>
+                    </motion.div>
+                );
+            }
+
+            return (
+                <motion.div
+                    key={`pembimbing_${activeSubTab}`}
+                    initial="hidden"
+                    animate="visible"
+                    variants={containerVariants}
+                    className="space-y-6"
+                >
+                    <motion.div variants={itemVariants} className="flex gap-2">
+                        <motion.button
+                            onClick={() => setActiveSubTab('dospem1')}
+                            className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all ${activeSubTab === 'dospem1' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
+                            whileHover={{ scale: 1.01 }}
+                            whileTap={{ scale: 0.99 }}
+                        >
+                            <div className="flex items-center justify-center gap-2">
+                                <User className="w-4 h-4" />
+                                Dosen Pembimbing 1
+                            </div>
+                            <p className="text-xs mt-1 opacity-80">{dospem1Name}</p>
+                        </motion.button>
+                        <motion.button
+                            onClick={() => setActiveSubTab('dospem2')}
+                            className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all ${activeSubTab === 'dospem2' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
+                            whileHover={{ scale: 1.01 }}
+                            whileTap={{ scale: 0.99 }}
+                        >
+                            <div className="flex items-center justify-center gap-2">
+                                <User className="w-4 h-4" />
+                                Dosen Pembimbing 2
+                            </div>
+                            <p className="text-xs mt-1 opacity-80">{dospem2Name}</p>
+                        </motion.button>
+                    </motion.div>
+
+                    {renderHistoryAndForm()}
+                </motion.div>
+            );
+        }
+
+        if (isPengujiLocked) {
+            return (
+                <motion.div
+                    key="penguji_locked"
+                    initial="hidden"
+                    animate="visible"
+                    variants={itemVariants}
+                    className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center flex flex-col items-center justify-center"
+                >
+                    <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center mb-4">
+                        <Clock className="w-8 h-8 text-blue-500" />
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-800 mb-2">Bimbingan Penguji Belum Dibuka</h3>
+                    <p className="text-sm text-gray-500 max-w-md">
+                        Bimbingan revisi dengan Dosen Penguji belum aktif. Tahap ini hanya akan terbuka secara otomatis setelah Anda selesai melaksanakan ujian (Seminar Proposal, Seminar Hasil, atau Sidang Akhir).
+                    </p>
+                </motion.div>
+            );
+        }
+
+        if (!hasCurrentPenguji) {
+            return (
+                <motion.div
+                    key={`penguji_unassigned_${activeSubTab}`}
+                    initial="hidden"
+                    animate="visible"
+                    variants={containerVariants}
+                    className="space-y-6"
+                >
+                    <motion.div variants={itemVariants} className="flex gap-2">
+                        <motion.button
+                            onClick={() => setActiveSubTab('penguji1')}
+                            className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all ${activeSubTab === 'penguji1' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
+                            whileHover={{ scale: 1.01 }}
+                            whileTap={{ scale: 0.99 }}
+                        >
+                            <div className="flex items-center justify-center gap-2">
+                                <User className="w-4 h-4" />
+                                Dosen Penguji 1
+                            </div>
+                            <p className="text-xs mt-1 opacity-80">{penguji1Name}</p>
+                        </motion.button>
+                        <motion.button
+                            onClick={() => setActiveSubTab('penguji2')}
+                            className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all ${activeSubTab === 'penguji2' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
+                            whileHover={{ scale: 1.01 }}
+                            whileTap={{ scale: 0.99 }}
+                        >
+                            <div className="flex items-center justify-center gap-2">
+                                <User className="w-4 h-4" />
+                                Dosen Penguji 2
+                            </div>
+                            <p className="text-xs mt-1 opacity-80">{penguji2Name}</p>
+                        </motion.button>
+                    </motion.div>
+
+                    <motion.div
+                        variants={itemVariants}
+                        className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center flex flex-col items-center justify-center mt-6"
+                    >
+                        <div className="w-16 h-16 rounded-full bg-yellow-50 flex items-center justify-center mb-4">
+                            <AlertCircle className="w-8 h-8 text-yellow-500" />
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-800 mb-2">Dosen Penguji Belum Ditentukan</h3>
+                        <p className="text-sm text-gray-500 max-w-md">
+                            Dosen penguji untuk sesi revisi Anda belum di-assign oleh Admin. Silakan hubungi admin program studi untuk menugaskan penguji Anda.
+                        </p>
+                    </motion.div>
+                </motion.div>
+            );
+        }
+
+        return (
+            <motion.div
+                key={`penguji_${activeSubTab}`}
+                initial="hidden"
+                animate="visible"
+                variants={containerVariants}
+                className="space-y-6"
+            >
+                <motion.div variants={itemVariants} className="flex gap-2">
+                    <motion.button
+                        onClick={() => setActiveSubTab('penguji1')}
+                        className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all ${activeSubTab === 'penguji1' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.99 }}
+                    >
+                        <div className="flex items-center justify-center gap-2">
+                            <User className="w-4 h-4" />
+                            Dosen Penguji 1
+                        </div>
+                        <p className="text-xs mt-1 opacity-80">{penguji1Name}</p>
+                    </motion.button>
+                    <motion.button
+                        onClick={() => setActiveSubTab('penguji2')}
+                        className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all ${activeSubTab === 'penguji2' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.99 }}
+                    >
+                        <div className="flex items-center justify-center gap-2">
+                            <User className="w-4 h-4" />
+                            Dosen Penguji 2
+                        </div>
+                        <p className="text-xs mt-1 opacity-80">{penguji2Name}</p>
+                    </motion.button>
+                </motion.div>
+
+                {renderHistoryAndForm()}
+            </motion.div>
+        );
+    };
+
+
 
     return (
         <div className="min-h-screen flex bg-gradient-to-br from-gray-50 via-white to-gray-100">
@@ -597,329 +1051,36 @@ export const BimbinganMahasiswa = () => {
                 <main className="flex-1 p-6 overflow-auto">
                     <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6 max-w-4xl mx-auto">
 
-                        {/* Tab Selection */}
-                        <motion.div variants={itemVariants} className="flex gap-2">
-                            <motion.button
-                                onClick={() => setActiveTab('dospem1')}
-                                className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all ${activeTab === 'dospem1' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
-                                whileHover={{ scale: 1.01 }}
-                                whileTap={{ scale: 0.99 }}
+                        {/* Timeline Progres */}
+                        {renderProgressTimeline()}
+
+                        {/* Kategori Bimbingan Tabs */}
+                        <motion.div variants={itemVariants} className="flex bg-gray-100 p-1.5 rounded-2xl mb-6">
+                            <button
+                                type="button"
+                                onClick={() => handleCategoryChange('pembimbing')}
+                                className={`flex-1 py-2.5 rounded-xl font-semibold transition-all ${
+                                    activeCategory === 'pembimbing'
+                                        ? 'bg-white text-gray-800 shadow-sm'
+                                        : 'text-gray-500 hover:text-gray-700'
+                                }`}
                             >
-                                <div className="flex items-center justify-center gap-2">
-                                    <User className="w-4 h-4" />
-                                    Dosen Pembimbing 1
-                                </div>
-                                <p className="text-xs mt-1 opacity-80">{dospem1Name}</p>
-                            </motion.button>
-                            <motion.button
-                                onClick={() => setActiveTab('dospem2')}
-                                className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all ${activeTab === 'dospem2' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
-                                whileHover={{ scale: 1.01 }}
-                                whileTap={{ scale: 0.99 }}
+                                Bimbingan Pembimbing
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleCategoryChange('penguji')}
+                                className={`flex-1 py-2.5 rounded-xl font-semibold transition-all ${
+                                    activeCategory === 'penguji'
+                                        ? 'bg-white text-gray-800 shadow-sm'
+                                        : 'text-gray-500 hover:text-gray-700'
+                                }`}
                             >
-                                <div className="flex items-center justify-center gap-2">
-                                    <User className="w-4 h-4" />
-                                    Dosen Pembimbing 2
-                                </div>
-                                <p className="text-xs mt-1 opacity-80">{dospem2Name}</p>
-                            </motion.button>
+                                Bimbingan Penguji
+                            </button>
                         </motion.div>
 
-                        {historySection}
-
-                        <AnimatePresence>
-                            {(error || successMessage) && (
-                                <motion.div
-                                    variants={itemVariants}
-                                    initial={{ opacity: 0, y: -8 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -8 }}
-                                    className={`flex items-center gap-3 rounded-xl border p-4 ${error
-                                        ? 'border-red-200 bg-red-50 text-red-700'
-                                        : 'border-green-200 bg-green-50 text-green-700'
-                                        }`}
-                                >
-                                    {error ? (
-                                        <AlertCircle className="h-5 w-5 flex-shrink-0" />
-                                    ) : (
-                                        <CheckCircle className="h-5 w-5 flex-shrink-0" />
-                                    )}
-                                    <p className="text-sm font-medium">{error || successMessage}</p>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-
-                        {/* Upload Form */}
-                        <AnimatePresence initial={false}>
-                            {shouldShowUploadForm && (
-                                <motion.div
-                                    variants={itemVariants}
-                                    initial={{ opacity: 0, y: 16 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: 12 }}
-                                    className={`bg-white rounded-2xl p-6 shadow-sm border border-gray-100 ${isFormDisabled ? 'opacity-60' : ''}`}
-                                >
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
-                                    <Upload className="w-5 h-5 text-white" />
-                                </div>
-                                <div>
-                                    <h2 className="text-lg font-bold text-gray-800">Kirim Bimbingan Baru</h2>
-                                    <p className="text-sm text-gray-500">Upload file revisi atau progres terbaru</p>
-                                </div>
-                            </div>
-
-                            {isFormDisabled && (
-                                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-xl flex items-center gap-2">
-                                    <AlertCircle className="w-5 h-5 text-yellow-600" />
-                                    <p className="text-sm text-yellow-700">Anda masih memiliki bimbingan yang menunggu review. Harap tunggu feedback dosen sebelum mengirim yang baru.</p>
-                                </div>
-                            )}
-
-                            {fieldErrors.dosenType && (
-                                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2">
-                                    <AlertCircle className="w-5 h-5 text-red-600" />
-                                    <p className="text-sm font-medium text-red-700">{fieldErrors.dosenType}</p>
-                                </div>
-                            )}
-
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Judul Bimbingan</label>
-                                    <Input
-                                        placeholder="Contoh: Revisi BAB III - Metodologi Penelitian"
-                                        value={judulBimbingan}
-                                        onChange={(e) => {
-                                            setJudulBimbingan(e.target.value)
-                                            setFieldErrors((current) => ({ ...current, judul: undefined }))
-                                        }}
-                                        disabled={isFormDisabled}
-                                        className={`rounded-xl ${fieldErrors.judul ? 'border-red-300 bg-red-50 focus-visible:ring-red-200' : ''}`}
-                                    />
-                                    {fieldErrors.judul && (
-                                        <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-red-600">
-                                            <AlertCircle className="h-3.5 w-3.5" />
-                                            {fieldErrors.judul}
-                                        </p>
-                                    )}
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Upload File (PDF)</label>
-                                    <input
-                                        type="file"
-                                        accept=".pdf"
-                                        ref={fileInputRef}
-                                        onChange={handleFileSelect}
-                                        disabled={isFormDisabled}
-                                        className="hidden"
-                                    />
-                                    <div
-                                        onClick={() => !isFormDisabled && fileInputRef.current?.click()}
-                                        className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${fieldErrors.file
-                                            ? 'border-red-300 bg-red-50 hover:border-red-400'
-                                            : isFormDisabled ? 'border-gray-200 bg-gray-50' : 'border-blue-200 hover:border-blue-400 hover:bg-blue-50/50'
-                                            }`}
-                                    >
-                                        {selectedFile ? (
-                                            <div className="flex items-center justify-center gap-3">
-                                                <FileText className="w-8 h-8 text-blue-500" />
-                                                <div className="text-left">
-                                                    <p className="font-medium text-gray-800">{selectedFile.name}</p>
-                                                    <p className="text-sm text-gray-500">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <Upload className="w-10 h-10 text-gray-400 mx-auto mb-2" />
-                                                <p className="text-gray-600">Klik atau drag file PDF ke sini</p>
-                                                <p className="text-xs text-gray-400 mt-1">Maksimal 10MB</p>
-                                            </>
-                                        )}
-                                    </div>
-                                    {fieldErrors.file && (
-                                        <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-red-600">
-                                            <AlertCircle className="h-3.5 w-3.5" />
-                                            {fieldErrors.file}
-                                        </p>
-                                    )}
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Catatan Tambahan (Opsional)</label>
-                                    <Textarea
-                                        placeholder="Jelaskan apa saja yang sudah diperbaiki atau ditambahkan..."
-                                        value={catatan}
-                                        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => {
-                                            setCatatan(e.target.value)
-                                            setFieldErrors((current) => ({ ...current, catatan: undefined }))
-                                        }}
-                                        disabled={isFormDisabled}
-                                        className={`rounded-xl min-h-[100px] ${fieldErrors.catatan ? 'border-red-300 bg-red-50 focus-visible:ring-red-200' : ''}`}
-                                    />
-                                    <div className="mt-1.5 flex items-center justify-between gap-2">
-                                        {fieldErrors.catatan ? (
-                                            <p className="flex items-center gap-1 text-xs font-medium text-red-600">
-                                                <AlertCircle className="h-3.5 w-3.5" />
-                                                {fieldErrors.catatan}
-                                            </p>
-                                        ) : (
-                                            <span />
-                                        )}
-                                        <p className={`text-xs ${catatan.length > 1000 ? 'text-red-600' : 'text-gray-400'}`}>
-                                            {catatan.length}/1000
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <motion.div whileHover={{ scale: isFormDisabled ? 1 : 1.01 }} whileTap={{ scale: isFormDisabled ? 1 : 0.99 }}>
-                                    <Button
-                                        onClick={handleSubmit}
-                                        disabled={isFormDisabled || isSubmitting}
-                                        className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl py-6"
-                                    >
-                                        <Send className="w-5 h-5 mr-2" />
-                                        {isSubmitting ? 'Mengirim...' : 'Kirim Bimbingan'}
-                                    </Button>
-                                </motion.div>
-                            </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-
-                        {false && (
-                            <motion.div variants={itemVariants}>
-                            <h3 className="text-lg font-bold text-gray-800 mb-4">Riwayat Bimbingan</h3>
-                            <div className="space-y-3">
-                                {currentHistory.length === 0 ? (
-                                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-                                        <div className="flex flex-col items-center justify-center text-center">
-                                            <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-                                                <FileText className="w-8 h-8 text-gray-400" />
-                                            </div>
-                                            <h3 className="text-lg font-medium text-gray-700 mb-1">Belum ada riwayat bimbingan</h3>
-                                            <p className="text-sm text-gray-500">
-                                                Mulai kirim bimbingan pertama Anda dengan mengisi form di atas
-                                            </p>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    currentHistory.map((item, index) => (
-                                        <motion.div
-                                            key={item._id}
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ delay: index * 0.05 }}
-                                            className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
-                                        >
-                                            {/* Header */}
-                                            <div
-                                                className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
-                                                onClick={() => setExpandedId(expandedId === item._id ? null : item._id)}
-                                            >
-                                                <div className="flex items-center justify-between">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                                                            <span className="font-bold text-gray-600 text-sm">{item.version}</span>
-                                                        </div>
-                                                        <div>
-                                                            <h4 className="font-semibold text-gray-800">{item.judul}</h4>
-                                                            <div className="flex items-center gap-2 text-xs text-gray-500">
-                                                                <Paperclip className="w-3 h-3" />
-                                                                <span>{item.fileName}</span>
-                                                                <span>•</span>
-                                                                <span>{item.fileSize}</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-3">
-                                                        {getStatusBadge(item.status)}
-                                                        <motion.div animate={{ rotate: expandedId === item.id ? 90 : 0 }}>
-                                                            <ChevronRight className="w-5 h-5 text-gray-400" />
-                                                        </motion.div>
-                                                    </div>
-                                                </div>
-                                                <p className="text-xs text-gray-400 mt-2">Dikirim: {item.tanggalKirim}</p>
-                                            </div>
-
-                                            {/* Expanded Content */}
-                                            <AnimatePresence>
-                                                {expandedId === item.id && (
-                                                    <motion.div
-                                                        initial={{ height: 0, opacity: 0 }}
-                                                        animate={{ height: 'auto', opacity: 1 }}
-                                                        exit={{ height: 0, opacity: 0 }}
-                                                        className="border-t border-gray-100"
-                                                    >
-                                                        <div className="p-4 space-y-4">
-                                                            {/* Catatan Mahasiswa */}
-                                                            <div className="bg-blue-50 rounded-xl p-3">
-                                                                <p className="text-xs font-medium text-blue-600 mb-1">Catatan Anda:</p>
-                                                                <p className="text-sm text-gray-700">{item.catatan}</p>
-                                                            </div>
-
-                                                            {/* Feedback Dosen */}
-                                                            {item.feedback && (
-                                                                <div className="bg-gray-50 rounded-xl p-3">
-                                                                    <div className="flex items-center gap-2 mb-1">
-                                                                        <MessageSquare className="w-4 h-4 text-gray-500" />
-                                                                        <p className="text-xs font-medium text-gray-600">Feedback Dosen ({item.tanggalFeedback}):</p>
-                                                                    </div>
-                                                                    <p className="text-sm text-gray-700">{item.feedback}</p>
-                                                                </div>
-                                                            )}
-
-                                                            {/* Replies */}
-                                                            {item.replies && item.replies.length > 0 && (
-                                                                <div className="space-y-2 pl-4 border-l-2 border-gray-200">
-                                                                    {item.replies.map((reply) => (
-                                                                        <div key={reply._id || reply.id} className={`p-3 rounded-xl ${reply.senderRole === 'mahasiswa' ? 'bg-blue-50' : 'bg-gray-50'}`}>
-                                                                            <div className="flex items-center gap-2 mb-1">
-                                                                                <span className={`text-xs font-medium ${reply.senderRole === 'mahasiswa' ? 'text-blue-600' : 'text-gray-600'}`}>
-                                                                                    {reply.senderRole === 'mahasiswa' ? 'Anda' : 'Dosen'}
-                                                                                </span>
-                                                                                <span className="text-xs text-gray-400">{reply.timestamp || reply.formattedTime}</span>
-                                                                            </div>
-                                                                            <p className="text-sm text-gray-700">{reply.message}</p>
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                            )}
-
-                                                            {/* Reply Input */}
-                                                            {item.status !== 'menunggu' && (
-                                                                <div className="flex gap-2">
-                                                                    <Input
-                                                                        placeholder="Tulis balasan..."
-                                                                        value={replyText}
-                                                                        onChange={(e) => setReplyText(e.target.value)}
-                                                                        className="flex-1 rounded-xl"
-                                                                    />
-                                                                    <Button onClick={() => handleSendReply(item._id)} className="rounded-xl bg-blue-500 hover:bg-blue-600">
-                                                                        <Send className="w-4 h-4" />
-                                                                    </Button>
-                                                                </div>
-                                                            )}
-
-                                                            {/* Download Button */}
-                                                            <Button
-                                                                variant="outline"
-                                                                className="w-full rounded-xl"
-                                                                onClick={() => handleDownload(item.id || item._id, item.fileName)}
-                                                            >
-                                                                <Download className="w-4 h-4 mr-2" />
-                                                                Download {item.fileName}
-                                                            </Button>
-                                                        </div>
-                                                    </motion.div>
-                                                )}
-                                            </AnimatePresence>
-                                        </motion.div>
-                                    ))
-                                )}
-                            </div>
-                            </motion.div>
-                        )}
+                        {renderContent()}
 
                     </motion.div>
                 </main>

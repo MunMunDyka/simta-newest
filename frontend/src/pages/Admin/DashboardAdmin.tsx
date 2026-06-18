@@ -63,6 +63,7 @@ const menuItems = [
 
 const managementItems = [
     { label: 'Manajemen User', icon: Users, path: '/admin/users' },
+    { label: 'Manajemen Dosen', icon: GraduationCap, path: '/admin/plotting' },
     { label: 'Kelola Bimbingan', icon: FileText, path: '/admin/bimbingan' },
     { label: 'Kelola Jadwal', icon: Calendar, path: '/admin/jadwal' },
 ]

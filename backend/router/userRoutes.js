@@ -51,6 +51,17 @@ router.get(
 );
 
 /**
+ * @route   GET /api/users/dosen-workloads
+ * @desc    Get all dosen workloads
+ * @access  Admin
+ */
+router.get(
+    '/dosen-workloads',
+    roleMiddleware(['admin']),
+    userController.getDosenWorkloads
+);
+
+/**
  * @route   GET /api/users/mahasiswa-bimbingan
  * @desc    Get mahasiswa bimbingan (for dosen or admin viewing dosen)
  * @access  Dosen, Admin

@@ -39,6 +39,17 @@ router.get(
 );
 
 /**
+ * @route   GET /api/jadwal/penguji-workload
+ * @desc    Get examiner workloads
+ * @access  Admin
+ */
+router.get(
+    '/penguji-workload',
+    roleMiddleware(['admin']),
+    jadwalController.getPengujiWorkload
+);
+
+/**
  * @route   GET /api/jadwal/upcoming
  * @desc    Get upcoming jadwal
  * @access  Private
@@ -97,6 +108,17 @@ router.put(
     updateJadwalValidation,
     handleValidationErrors,
     jadwalController.update
+);
+
+/**
+ * @route   DELETE /api/jadwal/all/permanent
+ * @desc    Hard delete all schedules (permanent removal)
+ * @access  Admin
+ */
+router.delete(
+    '/all/permanent',
+    roleMiddleware(['admin']),
+    jadwalController.clearAll
 );
 
 /**

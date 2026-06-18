@@ -148,7 +148,15 @@ const assignDospemValidation = [
 
     body('dospem_2')
         .optional({ nullable: true })
-        .isMongoId().withMessage('Format ID dosen pembimbing 2 tidak valid')
+        .isMongoId().withMessage('Format ID dosen pembimbing 2 tidak valid'),
+
+    body('penguji_1')
+        .optional({ nullable: true })
+        .isMongoId().withMessage('Format ID dosen penguji 1 tidak valid'),
+
+    body('penguji_2')
+        .optional({ nullable: true })
+        .isMongoId().withMessage('Format ID dosen penguji 2 tidak valid')
 ];
 
 // ===== Bimbingan Validation Rules =====
@@ -187,6 +195,20 @@ const feedbackValidation = [
 ];
 
 /**
+ * Save draft feedback validation
+ */
+const draftFeedbackValidation = [
+    body('status')
+        .optional({ nullable: true, checkFalsy: true })
+        .isIn(['revisi', 'acc', 'lanjut_bab', 'acc_sempro']).withMessage('Status tidak valid'),
+
+    body('feedback')
+        .optional({ nullable: true, checkFalsy: true })
+        .isLength({ max: 2000 }).withMessage('Draft feedback maksimal 2000 karakter')
+        .trim()
+];
+
+/**
  * Reply validation
  */
 const replyValidation = [
@@ -197,6 +219,38 @@ const replyValidation = [
 ];
 
 // ===== Jadwal Validation Rules =====
+
+const checkWeekend = (val) => {
+    if (!val) return true;
+    const match = val.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    let day;
+    if (match) {
+        const year = parseInt(match[1]);
+        const month = parseInt(match[2]) - 1;
+        const dateNum = parseInt(match[3]);
+        const dateObj = new Date(Date.UTC(year, month, dateNum));
+        day = dateObj.getUTCDay();
+    } else {
+        const dateObj = new Date(val);
+        day = dateObj.getUTCDay();
+    }
+    if (day === 0 || day === 6) {
+        throw new Error('Jadwal tidak boleh pada hari Sabtu atau Minggu (weekend)');
+    }
+    return true;
+};
+
+const checkTimeLimit = (val) => {
+    if (!val) return true;
+    const [hours, minutes] = val.split(':').map(Number);
+    const timeVal = hours * 60 + minutes;
+    const startLimit = 8 * 60; // 08:00
+    const endLimit = 17 * 60;  // 17:00
+    if (timeVal < startLimit || timeVal > endLimit) {
+        throw new Error('Waktu sidang harus antara pukul 08:00 - 17:00 WIB');
+    }
+    return true;
+};
 
 /**
  * Create jadwal validation
@@ -212,15 +266,18 @@ const createJadwalValidation = [
 
     body('tanggal')
         .notEmpty().withMessage('Tanggal wajib diisi')
-        .isISO8601().withMessage('Format tanggal tidak valid (gunakan ISO 8601)'),
+        .isISO8601().withMessage('Format tanggal tidak valid (gunakan ISO 8601)')
+        .custom(checkWeekend),
 
     body('waktuMulai')
         .notEmpty().withMessage('Waktu mulai wajib diisi')
-        .matches(/^([01]\d|2[0-3]):([0-5]\d)$/).withMessage('Format waktu harus HH:MM'),
+        .matches(/^([01]\d|2[0-3]):([0-5]\d)$/).withMessage('Format waktu harus HH:MM')
+        .custom(checkTimeLimit),
 
     body('waktuSelesai')
         .optional()
-        .matches(/^([01]\d|2[0-3]):([0-5]\d)$/).withMessage('Format waktu harus HH:MM'),
+        .matches(/^([01]\d|2[0-3]):([0-5]\d)$/).withMessage('Format waktu harus HH:MM')
+        .custom(checkTimeLimit),
 
     body('ruangan')
         .optional()
@@ -241,11 +298,18 @@ const createJadwalValidation = [
 const updateJadwalValidation = [
     body('tanggal')
         .optional()
-        .isISO8601().withMessage('Format tanggal tidak valid'),
+        .isISO8601().withMessage('Format tanggal tidak valid')
+        .custom(checkWeekend),
 
     body('waktuMulai')
         .optional()
-        .matches(/^([01]\d|2[0-3]):([0-5]\d)$/).withMessage('Format waktu harus HH:MM'),
+        .matches(/^([01]\d|2[0-3]):([0-5]\d)$/).withMessage('Format waktu harus HH:MM')
+        .custom(checkTimeLimit),
+
+    body('waktuSelesai')
+        .optional()
+        .matches(/^([01]\d|2[0-3]):([0-5]\d)$/).withMessage('Format waktu harus HH:MM')
+        .custom(checkTimeLimit),
 
     body('status')
         .optional()
@@ -306,7 +370,7 @@ const paginationQuery = [
 
     query('limit')
         .optional()
-        .isInt({ min: 1, max: 100 }).withMessage('Limit harus antara 1-100')
+        .isInt({ min: 1, max: 500 }).withMessage('Limit harus antara 1-500')
 ];
 
 module.exports = {
@@ -321,6 +385,7 @@ module.exports = {
     // Bimbingan
     createBimbinganValidation,
     feedbackValidation,
+    draftFeedbackValidation,
     replyValidation,
     clearBimbinganValidation,
     clearAllBimbinganGlobalValidation,

@@ -138,6 +138,19 @@ const create = asyncHandler(async (req, res) => {
         }
     }
 
+    // Validate that penguji is not dospem_1 or dospem_2 of the student
+    const dospem1Id = mahasiswaUser.dospem_1?.toString();
+    const dospem2Id = mahasiswaUser.dospem_2?.toString();
+    
+    if (penguji && penguji.length > 0) {
+        penguji.forEach(pId => {
+            const currentPengujiIdStr = pId.toString();
+            if (currentPengujiIdStr === dospem1Id || currentPengujiIdStr === dospem2Id) {
+                throw ApiError.badRequest('Dosen Pembimbing tidak boleh ditugaskan sebagai Dosen Penguji');
+            }
+        });
+    }
+
     // Check if slot is available
     if (ruangan) {
         const isAvailable = await Jadwal.isSlotAvailable(
@@ -151,6 +164,20 @@ const create = asyncHandler(async (req, res) => {
                 `Ruangan '${ruangan}' sudah digunakan pada ${tanggal} pukul ${waktuMulai}`
             );
         }
+    }
+
+    // Check if mahasiswa has another schedule on the same date and time slot
+    const studentConflict = await Jadwal.findOne({
+        mahasiswa,
+        tanggal: new Date(tanggal),
+        waktuMulai,
+        status: { $ne: 'dibatalkan' }
+    });
+
+    if (studentConflict) {
+        throw ApiError.conflict(
+            `Mahasiswa sudah memiliki jadwal ${studentConflict.jenisJadwal === 'sidang_proposal' ? 'Sidang Proposal' : 'Sidang Skripsi'} pada tanggal dan waktu yang sama.`
+        );
     }
 
     // Check if mahasiswa already has jadwal for same jenis
@@ -179,6 +206,15 @@ const create = asyncHandler(async (req, res) => {
         catatan,
         createdBy: req.user._id
     });
+
+    // ===== Sync penguji to mahasiswa User record =====
+    if (penguji && penguji.length > 0) {
+        const updatePenguji = {};
+        if (penguji[0]) updatePenguji.penguji_1 = penguji[0];
+        if (penguji[1]) updatePenguji.penguji_2 = penguji[1];
+        await User.findByIdAndUpdate(mahasiswa, updatePenguji);
+        console.log(`🔗 Penguji synced to student record: ${mahasiswaUser.name}`);
+    }
 
     await jadwal.populate([
         { path: 'mahasiswa', select: 'name nim_nip prodi whatsapp email' },
@@ -313,7 +349,117 @@ const update = asyncHandler(async (req, res) => {
         throw ApiError.badRequest('Hasil sidang wajib diisi jika status selesai');
     }
 
+    // If penguji is being updated, validate that they are not dospem_1 or dospem_2 of the student
+    if (req.body.penguji !== undefined) {
+        const student = await User.findById(jadwal.mahasiswa);
+        if (student) {
+            const dospem1Id = student.dospem_1?.toString();
+            const dospem2Id = student.dospem_2?.toString();
+            const newPenguji = req.body.penguji || [];
+            
+            newPenguji.forEach(pId => {
+                const currentPengujiIdStr = pId.toString();
+                if (currentPengujiIdStr === dospem1Id || currentPengujiIdStr === dospem2Id) {
+                    throw ApiError.badRequest('Dosen Pembimbing tidak boleh ditugaskan sebagai Dosen Penguji');
+                }
+            });
+        }
+    }
+
+    // Check if student has another schedule on same date and time slot (excluding current schedule)
+    if (req.body.tanggal !== undefined || req.body.waktuMulai !== undefined || req.body.mahasiswa !== undefined) {
+        const targetMahasiswa = req.body.mahasiswa || jadwal.mahasiswa;
+        const targetTanggal = req.body.tanggal ? new Date(req.body.tanggal) : jadwal.tanggal;
+        const targetWaktuMulai = req.body.waktuMulai || jadwal.waktuMulai;
+
+        const studentConflict = await Jadwal.findOne({
+            _id: { $ne: jadwal._id },
+            mahasiswa: targetMahasiswa,
+            tanggal: targetTanggal,
+            waktuMulai: targetWaktuMulai,
+            status: { $ne: 'dibatalkan' }
+        });
+
+        if (studentConflict) {
+            throw ApiError.conflict(
+                `Mahasiswa sudah memiliki jadwal ${studentConflict.jenisJadwal === 'sidang_proposal' ? 'Sidang Proposal' : 'Sidang Skripsi'} pada tanggal dan waktu yang sama.`
+            );
+        }
+    }
+
+    // Check if mahasiswa already has another active schedule for the same jenisJadwal
+    if (req.body.status === 'dijadwalkan') {
+        const existingJadwal = await Jadwal.findOne({
+            _id: { $ne: jadwal._id },
+            mahasiswa: jadwal.mahasiswa,
+            jenisJadwal: jadwal.jenisJadwal,
+            status: { $ne: 'dibatalkan' }
+        });
+
+        if (existingJadwal) {
+            throw ApiError.conflict(
+                `Mahasiswa sudah memiliki jadwal ${jadwal.jenisJadwal === 'sidang_proposal' ? 'Sidang Proposal' : 'Sidang Skripsi'}. ` +
+                'Batalkan jadwal yang ada jika ingin mengaktifkan kembali jadwal ini.'
+            );
+        }
+    }
+
+    // ===== Sync penguji to mahasiswa User record when penguji array is updated =====
+    if (req.body.penguji !== undefined) {
+        const newPenguji = req.body.penguji || [];
+        const updatePenguji = {
+            penguji_1: newPenguji[0] || null,
+            penguji_2: newPenguji[1] || null
+        };
+        await User.findByIdAndUpdate(jadwal.mahasiswa, updatePenguji);
+        console.log(`🔗 Penguji synced to student record on jadwal update`);
+    }
+
     await jadwal.save();
+
+    // ===== Automatic Student Status Transition on Exam Completion =====
+    if (jadwal.status === 'selesai' && (jadwal.hasil === 'lulus' || jadwal.hasil === 'lulus_revisi')) {
+        const student = await User.findById(jadwal.mahasiswa);
+        if (student) {
+            // Map jenis jadwal to the next student status
+            const statusMap = {
+                'sidang_proposal': 'revisi_sempro',
+                'sidang_semhas': 'revisi_semhas',
+                'sidang_skripsi': 'revisi_sidang'
+            };
+
+            const nextStatus = statusMap[jadwal.jenisJadwal];
+            if (nextStatus) {
+                student.statusMahasiswa = nextStatus;
+
+                // Assign penguji_1 and penguji_2 from the exam panel
+                if (jadwal.penguji && jadwal.penguji.length >= 1) {
+                    student.penguji_1 = jadwal.penguji[0]._id || jadwal.penguji[0];
+                }
+                if (jadwal.penguji && jadwal.penguji.length >= 2) {
+                    student.penguji_2 = jadwal.penguji[1]._id || jadwal.penguji[1];
+                }
+
+                await student.save();
+                console.log(`🎓 Student status updated: ${student.name} -> ${nextStatus}, penguji assigned`);
+            }
+
+            // If hasil is 'lulus' (not 'lulus_revisi'), student skips revision and goes straight to next guidance phase
+            if (jadwal.hasil === 'lulus') {
+                const directTransition = {
+                    'sidang_proposal': 'bimbingan_lanjut',
+                    'sidang_semhas': 'bimbingan_akhir',
+                    'sidang_skripsi': 'selesai'
+                };
+                const directStatus = directTransition[jadwal.jenisJadwal];
+                if (directStatus) {
+                    student.statusMahasiswa = directStatus;
+                    await student.save();
+                    console.log(`🎓 Student directly transitioned: ${student.name} -> ${directStatus} (lulus tanpa revisi)`);
+                }
+            }
+        }
+    }
 
     await jadwal.populate([
         { path: 'mahasiswa', select: 'name nim_nip' },
@@ -345,6 +491,25 @@ const remove = asyncHandler(async (req, res) => {
     jadwal.status = 'dibatalkan';
     jadwal.catatan = req.body.alasan || 'Dibatalkan oleh admin';
     await jadwal.save();
+
+    // ===== Clear penguji from mahasiswa User record when jadwal is cancelled =====
+    if (jadwal.penguji && jadwal.penguji.length > 0) {
+        // Only clear if no other active jadwal assigns these penguji to this student
+        const otherActiveJadwal = await Jadwal.findOne({
+            _id: { $ne: jadwal._id },
+            mahasiswa: jadwal.mahasiswa,
+            status: { $ne: 'dibatalkan' },
+            penguji: { $exists: true, $not: { $size: 0 } }
+        });
+
+        if (!otherActiveJadwal) {
+            await User.findByIdAndUpdate(jadwal.mahasiswa, {
+                penguji_1: null,
+                penguji_2: null
+            });
+            console.log(`🔗 Penguji cleared from student record on jadwal cancel`);
+        }
+    }
 
     console.log(`🗑️ Jadwal cancelled: ${jadwal._id}`);
 
@@ -417,6 +582,61 @@ const getStatistics = asyncHandler(async (req, res) => {
     sendSuccess(res, 200, 'Statistik jadwal berhasil diambil', stats);
 });
 
+/**
+ * @desc    Get examiner workloads (Admin only)
+ * @route   GET /api/jadwal/penguji-workload
+ * @access  Admin
+ */
+const getPengujiWorkload = asyncHandler(async (req, res) => {
+    // 1. Aggregate workloads from Jadwal
+    const workloads = await Jadwal.aggregate([
+        { $match: { status: { $ne: 'dibatalkan' } } },
+        { $unwind: '$penguji' },
+        { $group: { _id: '$penguji', count: { $sum: 1 } } }
+    ]);
+
+    // Create a map for quick lookup
+    const workloadMap = {};
+    workloads.forEach(item => {
+        workloadMap[item._id.toString()] = item.count;
+    });
+
+    // 2. Fetch all lecturers
+    const lecturers = await User.find({ role: 'dosen' })
+        .select('name nim_nip prodi')
+        .lean();
+
+    // 3. Map workload to each lecturer and sort by workload (ascending)
+    const result = lecturers.map(dosen => ({
+        _id: dosen._id,
+        name: dosen.name,
+        nim_nip: dosen.nim_nip,
+        prodi: dosen.prodi,
+        workload: workloadMap[dosen._id.toString()] || 0
+    }));
+
+    // Sort by workload ascending, then by name
+    result.sort((a, b) => {
+        if (a.workload !== b.workload) {
+            return a.workload - b.workload;
+        }
+        return a.name.localeCompare(b.name);
+    });
+
+    sendSuccess(res, 200, 'Workload penguji berhasil diambil', result);
+});
+
+/**
+ * @desc    Hard delete all jadwal (permanent, admin only)
+ * @route   DELETE /api/jadwal/all/permanent
+ * @access  Admin
+ */
+const clearAll = asyncHandler(async (req, res) => {
+    const result = await Jadwal.deleteMany({});
+    console.log(`💀 ALL Jadwal PERMANENTLY deleted: ${result.deletedCount} items by Admin ${req.user.name}`);
+    sendSuccess(res, 200, 'Seluruh jadwal berhasil dihapus permanen', null);
+});
+
 module.exports = {
     getAll,
     getById,
@@ -425,5 +645,7 @@ module.exports = {
     remove,
     hardDelete,
     getUpcoming,
-    getStatistics
+    getStatistics,
+    getPengujiWorkload,
+    clearAll
 };

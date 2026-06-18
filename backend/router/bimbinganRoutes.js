@@ -22,6 +22,7 @@ const roleMiddleware = require('../middleware/roleMiddleware');
 const {
     createBimbinganValidation,
     feedbackValidation,
+    draftFeedbackValidation,
     replyValidation,
     clearBimbinganValidation,
     clearAllBimbinganGlobalValidation,
@@ -252,6 +253,21 @@ router.put(
     feedbackValidation,
     handleValidationErrors,
     bimbinganController.giveFeedback
+);
+
+/**
+ * @route   PUT /api/bimbingan/:id/draft-feedback
+ * @desc    Save feedback draft to bimbingan
+ * @access  Dosen
+ */
+router.put(
+    '/:id/draft-feedback',
+    roleMiddleware(['dosen']),
+    mongoIdParam('id'),
+    upload.single('feedbackFile'), // Optional feedback file (we can use the same field name)
+    draftFeedbackValidation,
+    handleValidationErrors,
+    bimbinganController.saveFeedbackDraft
 );
 
 /**

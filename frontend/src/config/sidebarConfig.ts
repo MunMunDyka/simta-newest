@@ -9,6 +9,7 @@ import {
     LayoutDashboard,
     Users,
     Calendar,
+    CalendarCheck,
     FileEdit,
     Settings,
     type LucideIcon,
@@ -52,6 +53,7 @@ export const dosenSidebar: SidebarConfig = {
     aktivitasLabel: 'Aktivitas Bimbingan',
     aktivitas: [
         { label: 'Mahasiswa Bimbingan', icon: Users, path: '/dosen/mahasiswa' },
+        { label: 'Jadwal Penguji', icon: CalendarCheck, path: '/dosen/jadwal-penguji' },
         { label: 'Jadwal Sidang', icon: Calendar, path: '/jadwal-sidang' },
     ],
     historyLabel: '',

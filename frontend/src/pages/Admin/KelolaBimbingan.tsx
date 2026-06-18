@@ -19,7 +19,7 @@ import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
 import {
-    LayoutDashboard, Users, Calendar, ChevronDown, LogOut, User,
+    LayoutDashboard, Users, Calendar, ChevronDown, LogOut, User, GraduationCap,
     FileText, BookOpen, Trash2, AlertTriangle, CheckCircle2, Clock, XCircle,
     ArrowRight, RotateCcw, Search, BarChart3, X, Settings,
 } from 'lucide-react'
@@ -43,6 +43,7 @@ const menuItems = [
 ]
 const managementItems = [
     { label: 'Manajemen User', icon: Users, path: '/admin/users' },
+    { label: 'Manajemen Dosen', icon: GraduationCap, path: '/admin/plotting' },
     { label: 'Kelola Bimbingan', icon: FileText, active: true, path: '/admin/bimbingan' },
     { label: 'Kelola Jadwal', icon: Calendar, path: '/admin/jadwal' },
 ]

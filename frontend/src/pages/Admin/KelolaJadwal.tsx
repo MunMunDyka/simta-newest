@@ -5,7 +5,7 @@
  * Halaman untuk admin mengelola jadwal sidang
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, type Variants } from 'framer-motion'
 import { Input } from '@/components/ui/input'
@@ -65,6 +65,7 @@ import {
     XCircle,
     AlertCircle,
     X,
+    GraduationCap,
 } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
@@ -95,6 +96,8 @@ interface UserOption {
     name: string
     nim_nip: string
     judulTA?: string
+    dospem_1?: { _id: string; name: string } | string | null
+    dospem_2?: { _id: string; name: string } | string | null
 }
 
 // Menu items
@@ -104,6 +107,7 @@ const menuItems = [
 
 const managementItems = [
     { label: 'Manajemen User', icon: Users, active: false, path: '/admin/users' },
+    { label: 'Manajemen Dosen', icon: GraduationCap, path: '/admin/plotting' },
     { label: 'Kelola Bimbingan', icon: FileText, path: '/admin/bimbingan' },
     { label: 'Kelola Jadwal', icon: Calendar, active: true, path: '/admin/jadwal' },
 ]
@@ -113,7 +117,43 @@ const reportItems = [
 ]
 
 // Ruangan options
-const ruanganOptions = ['B302', 'B303', 'B304', 'B305', 'B306']
+const ruanganOptions = [
+    'A301', 'A302', 'A303', 'A304', 'A305', 'A306', 'A307', 'A308', 'A309', 'A310', 'A311', 'A312', 'A313', 'A314', 'A315',
+    'B301', 'B302', 'B303', 'B304', 'B305', 'B306', 'B307', 'B308', 'B309'
+]
+
+// Helper functions for date & time validations
+const isWeekend = (dateStr: string) => {
+    if (!dateStr) return false
+    const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (match) {
+        const year = parseInt(match[1])
+        const month = parseInt(match[2]) - 1
+        const dateNum = parseInt(match[3])
+        const dateObj = new Date(Date.UTC(year, month, dateNum))
+        const day = dateObj.getUTCDay()
+        return day === 0 || day === 6
+    }
+    const day = new Date(dateStr).getDay()
+    return day === 0 || day === 6
+}
+
+const isTimeOutsideLimit = (timeStr: string) => {
+    if (!timeStr) return false
+    const [hours, minutes] = timeStr.split(':').map(Number)
+    const timeVal = hours * 60 + minutes
+    const startLimit = 8 * 60  // 08:00
+    const endLimit = 17 * 60   // 17:00
+    return timeVal < startLimit || timeVal > endLimit
+}
+
+const isValidTimeFormat = (timeStr: string) => {
+    return /^([01]\d|2[0-3]):([0-5]\d)$/.test(timeStr)
+}
+
+const timeOptions = [
+    '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00'
+]
 
 export const KelolaJadwal = () => {
     const navigate = useNavigate()
@@ -154,6 +194,7 @@ export const KelolaJadwal = () => {
     // Form states
     const [mahasiswaList, setMahasiswaList] = useState<UserOption[]>([])
     const [dosenList, setDosenList] = useState<UserOption[]>([])
+    const [workloads, setWorkloads] = useState<any[]>([])
     const [selectedMahasiswa, setSelectedMahasiswa] = useState('')
     const [mahasiswaSearch, setMahasiswaSearch] = useState('')
     const [isMahasiswaDropdownOpen, setIsMahasiswaDropdownOpen] = useState(false)
@@ -161,6 +202,8 @@ export const KelolaJadwal = () => {
     const [tanggal, setTanggal] = useState('')
     const [waktuMulai, setWaktuMulai] = useState('')
     const [waktuSelesai, setWaktuSelesai] = useState('')
+    const [isMulaiDropdownOpen, setIsMulaiDropdownOpen] = useState(false)
+    const [isSelesaiDropdownOpen, setIsSelesaiDropdownOpen] = useState(false)
     const [ruangan, setRuangan] = useState('')
     const [penguji1, setPenguji1] = useState('')
     const [penguji2, setPenguji2] = useState('')
@@ -232,6 +275,10 @@ export const KelolaJadwal = () => {
             // Fetch dosen
             const dosenRes = await api.get('/users', { params: { role: 'dosen', limit: 100 } })
             setDosenList(dosenRes.data.data || [])
+
+            // Fetch workloads
+            const workloadRes = await api.get('/jadwal/penguji-workload')
+            setWorkloads(workloadRes.data.data || [])
         } catch (error) {
             console.error('Failed to fetch users:', error)
             setLoadError(getApiErrorMessage(error, 'Gagal memuat daftar mahasiswa/dosen untuk jadwal. Silakan refresh halaman.'))
@@ -241,6 +288,56 @@ export const KelolaJadwal = () => {
     const handleCreateJadwal = async () => {
         if (!selectedMahasiswa || !tanggal || !waktuMulai || !ruangan) {
             alert('Mohon lengkapi semua field yang wajib diisi!')
+            return
+        }
+
+        if (isWeekend(tanggal)) {
+            alert('Tanggal sidang tidak boleh pada hari Sabtu atau Minggu (weekend)! Hari yang diperbolehkan adalah Senin - Jumat.')
+            return
+        }
+
+        if (!isValidTimeFormat(waktuMulai)) {
+            alert('Format waktu mulai tidak valid! Gunakan format HH:MM (contoh: 08:20, 14:05).')
+            return
+        }
+
+        if (waktuSelesai && !isValidTimeFormat(waktuSelesai)) {
+            alert('Format waktu selesai tidak valid! Gunakan format HH:MM (contoh: 09:30, 15:15).')
+            return
+        }
+
+        if (isTimeOutsideLimit(waktuMulai)) {
+            alert('Waktu mulai sidang harus antara pukul 08:00 sampai 17:00 WIB!')
+            return
+        }
+
+        if (waktuSelesai && isTimeOutsideLimit(waktuSelesai)) {
+            alert('Waktu selesai sidang harus antara pukul 08:00 sampai 17:00 WIB!')
+            return
+        }
+
+        if (waktuSelesai && waktuMulai && waktuSelesai <= waktuMulai) {
+            alert('Waktu selesai sidang harus lebih lambat dari waktu mulai!')
+            return
+        }
+
+        const studentName = mahasiswaList.find(m => m._id === selectedMahasiswa)?.name || 'Mahasiswa'
+
+        // Check for duplicate jenisJadwal for the same student
+        const existing = jadwalList.find(
+            j => j.mahasiswa?._id === selectedMahasiswa && j.jenisJadwal === jenisJadwal && j.status !== 'dibatalkan'
+        )
+        if (existing) {
+            alert(`${studentName} sudah memiliki jadwal ${jenisJadwal === 'sidang_proposal' ? 'Sidang Proposal' : 'Sidang Skripsi'}. Batalkan jadwal yang ada jika ingin membuat yang baru.`)
+            return
+        }
+
+        // Check for date/time conflict for the same student
+        const sameSlot = jadwalList.find(
+            j => j.mahasiswa?._id === selectedMahasiswa && j.tanggal.split('T')[0] === tanggal && j.waktuMulai === waktuMulai && j.status !== 'dibatalkan'
+        )
+        if (sameSlot) {
+            alert(`${studentName} sudah memiliki jadwal sidang lain pada tanggal dan waktu yang sama.`)
             return
         }
 
@@ -287,6 +384,48 @@ export const KelolaJadwal = () => {
     // Handle Edit submit
     const handleEditJadwal = async () => {
         if (!editingJadwal) return
+
+        if (isWeekend(tanggal)) {
+            alert('Tanggal sidang tidak boleh pada hari Sabtu atau Minggu (weekend)! Hari yang diperbolehkan adalah Senin - Jumat.')
+            return
+        }
+
+        if (!isValidTimeFormat(waktuMulai)) {
+            alert('Format waktu mulai tidak valid! Gunakan format HH:MM (contoh: 08:20, 14:05).')
+            return
+        }
+
+        if (waktuSelesai && !isValidTimeFormat(waktuSelesai)) {
+            alert('Format waktu selesai tidak valid! Gunakan format HH:MM (contoh: 09:30, 15:15).')
+            return
+        }
+
+        if (isTimeOutsideLimit(waktuMulai)) {
+            alert('Waktu mulai sidang harus antara pukul 08:00 sampai 17:00 WIB!')
+            return
+        }
+
+        if (waktuSelesai && isTimeOutsideLimit(waktuSelesai)) {
+            alert('Waktu selesai sidang harus antara pukul 08:00 sampai 17:00 WIB!')
+            return
+        }
+
+        if (waktuSelesai && waktuMulai && waktuSelesai <= waktuMulai) {
+            alert('Waktu selesai sidang harus lebih lambat dari waktu mulai!')
+            return
+        }
+
+        const studentId = editingJadwal.mahasiswa?._id
+        const studentName = editingJadwal.mahasiswa?.name || 'Mahasiswa'
+
+        // Check for date/time conflict for the same student (excluding current schedule)
+        const sameSlot = jadwalList.find(
+            j => j._id !== editingJadwal._id && j.mahasiswa?._id === studentId && j.tanggal.split('T')[0] === tanggal && j.waktuMulai === waktuMulai && j.status !== 'dibatalkan'
+        )
+        if (sameSlot) {
+            alert(`${studentName} sudah memiliki jadwal sidang lain pada tanggal dan waktu yang sama.`)
+            return
+        }
 
         setIsSubmitting(true)
         try {
@@ -406,6 +545,27 @@ export const KelolaJadwal = () => {
     }
 
     const selectedMahasiswaData = mahasiswaList.find((mhs) => mhs._id === selectedMahasiswa)
+
+    const sortedExaminers = useMemo(() => {
+        const d1 = typeof selectedMahasiswaData?.dospem_1 === 'object'
+            ? (selectedMahasiswaData.dospem_1 as any)?._id
+            : selectedMahasiswaData?.dospem_1;
+        const d2 = typeof selectedMahasiswaData?.dospem_2 === 'object'
+            ? (selectedMahasiswaData.dospem_2 as any)?._id
+            : selectedMahasiswaData?.dospem_2;
+
+        const filtered = dosenList.filter(d => d._id !== d1 && d._id !== d2);
+
+        const mapped = filtered.map(dosen => {
+            const wlItem = workloads.find(w => w._id === dosen._id);
+            return {
+                ...dosen,
+                workload: wlItem ? wlItem.workload : 0
+            };
+        });
+
+        return mapped.sort((a, b) => a.workload - b.workload);
+    }, [dosenList, selectedMahasiswaData, workloads]);
     const filteredMahasiswaOptions = mahasiswaList.filter((mhs) => {
         const keyword = mahasiswaSearch.toLowerCase()
         return (
@@ -429,7 +589,7 @@ export const KelolaJadwal = () => {
         setIsMahasiswaDropdownOpen(false)
     }
 
-    const formatDosenOption = (dosen: UserOption) => `${dosen.name} (${dosen.nim_nip})`
+    const formatDosenOption = (dosen: UserOption) => dosen.name
 
     // Open Hapus Permanen modal
     const openHapusModal = (jadwal: JadwalSidang) => {
@@ -456,8 +616,43 @@ export const KelolaJadwal = () => {
         }
     }
 
+    // Handle Hapus Seluruh Jadwal
+    const handleDeleteAll = async () => {
+        const confirmFirst = window.confirm(
+            'PERINGATAN: Anda akan menghapus SELURUH jadwal sidang secara permanen! Apakah Anda yakin?'
+        )
+        if (!confirmFirst) return
+
+        const confirmSecond = window.confirm(
+            'Apakah Anda benar-benar yakin? Semua data jadwal sidang mahasiswa akan terhapus dari database selamanya.'
+        )
+        if (!confirmSecond) return
+
+        setIsSubmitting(true)
+        try {
+            await api.delete('/jadwal/all/permanent')
+            alert('Seluruh jadwal sidang berhasil dihapus!')
+            fetchJadwal()
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } } }
+            alert(err.response?.data?.message || 'Gagal menghapus seluruh jadwal')
+        } finally {
+            setIsSubmitting(false)
+        }
+    }
+
     // Handle Reschedule (jadwal ulang)
     const handleReschedule = async (jadwal: JadwalSidang) => {
+        const studentId = jadwal.mahasiswa?._id
+        const studentName = jadwal.mahasiswa?.name || 'Mahasiswa'
+        const existing = jadwalList.find(
+            j => j._id !== jadwal._id && j.mahasiswa?._id === studentId && j.jenisJadwal === jadwal.jenisJadwal && j.status !== 'dibatalkan'
+        )
+        if (existing) {
+            alert(`${studentName} sudah memiliki jadwal ${jadwal.jenisJadwal === 'sidang_proposal' ? 'Sidang Proposal' : 'Sidang Skripsi'} yang aktif. Batalkan jadwal tersebut terlebih dahulu untuk mengaktifkan kembali jadwal ini.`)
+            return
+        }
+
         try {
             await api.put(`/jadwal/${jadwal._id}`, { status: 'dijadwalkan' })
             alert('Jadwal berhasil diaktifkan kembali! Silakan edit untuk mengubah tanggal/waktu.')
@@ -583,7 +778,7 @@ export const KelolaJadwal = () => {
                         <ul className="space-y-1">
                             {reportItems.map((item, index) => (
                                 <motion.li key={item.label} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 + index * 0.1 }}>
-                                    <motion.button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-600 hover:bg-gray-50 transition-all duration-200" whileHover={{ scale: 1.02, x: 4 }} whileTap={{ scale: 0.98 }}>
+                                    <motion.button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-600 hover:bg-gray-50 transition-all duration-200" whileHover={{ scale: 1.02, x: 4 }} whileTap={{ scale: 0.98 }} onClick={() => navigate(item.path)}>
                                         <item.icon className="w-5 h-5" />
                                         <span className="font-medium">{item.label}</span>
                                     </motion.button>
@@ -706,15 +901,29 @@ export const KelolaJadwal = () => {
                                         </div>
                                     </div>
 
-                                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                                        <Button
-                                            className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-xl"
-                                            onClick={() => setIsModalOpen(true)}
-                                        >
-                                            <Plus className="w-4 h-4 mr-2" />
-                                            Buat Jadwal
-                                        </Button>
-                                    </motion.div>
+                                    <div className="flex items-center gap-3">
+                                        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                                            <Button
+                                                variant="outline"
+                                                className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 rounded-xl"
+                                                onClick={handleDeleteAll}
+                                                disabled={isSubmitting}
+                                            >
+                                                <Trash2 className="w-4 h-4 mr-2" />
+                                                Hapus Seluruh Jadwal
+                                            </Button>
+                                        </motion.div>
+
+                                        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                                            <Button
+                                                className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-xl"
+                                                onClick={() => setIsModalOpen(true)}
+                                            >
+                                                <Plus className="w-4 h-4 mr-2" />
+                                                Buat Jadwal
+                                            </Button>
+                                        </motion.div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -981,6 +1190,27 @@ export const KelolaJadwal = () => {
                             </div>
                         </div>
 
+                        {selectedMahasiswaData && (
+                            <div className="grid grid-cols-2 gap-4 p-3.5 bg-orange-50/50 border border-orange-100/50 rounded-xl text-sm">
+                                <div>
+                                    <span className="text-xs font-semibold text-gray-500 block uppercase tracking-wider">Dosen Pembimbing 1</span>
+                                    <span className="font-medium text-gray-800">
+                                        {typeof selectedMahasiswaData.dospem_1 === 'object' && selectedMahasiswaData.dospem_1
+                                            ? selectedMahasiswaData.dospem_1.name
+                                            : 'Belum ditentukan'}
+                                    </span>
+                                </div>
+                                <div>
+                                    <span className="text-xs font-semibold text-gray-500 block uppercase tracking-wider">Dosen Pembimbing 2</span>
+                                    <span className="font-medium text-gray-800">
+                                        {typeof selectedMahasiswaData.dospem_2 === 'object' && selectedMahasiswaData.dospem_2
+                                            ? selectedMahasiswaData.dospem_2.name
+                                            : 'Belum ditentukan'}
+                                    </span>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Jenis Jadwal */}
                         <div>
                             <Label className="text-sm font-medium">Jenis Sidang *</Label>
@@ -1002,27 +1232,88 @@ export const KelolaJadwal = () => {
                                 <Input
                                     type="date"
                                     value={tanggal}
-                                    onChange={(e) => setTanggal(e.target.value)}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        if (isWeekend(val)) {
+                                            alert('Tanggal sidang tidak boleh pada hari Sabtu atau Minggu (weekend)! Hari yang diperbolehkan adalah Senin - Jumat.');
+                                            setTanggal('');
+                                        } else {
+                                            setTanggal(val);
+                                        }
+                                    }}
                                     className="mt-1"
                                 />
                             </div>
-                            <div>
+                            <div className="relative">
                                 <Label className="text-sm font-medium">Mulai *</Label>
                                 <Input
-                                    type="time"
+                                    type="text"
+                                    placeholder="HH:MM (Contoh: 08:30)"
                                     value={waktuMulai}
                                     onChange={(e) => setWaktuMulai(e.target.value)}
-                                    className="mt-1"
+                                    onFocus={() => setIsMulaiDropdownOpen(true)}
+                                    onBlur={() => {
+                                        setTimeout(() => setIsMulaiDropdownOpen(false), 200)
+                                    }}
+                                    className="mt-1 w-full font-medium"
+                                    maxLength={5}
                                 />
+                                {isMulaiDropdownOpen && (
+                                    <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white border border-gray-100 rounded-xl shadow-lg z-50 py-1.5 scrollbar-thin">
+                                        {timeOptions.map((time) => (
+                                            <button
+                                                key={time}
+                                                type="button"
+                                                className="w-full text-left px-3.5 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors font-medium"
+                                                onMouseDown={() => {
+                                                    setWaktuMulai(time)
+                                                }}
+                                            >
+                                                {time} WIB
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
-                            <div>
+                            <div className="relative">
                                 <Label className="text-sm font-medium">Selesai</Label>
                                 <Input
-                                    type="time"
+                                    type="text"
+                                    placeholder="HH:MM (Opsional)"
                                     value={waktuSelesai}
                                     onChange={(e) => setWaktuSelesai(e.target.value)}
-                                    className="mt-1"
+                                    onFocus={() => setIsSelesaiDropdownOpen(true)}
+                                    onBlur={() => {
+                                        setTimeout(() => setIsSelesaiDropdownOpen(false), 200)
+                                    }}
+                                    className="mt-1 w-full font-medium"
+                                    maxLength={5}
                                 />
+                                {isSelesaiDropdownOpen && (
+                                    <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white border border-gray-100 rounded-xl shadow-lg z-50 py-1.5 scrollbar-thin">
+                                        <button
+                                            type="button"
+                                            className="w-full text-left px-3.5 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors font-medium border-b border-gray-50"
+                                            onMouseDown={() => {
+                                                setWaktuSelesai('')
+                                            }}
+                                        >
+                                            Kosongkan (Belum selesai)
+                                        </button>
+                                        {timeOptions.map((time) => (
+                                            <button
+                                                key={time}
+                                                type="button"
+                                                className="w-full text-left px-3.5 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors font-medium"
+                                                onMouseDown={() => {
+                                                    setWaktuSelesai(time)
+                                                }}
+                                            >
+                                                {time} WIB
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -1033,7 +1324,7 @@ export const KelolaJadwal = () => {
                                 <SelectTrigger className="mt-1">
                                     <SelectValue placeholder="Pilih ruangan..." />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="max-h-[200px] overflow-y-auto">
                                     {ruanganOptions.map(r => (
                                         <SelectItem key={r} value={r}>{r}</SelectItem>
                                     ))}
@@ -1055,10 +1346,15 @@ export const KelolaJadwal = () => {
                                     <SelectTrigger className="mt-1 h-11 w-full rounded-xl [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:max-w-[calc(100%-1.5rem)] [&_[data-slot=select-value]]:truncate">
                                         <SelectValue placeholder="Pilih penguji..." />
                                     </SelectTrigger>
-                                    <SelectContent position="popper" align="start" className="z-[100] w-[var(--radix-select-trigger-width)] min-w-[280px]">
-                                        {dosenList.map(dosen => (
-                                            <SelectItem key={dosen._id} value={dosen._id} className="max-w-[360px] truncate py-2 pr-8" textValue={formatDosenOption(dosen)}>
-                                                {formatDosenOption(dosen)}
+                                    <SelectContent position="popper" align="start" className="z-[100] min-w-[380px]">
+                                        {sortedExaminers.map((dosen, idx) => (
+                                            <SelectItem key={dosen._id} value={dosen._id} className="py-2 pr-8" textValue={formatDosenOption(dosen)}>
+                                                <div className="flex items-center justify-between w-full gap-2">
+                                                    <span>{formatDosenOption(dosen)}</span>
+                                                    <span className="text-xs text-gray-500 font-normal">
+                                                        ({dosen.workload} mhs) {idx === 0 && '⭐ Rekomendasi'}
+                                                    </span>
+                                                </div>
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -1070,12 +1366,20 @@ export const KelolaJadwal = () => {
                                     <SelectTrigger className="mt-1 h-11 w-full rounded-xl [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:max-w-[calc(100%-1.5rem)] [&_[data-slot=select-value]]:truncate">
                                         <SelectValue placeholder="Pilih penguji..." />
                                     </SelectTrigger>
-                                    <SelectContent position="popper" align="start" className="z-[100] w-[var(--radix-select-trigger-width)] min-w-[280px]">
-                                        {dosenList.filter(d => d._id !== penguji1).map(dosen => (
-                                            <SelectItem key={dosen._id} value={dosen._id} className="max-w-[360px] truncate py-2 pr-8" textValue={formatDosenOption(dosen)}>
-                                                {formatDosenOption(dosen)}
-                                            </SelectItem>
-                                        ))}
+                                    <SelectContent position="popper" align="start" className="z-[100] min-w-[380px]">
+                                        {sortedExaminers.filter(d => d._id !== penguji1).map((dosen, idx) => {
+                                            const isRecommended = idx === 0;
+                                            return (
+                                                <SelectItem key={dosen._id} value={dosen._id} className="py-2 pr-8" textValue={formatDosenOption(dosen)}>
+                                                    <div className="flex items-center justify-between w-full gap-2">
+                                                        <span>{formatDosenOption(dosen)}</span>
+                                                        <span className="text-xs text-gray-500 font-normal">
+                                                            ({dosen.workload} mhs) {isRecommended && '⭐ Rekomendasi'}
+                                                        </span>
+                                                    </div>
+                                                </SelectItem>
+                                            );
+                                        })}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -1123,6 +1427,32 @@ export const KelolaJadwal = () => {
                     </DialogHeader>
 
                     <div className="space-y-4 mt-4">
+                        {editingJadwal && (
+                            (() => {
+                                const mhsData = mahasiswaList.find(m => m._id === editingJadwal.mahasiswa?._id);
+                                if (!mhsData) return null;
+                                return (
+                                    <div className="grid grid-cols-2 gap-4 p-3.5 bg-blue-50/50 border border-blue-100/50 rounded-xl text-sm">
+                                        <div>
+                                            <span className="text-xs font-semibold text-gray-500 block uppercase tracking-wider">Dosen Pembimbing 1</span>
+                                            <span className="font-medium text-gray-800">
+                                                {typeof mhsData.dospem_1 === 'object' && mhsData.dospem_1
+                                                    ? mhsData.dospem_1.name
+                                                    : 'Belum ditentukan'}
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <span className="text-xs font-semibold text-gray-500 block uppercase tracking-wider">Dosen Pembimbing 2</span>
+                                            <span className="font-medium text-gray-800">
+                                                {typeof mhsData.dospem_2 === 'object' && mhsData.dospem_2
+                                                    ? mhsData.dospem_2.name
+                                                    : 'Belum ditentukan'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                );
+                            })()
+                        )}
                         {/* Tanggal & Waktu */}
                         <div className="grid grid-cols-3 gap-3">
                             <div>
@@ -1130,27 +1460,88 @@ export const KelolaJadwal = () => {
                                 <Input
                                     type="date"
                                     value={tanggal}
-                                    onChange={e => setTanggal(e.target.value)}
+                                    onChange={e => {
+                                        const val = e.target.value;
+                                        if (isWeekend(val)) {
+                                            alert('Tanggal sidang tidak boleh pada hari Sabtu atau Minggu (weekend)! Hari yang diperbolehkan adalah Senin - Jumat.');
+                                            setTanggal('');
+                                        } else {
+                                            setTanggal(val);
+                                        }
+                                    }}
                                     className="mt-1"
                                 />
                             </div>
-                            <div>
+                            <div className="relative">
                                 <Label className="text-sm font-medium">Jam Mulai *</Label>
                                 <Input
-                                    type="time"
+                                    type="text"
+                                    placeholder="HH:MM (Contoh: 08:30)"
                                     value={waktuMulai}
-                                    onChange={e => setWaktuMulai(e.target.value)}
-                                    className="mt-1"
+                                    onChange={(e) => setWaktuMulai(e.target.value)}
+                                    onFocus={() => setIsMulaiDropdownOpen(true)}
+                                    onBlur={() => {
+                                        setTimeout(() => setIsMulaiDropdownOpen(false), 200)
+                                    }}
+                                    className="mt-1 w-full font-medium"
+                                    maxLength={5}
                                 />
+                                {isMulaiDropdownOpen && (
+                                    <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white border border-gray-100 rounded-xl shadow-lg z-50 py-1.5 scrollbar-thin">
+                                        {timeOptions.map((time) => (
+                                            <button
+                                                key={time}
+                                                type="button"
+                                                className="w-full text-left px-3.5 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors font-medium"
+                                                onMouseDown={() => {
+                                                    setWaktuMulai(time)
+                                                }}
+                                            >
+                                                {time} WIB
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
-                            <div>
+                            <div className="relative">
                                 <Label className="text-sm font-medium">Jam Selesai</Label>
                                 <Input
-                                    type="time"
+                                    type="text"
+                                    placeholder="HH:MM (Opsional)"
                                     value={waktuSelesai}
-                                    onChange={e => setWaktuSelesai(e.target.value)}
-                                    className="mt-1"
+                                    onChange={(e) => setWaktuSelesai(e.target.value)}
+                                    onFocus={() => setIsSelesaiDropdownOpen(true)}
+                                    onBlur={() => {
+                                        setTimeout(() => setIsSelesaiDropdownOpen(false), 200)
+                                    }}
+                                    className="mt-1 w-full font-medium"
+                                    maxLength={5}
                                 />
+                                {isSelesaiDropdownOpen && (
+                                    <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white border border-gray-100 rounded-xl shadow-lg z-50 py-1.5 scrollbar-thin">
+                                        <button
+                                            type="button"
+                                            className="w-full text-left px-3.5 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors font-medium border-b border-gray-50"
+                                            onMouseDown={() => {
+                                                setWaktuSelesai('')
+                                            }}
+                                        >
+                                            Kosongkan (Belum selesai)
+                                        </button>
+                                        {timeOptions.map((time) => (
+                                            <button
+                                                key={time}
+                                                type="button"
+                                                className="w-full text-left px-3.5 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors font-medium"
+                                                onMouseDown={() => {
+                                                    setWaktuSelesai(time)
+                                                }}
+                                            >
+                                                {time} WIB
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -1161,7 +1552,7 @@ export const KelolaJadwal = () => {
                                 <SelectTrigger className="mt-1">
                                     <SelectValue placeholder="Pilih ruangan..." />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="max-h-[200px] overflow-y-auto">
                                     {ruanganOptions.map(room => (
                                         <SelectItem key={room} value={room}>
                                             {room}
@@ -1185,10 +1576,15 @@ export const KelolaJadwal = () => {
                                     <SelectTrigger className="mt-1 h-11 w-full rounded-xl [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:max-w-[calc(100%-1.5rem)] [&_[data-slot=select-value]]:truncate">
                                         <SelectValue placeholder="Pilih penguji..." />
                                     </SelectTrigger>
-                                    <SelectContent position="popper" align="start" className="z-[100] w-[var(--radix-select-trigger-width)] min-w-[280px]">
-                                        {dosenList.map(dosen => (
-                                            <SelectItem key={dosen._id} value={dosen._id} className="max-w-[360px] truncate py-2 pr-8" textValue={formatDosenOption(dosen)}>
-                                                {formatDosenOption(dosen)}
+                                    <SelectContent position="popper" align="start" className="z-[100] min-w-[380px]">
+                                        {sortedExaminers.map((dosen, idx) => (
+                                            <SelectItem key={dosen._id} value={dosen._id} className="py-2 pr-8" textValue={formatDosenOption(dosen)}>
+                                                <div className="flex items-center justify-between w-full gap-2">
+                                                    <span>{formatDosenOption(dosen)}</span>
+                                                    <span className="text-xs text-gray-500 font-normal">
+                                                        ({dosen.workload} mhs) {idx === 0 && '⭐ Rekomendasi'}
+                                                    </span>
+                                                </div>
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -1200,12 +1596,20 @@ export const KelolaJadwal = () => {
                                     <SelectTrigger className="mt-1 h-11 w-full rounded-xl [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:max-w-[calc(100%-1.5rem)] [&_[data-slot=select-value]]:truncate">
                                         <SelectValue placeholder="Pilih penguji..." />
                                     </SelectTrigger>
-                                    <SelectContent position="popper" align="start" className="z-[100] w-[var(--radix-select-trigger-width)] min-w-[280px]">
-                                        {dosenList.filter(d => d._id !== penguji1).map(dosen => (
-                                            <SelectItem key={dosen._id} value={dosen._id} className="max-w-[360px] truncate py-2 pr-8" textValue={formatDosenOption(dosen)}>
-                                                {formatDosenOption(dosen)}
-                                            </SelectItem>
-                                        ))}
+                                    <SelectContent position="popper" align="start" className="z-[100] min-w-[380px]">
+                                        {sortedExaminers.filter(d => d._id !== penguji1).map((dosen, idx) => {
+                                            const isRecommended = idx === 0;
+                                            return (
+                                                <SelectItem key={dosen._id} value={dosen._id} className="py-2 pr-8" textValue={formatDosenOption(dosen)}>
+                                                    <div className="flex items-center justify-between w-full gap-2">
+                                                        <span>{formatDosenOption(dosen)}</span>
+                                                        <span className="text-xs text-gray-500 font-normal">
+                                                            ({dosen.workload} mhs) {isRecommended && '⭐ Rekomendasi'}
+                                                        </span>
+                                                    </div>
+                                                </SelectItem>
+                                            );
+                                        })}
                                     </SelectContent>
                                 </Select>
                             </div>

@@ -86,6 +86,7 @@ const getMe = asyncHandler(async (req, res) => {
     // Populate dosen pembimbing if mahasiswa
     if (user.role === 'mahasiswa') {
         await user.populate('dospem_1 dospem_2', 'name nim_nip email');
+        await user.populate('penguji_1 penguji_2', 'name nim_nip email');
     }
 
     sendSuccess(res, 200, 'Data user berhasil diambil', user.toPublicJSON());

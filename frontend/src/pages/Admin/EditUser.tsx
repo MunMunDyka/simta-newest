@@ -50,6 +50,7 @@ interface UserData {
     role: 'mahasiswa' | 'dosen' | 'admin'
     prodi?: string
     currentProgress?: string
+    statusMahasiswa?: string
     judulTA?: string
     semester?: string
     status: 'aktif' | 'nonaktif'
@@ -57,6 +58,8 @@ interface UserData {
     whatsapp?: string
     dospem_1?: { _id: string; name: string }
     dospem_2?: { _id: string; name: string }
+    penguji_1?: string | { _id: string; name: string }
+    penguji_2?: string | { _id: string; name: string }
 }
 
 interface DosenOption {
@@ -73,6 +76,7 @@ const menuItems = [
 
 const managementItems = [
     { label: 'Manajemen User', icon: Users, active: true, path: '/admin/users' },
+    { label: 'Manajemen Dosen', icon: GraduationCap, path: '/admin/plotting' },
     { label: 'Kelola Bimbingan', icon: FileText, path: '/admin/bimbingan' },
     { label: 'Kelola Jadwal', icon: Calendar, path: '/admin/jadwal' },
 ]
@@ -101,9 +105,12 @@ export const EditUser = () => {
     const [semester, setSemester] = useState('')
     const [judulTA, setJudulTA] = useState('')
     const [currentProgress, setCurrentProgress] = useState('')
+    const [statusMahasiswa, setStatusMahasiswa] = useState('pra_sempro')
     const [status, setStatus] = useState<'aktif' | 'nonaktif'>('aktif')
     const [dospem1, setDospem1] = useState('')
     const [dospem2, setDospem2] = useState('')
+    const [penguji1, setPenguji1] = useState('none')
+    const [penguji2, setPenguji2] = useState('none')
 
     // Fetch user data
     const fetchUserData = async () => {
@@ -123,9 +130,12 @@ export const EditUser = () => {
             setSemester(data.semester || '')
             setJudulTA(data.judulTA || '')
             setCurrentProgress(data.currentProgress || 'BAB I')
+            setStatusMahasiswa(data.statusMahasiswa || 'pra_sempro')
             setStatus(data.status || 'aktif')
             setDospem1(data.dospem_1?._id || 'none')
             setDospem2(data.dospem_2?._id || 'none')
+            setPenguji1(data.penguji_1?._id || (typeof data.penguji_1 === 'string' ? data.penguji_1 : 'none'))
+            setPenguji2(data.penguji_2?._id || (typeof data.penguji_2 === 'string' ? data.penguji_2 : 'none'))
         } catch (error) {
             console.error('Failed to fetch user:', error)
             setLoadError(getApiErrorMessage(error, 'Gagal memuat data user. Silakan refresh halaman.'))
@@ -171,6 +181,9 @@ export const EditUser = () => {
                 updateData.semester = semester
                 updateData.judulTA = judulTA
                 updateData.currentProgress = currentProgress
+                updateData.statusMahasiswa = statusMahasiswa
+                updateData.penguji_1 = penguji1 === 'none' ? null : penguji1
+                updateData.penguji_2 = penguji2 === 'none' ? null : penguji2
             }
 
             await api.put(`/users/${id}`, updateData)
@@ -537,7 +550,30 @@ export const EditUser = () => {
                                                         <SelectItem value="BAB III">BAB III</SelectItem>
                                                         <SelectItem value="BAB IV">BAB IV</SelectItem>
                                                         <SelectItem value="BAB V">BAB V</SelectItem>
+                                                        <SelectItem value="BAB VI">BAB VI</SelectItem>
                                                         <SelectItem value="Selesai">Selesai</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+
+                                            {/* Status Mahasiswa (Alur Sidang) */}
+                                            <div className="space-y-2">
+                                                <Label htmlFor="statusMahasiswa">Status Akademik</Label>
+                                                <Select value={statusMahasiswa} onValueChange={setStatusMahasiswa}>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Pilih status akademik" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="pra_sempro">Pra-Sempro (BAB I-III)</SelectItem>
+                                                        <SelectItem value="menunggu_sempro">Menunggu Sempro</SelectItem>
+                                                        <SelectItem value="revisi_sempro">Revisi Sempro</SelectItem>
+                                                        <SelectItem value="bimbingan_lanjut">Bimbingan Lanjut (BAB IV-V)</SelectItem>
+                                                        <SelectItem value="menunggu_semhas">Menunggu Semhas</SelectItem>
+                                                        <SelectItem value="revisi_semhas">Revisi Semhas</SelectItem>
+                                                        <SelectItem value="bimbingan_akhir">Bimbingan Akhir (BAB VI)</SelectItem>
+                                                        <SelectItem value="menunggu_sidang">Menunggu Sidang Akhir</SelectItem>
+                                                        <SelectItem value="revisi_sidang">Revisi Sidang Akhir</SelectItem>
+                                                        <SelectItem value="selesai">Selesai</SelectItem>
                                                     </SelectContent>
                                                 </Select>
                                             </div>
@@ -571,6 +607,47 @@ export const EditUser = () => {
                                                 <Select value={dospem2} onValueChange={setDospem2}>
                                                     <SelectTrigger>
                                                         <SelectValue placeholder="Pilih dosen pembimbing 2" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="none">-- Tidak Ada --</SelectItem>
+                                                        {dosenList.map((dosen) => (
+                                                            <SelectItem key={dosen._id} value={dosen._id}>
+                                                                {dosen.name} ({dosen.nim_nip}){dosen.status === 'nonaktif' && ' - Nonaktif'}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+
+                                    {/* Dosen Penguji */}
+                                    <motion.div variants={itemVariants} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                                        <h3 className="text-lg font-bold text-gray-800 mb-6">Dosen Penguji</h3>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div className="space-y-2">
+                                                <Label>Penguji 1</Label>
+                                                <Select value={penguji1} onValueChange={setPenguji1}>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Pilih dosen penguji 1" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="none">-- Tidak Ada --</SelectItem>
+                                                        {dosenList.map((dosen) => (
+                                                            <SelectItem key={dosen._id} value={dosen._id}>
+                                                                {dosen.name} ({dosen.nim_nip}){dosen.status === 'nonaktif' && ' - Nonaktif'}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <Label>Penguji 2</Label>
+                                                <Select value={penguji2} onValueChange={setPenguji2}>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Pilih dosen penguji 2" />
                                                     </SelectTrigger>
                                                     <SelectContent>
                                                         <SelectItem value="none">-- Tidak Ada --</SelectItem>

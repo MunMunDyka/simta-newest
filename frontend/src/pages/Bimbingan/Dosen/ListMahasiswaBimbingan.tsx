@@ -20,9 +20,17 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
+import {
     LayoutDashboard,
     Users,
     Calendar,
+    CalendarCheck,
     Search,
     ChevronDown,
     LogOut,
@@ -33,7 +41,6 @@ import {
 } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
-import { getBimbinganList, type Bimbingan } from '@/services/bimbinganService'
 import api from '@/lib/api'
 import { FeedbackAlert } from '@/components/FeedbackAlert'
 import { getApiErrorMessage } from '@/lib/errorMessage'
@@ -48,8 +55,9 @@ interface MahasiswaWithBimbingan {
     progress: string
     lastUpdate: string
     pendingCount: number
-    status: 'menunggu' | 'revisi' | 'acc' | 'lanjut_bab' | 'acc_sempro'
+    status: 'menunggu' | 'revisi' | 'baik' | 'acc' | 'lanjut_bab' | 'acc_sempro' | 'belum_ada'
     isSemproReady: boolean
+    dosenRelation?: 'pembimbing' | 'penguji'
 }
 
 // Menu items untuk dosen
@@ -58,6 +66,7 @@ const menuItems = [
 ]
 const aktivitasItems = [
     { label: 'Mahasiswa Bimbingan', icon: Users, active: true, path: '/dosen/mahasiswa' },
+    { label: 'Jadwal Penguji', icon: CalendarCheck, path: '/dosen/jadwal-penguji' },
     { label: 'Jadwal Sidang', icon: Calendar, path: '/jadwal-sidang' },
 ]
 
@@ -68,6 +77,7 @@ export const ListMahasiswaBimbingan = () => {
 
     const [searchQuery, setSearchQuery] = useState('')
     const [mahasiswaList, setMahasiswaList] = useState<MahasiswaWithBimbingan[]>([])
+    const [filterRole, setFilterRole] = useState<'pembimbing' | 'penguji' | 'semua'>('pembimbing')
     const [isLoading, setIsLoading] = useState(true)
     const [loadError, setLoadError] = useState<string | null>(null)
 
@@ -104,48 +114,50 @@ export const ListMahasiswaBimbingan = () => {
             try {
                 setIsLoading(true)
                 setLoadError(null)
-                const response = await getBimbinganList()
+                console.log('--- ListMahasiswaBimbingan: Fetching data ---');
+                console.log('Requested filterRole:', filterRole);
+                const response = await api.get('/users/mahasiswa-bimbingan', {
+                    params: { filterRole }
+                })
+                const mahasiswaListFromApi = response.data.data || []
+                console.log('API response count:', mahasiswaListFromApi.length, mahasiswaListFromApi);
 
-                // Group bimbingan by mahasiswa
-                const mahasiswaMap = new Map<string, MahasiswaWithBimbingan>()
-
-                response.data?.forEach((bimbingan: Bimbingan) => {
-                    const mahasiswa = typeof bimbingan.mahasiswa === 'object' ? bimbingan.mahasiswa : null
-                    if (!mahasiswa) return
-
-                    const mahasiswaId = mahasiswa._id
-                    const existing = mahasiswaMap.get(mahasiswaId)
-
-                    if (!existing) {
-                        mahasiswaMap.set(mahasiswaId, {
-                            id: mahasiswaId,
-                            nim: (mahasiswa as any).nimNip || '',
-                            nama: mahasiswa.name,
-                            judulTA: bimbingan.judul,
-                            progress: bimbingan.version,
-                            lastUpdate: new Date(bimbingan.createdAt).toLocaleDateString('id-ID'),
-                            pendingCount: bimbingan.status === 'menunggu' ? 1 : 0,
-                            status: bimbingan.status,
-                            isSemproReady: false,
-                        })
-                    } else {
-                        // Update with latest info and count pending
-                        if (bimbingan.status === 'menunggu') {
-                            existing.pendingCount++
-                        }
-                        // Update to latest version
-                        if (bimbingan.version > existing.progress) {
-                            existing.progress = bimbingan.version
-                            existing.lastUpdate = new Date(bimbingan.createdAt).toLocaleDateString('id-ID')
-                            existing.status = bimbingan.status
-                        }
+                const mahasiswaArray: MahasiswaWithBimbingan[] = mahasiswaListFromApi.map((mhs: any) => {
+                    const pendingCount = mhs.pendingReviewCount || 0
+                    const status = pendingCount > 0
+                        ? 'menunggu'
+                        : (mhs.lastBimbinganStatus || 'belum_ada')
+                    const displayDate = mhs.lastBimbinganAt || mhs.updatedAt
+                    
+                    return {
+                        id: mhs._id,
+                        nim: mhs.nim_nip || '',
+                        nama: mhs.name || '',
+                        avatar: mhs.avatar,
+                        judulTA: mhs.judulTA || 'Judul TA belum diset',
+                        progress: mhs.dosenRelation === 'penguji'
+                            ? (mhs.statusMahasiswa === 'revisi_sempro'
+                                ? 'BAB I - III (Revisi)'
+                                : mhs.statusMahasiswa === 'revisi_semhas'
+                                ? 'BAB I - V (Revisi)'
+                                : mhs.statusMahasiswa === 'revisi_sidang'
+                                ? 'BAB I - VI (Revisi)'
+                                : mhs.currentProgress || 'BAB I')
+                            : mhs.currentProgress || 'BAB I',
+                        lastUpdate: displayDate ? new Date(displayDate).toLocaleDateString('id-ID') : '-',
+                        pendingCount,
+                        status,
+                        isSemproReady: false,
+                        dosenRelation: mhs.dosenRelation
                     }
                 })
 
-                const mahasiswaArray = Array.from(mahasiswaMap.values())
-
-                // Fetch sempro readiness for each mahasiswa (parallel)
+                // Fetch sempro readiness only for dospem role students (parallel)
                 await Promise.all(mahasiswaArray.map(async (mhs) => {
+                    if (mhs.dosenRelation === 'penguji') {
+                        mhs.isSemproReady = false;
+                        return;
+                    }
                     try {
                         const res = await api.get(`/bimbingan/sempro-status/${mhs.id}`)
                         mhs.isSemproReady = res.data.data?.isReady || false
@@ -164,7 +176,7 @@ export const ListMahasiswaBimbingan = () => {
         }
 
         fetchData()
-    }, [])
+    }, [filterRole])
 
     // Filter mahasiswa based on search
     const filteredMahasiswa = mahasiswaList.filter(m =>
@@ -184,12 +196,16 @@ export const ListMahasiswaBimbingan = () => {
         switch (status) {
             case 'revisi':
                 return <Badge className="bg-red-100 text-red-600 hover:bg-red-100 border-0">Revisi</Badge>
+            case 'baik':
+                return <Badge className="bg-green-100 text-green-600 hover:bg-green-100 border-0">Baik</Badge>
             case 'acc':
                 return <Badge className="bg-green-100 text-green-600 hover:bg-green-100 border-0">ACC</Badge>
             case 'lanjut_bab':
                 return <Badge className="bg-blue-100 text-blue-600 hover:bg-blue-100 border-0">Lanjut BAB</Badge>
             case 'acc_sempro':
                 return <Badge className="bg-purple-100 text-purple-600 hover:bg-purple-100 border-0">ACC Sempro</Badge>
+            case 'belum_ada':
+                return <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 border-0">Belum Ada Bimbingan</Badge>
             default:
                 return <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 border-0">-</Badge>
         }
@@ -350,14 +366,29 @@ export const ListMahasiswaBimbingan = () => {
 
                         {/* Search & Stats */}
                         <motion.div variants={itemVariants} className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-                            <div className="relative w-full md:w-80">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                <Input
-                                    placeholder="Cari nama atau NIM mahasiswa..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="pl-10 rounded-xl"
-                                />
+                            <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto items-stretch sm:items-center">
+                                <div className="relative w-full md:w-80">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    <Input
+                                        placeholder="Cari nama atau NIM mahasiswa..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="pl-10 rounded-xl"
+                                    />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm text-gray-600 font-medium whitespace-nowrap">Filter Peran:</span>
+                                    <Select value={filterRole} onValueChange={(val: any) => setFilterRole(val)}>
+                                        <SelectTrigger className="w-full sm:w-44 h-10 bg-white border-gray-200 focus:border-blue-500 rounded-xl shadow-sm">
+                                            <SelectValue placeholder="Pilih Peran" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="pembimbing">Mahasiswa Bimbingan</SelectItem>
+                                            <SelectItem value="penguji">Mahasiswa Pengujian</SelectItem>
+                                            <SelectItem value="semua">Semua</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </div>
                             <div className="flex gap-4">
                                 <div className="bg-white rounded-xl px-4 py-2 shadow-sm border border-gray-100">
@@ -383,7 +414,9 @@ export const ListMahasiswaBimbingan = () => {
                             ) : filteredMahasiswa.length === 0 ? (
                                 <div className="text-center py-12 bg-white rounded-2xl shadow-sm border border-gray-100">
                                     <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                                    <p className="text-gray-500">Belum ada mahasiswa bimbingan</p>
+                                    <p className="text-gray-500">
+                                        {filterRole === 'penguji' ? 'Belum ada mahasiswa pengujian' : 'Belum ada mahasiswa bimbingan'}
+                                    </p>
                                 </div>
                             ) : (
                                 filteredMahasiswa.map((mahasiswa, index) => (
@@ -404,7 +437,18 @@ export const ListMahasiswaBimbingan = () => {
                                                     </AvatarFallback>
                                                 </Avatar>
                                                 <div>
-                                                    <h3 className="font-semibold text-gray-800">{mahasiswa.nama}</h3>
+                                                    <div className="flex items-center gap-2">
+                                                        <h3 className="font-semibold text-gray-800">{mahasiswa.nama}</h3>
+                                                        {mahasiswa.dosenRelation === 'penguji' ? (
+                                                            <Badge className="bg-purple-100 text-purple-700 hover:bg-purple-100 border-0 text-[10px] py-0.5 px-2 font-medium">
+                                                                Penguji
+                                                            </Badge>
+                                                        ) : (
+                                                            <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-0 text-[10px] py-0.5 px-2 font-medium">
+                                                                Pembimbing
+                                                            </Badge>
+                                                        )}
+                                                    </div>
                                                     <p className="text-sm text-gray-500">{mahasiswa.nim}</p>
                                                 </div>
                                             </div>

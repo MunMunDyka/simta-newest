@@ -23,7 +23,7 @@ const { notifyDosenBimbinganBaruEmail, notifyMahasiswaFeedbackEmail } = require(
 
 const DEFAULT_MIN_BIMBINGAN_SEMPRO = parseInt(process.env.MIN_BIMBINGAN_SEMPRO, 10) || 5;
 const MIN_BIMBINGAN_SETTING_PREFIX = 'min_bimbingan_sempro';
-const PROGRESS_OPTIONS = ['BAB I', 'BAB II', 'BAB III', 'BAB IV', 'BAB V', 'Selesai'];
+const PROGRESS_OPTIONS = ['BAB I', 'BAB II', 'BAB III', 'BAB IV', 'BAB V', 'BAB VI', 'Selesai'];
 
 const getMinBimbinganSettingKey = (mahasiswaId) => `${MIN_BIMBINGAN_SETTING_PREFIX}:${mahasiswaId}`;
 
@@ -188,19 +188,51 @@ const create = asyncHandler(async (req, res) => {
         throw ApiError.badRequest('Hanya file PDF yang diperbolehkan');
     }
 
+    // ===== Status-based submission restrictions =====
+    const mahasiswaFull = await User.findById(mahasiswa._id);
+    const studentStatus = mahasiswaFull?.statusMahasiswa || 'pra_sempro';
+    const REVISION_STATUSES = ['revisi_sempro', 'revisi_semhas', 'revisi_sidang'];
+    const DOSPEM_STATUSES = ['pra_sempro', 'bimbingan_lanjut', 'bimbingan_akhir'];
+
+    if (REVISION_STATUSES.includes(studentStatus)) {
+        // During revision phases, student can ONLY submit to penguji
+        if (dosenType === 'dospem_1' || dosenType === 'dospem_2') {
+            if (file) fs.unlinkSync(file.path);
+            throw ApiError.badRequest(
+                'Bimbingan dengan Dosen Pembimbing dikunci sementara. ' +
+                'Selesaikan revisi dengan Dosen Penguji terlebih dahulu.'
+            );
+        }
+    } else if (DOSPEM_STATUSES.includes(studentStatus)) {
+        // During normal guidance phases, student can ONLY submit to dospem
+        if (dosenType === 'penguji_1' || dosenType === 'penguji_2') {
+            if (file) fs.unlinkSync(file.path);
+            throw ApiError.badRequest(
+                'Bimbingan revisi penguji belum dibuka. ' +
+                'Tahap bimbingan ini hanya aktif setelah pelaksanaan ujian.'
+            );
+        }
+    }
+
     // Get dosen pembimbing
     let dosenId;
     if (dosenType === 'dospem_1') {
-        dosenId = mahasiswa.dospem_1;
+        dosenId = mahasiswaFull.dospem_1;
     } else if (dosenType === 'dospem_2') {
-        dosenId = mahasiswa.dospem_2;
+        dosenId = mahasiswaFull.dospem_2;
+    } else if (dosenType === 'penguji_1') {
+        dosenId = mahasiswaFull.penguji_1;
+    } else if (dosenType === 'penguji_2') {
+        dosenId = mahasiswaFull.penguji_2;
     }
 
     if (!dosenId) {
         fs.unlinkSync(file.path);
+        const dosenLabel = dosenType.startsWith('penguji') 
+            ? `Dosen penguji ${dosenType === 'penguji_1' ? '1' : '2'}`
+            : `Dosen pembimbing ${dosenType === 'dospem_1' ? '1' : '2'}`;
         throw ApiError.badRequest(
-            `Dosen pembimbing ${dosenType === 'dospem_1' ? '1' : '2'} belum di-assign. ` +
-            'Hubungi admin untuk menentukan dosen pembimbing Anda.'
+            `${dosenLabel} belum di-assign. Hubungi admin untuk menentukan dosen Anda.`
         );
     }
 
@@ -217,6 +249,13 @@ const create = asyncHandler(async (req, res) => {
     // Get next version
     const version = await Bimbingan.getNextVersion(mahasiswa._id, dosenId);
 
+    // Determine kategoriBimbingan based on student status
+    const kategoriBimbinganMap = {
+        'revisi_sempro': 'revisi_sempro',
+        'revisi_semhas': 'revisi_semhas',
+        'revisi_sidang': 'revisi_sidang'
+    };
+
     // Create bimbingan
     const bimbingan = await Bimbingan.create({
         mahasiswa: mahasiswa._id,
@@ -229,6 +268,7 @@ const create = asyncHandler(async (req, res) => {
         filePath: file.path,
         fileSize: file.size.toString(),
         fileOriginalName: file.originalname,
+        kategoriBimbingan: kategoriBimbinganMap[studentStatus] || 'bimbingan_dospem',
         status: 'menunggu'
     });
 
@@ -321,7 +361,18 @@ const giveFeedback = asyncHandler(async (req, res) => {
     if (req.file) {
         bimbingan.feedbackFile = req.file.path;
         bimbingan.feedbackFileName = req.file.originalname;
+    } else if (bimbingan.draftFeedbackFile) {
+        // Promote draft file if no new file is uploaded
+        bimbingan.feedbackFile = bimbingan.draftFeedbackFile;
+        bimbingan.feedbackFileName = bimbingan.draftFeedbackFileName;
     }
+
+    // Reset draft fields
+    bimbingan.draftFeedback = null;
+    bimbingan.draftStatus = null;
+    bimbingan.draftFeedbackFile = null;
+    bimbingan.draftFeedbackFileName = null;
+    bimbingan.hasDraft = false;
 
     await bimbingan.save();
 
@@ -330,10 +381,47 @@ const giveFeedback = asyncHandler(async (req, res) => {
         const mahasiswa = await User.findById(bimbingan.mahasiswa);
         if (mahasiswa) {
             const currentIndex = PROGRESS_OPTIONS.indexOf(mahasiswa.currentProgress);
-            if (currentIndex < PROGRESS_OPTIONS.length - 1) {
+            // Block BAB III -> BAB IV if student hasn't passed sempro
+            if (mahasiswa.currentProgress === 'BAB III' && 
+                (!mahasiswa.statusMahasiswa || mahasiswa.statusMahasiswa === 'pra_sempro' || mahasiswa.statusMahasiswa === 'menunggu_sempro')) {
+                console.log(`⚠️ Progress blocked: ${mahasiswa.name} must pass Sempro before BAB IV`);
+            } else if (currentIndex < PROGRESS_OPTIONS.length - 1) {
                 mahasiswa.currentProgress = PROGRESS_OPTIONS[currentIndex + 1];
                 await mahasiswa.save();
                 console.log(`📈 Progress updated: ${mahasiswa.name} -> ${mahasiswa.currentProgress}`);
+            }
+        }
+    }
+
+    // ===== Examiner ACC Resolution Logic =====
+    // When a penguji gives 'acc' on a revision bimbingan, check if BOTH penguji have given acc
+    if (status === 'acc' && (bimbingan.dosenType === 'penguji_1' || bimbingan.dosenType === 'penguji_2')) {
+        const mahasiswa = await User.findById(bimbingan.mahasiswa);
+        if (mahasiswa && ['revisi_sempro', 'revisi_semhas', 'revisi_sidang'].includes(mahasiswa.statusMahasiswa)) {
+            // Check if the OTHER penguji has also given acc
+            const otherPengujiType = bimbingan.dosenType === 'penguji_1' ? 'penguji_2' : 'penguji_1';
+            const otherPengujiAcc = await Bimbingan.findOne({
+                mahasiswa: bimbingan.mahasiswa,
+                dosenType: otherPengujiType,
+                kategoriBimbingan: bimbingan.kategoriBimbingan,
+                status: 'acc'
+            });
+
+            if (otherPengujiAcc) {
+                // Both penguji have given ACC - transition student status
+                const statusTransitions = {
+                    'revisi_sempro': 'bimbingan_lanjut',
+                    'revisi_semhas': 'bimbingan_akhir',
+                    'revisi_sidang': 'selesai'
+                };
+                const nextStatus = statusTransitions[mahasiswa.statusMahasiswa];
+                if (nextStatus) {
+                    mahasiswa.statusMahasiswa = nextStatus;
+                    await mahasiswa.save();
+                    console.log(`🎓 Status transitioned: ${mahasiswa.name} -> ${nextStatus} (both penguji ACC)`);
+                }
+            } else {
+                console.log(`⏳ Waiting for ${otherPengujiType} ACC for ${mahasiswa.name}`);
             }
         }
     }
@@ -387,6 +475,54 @@ const giveFeedback = asyncHandler(async (req, res) => {
     }
 
     sendSuccess(res, 200, 'Feedback berhasil diberikan', bimbingan);
+});
+
+/**
+ * @desc    Save feedback draft to bimbingan
+ * @route   PUT /api/bimbingan/:id/draft-feedback
+ * @access  Dosen
+ */
+const saveFeedbackDraft = asyncHandler(async (req, res) => {
+    const { status, feedback } = req.body;
+    const dosenId = req.user._id;
+
+    const bimbingan = await Bimbingan.findById(req.params.id);
+
+    if (!bimbingan) {
+        throw ApiError.notFound('Bimbingan tidak ditemukan');
+    }
+
+    // Check authorization
+    if (bimbingan.dosen.toString() !== dosenId.toString()) {
+        throw ApiError.forbidden('Anda tidak memiliki akses untuk memberikan draft feedback ini');
+    }
+
+    // Check if already reviewed
+    if (bimbingan.status !== 'menunggu') {
+        throw ApiError.badRequest('Bimbingan ini sudah direview. Tidak dapat menyimpan draft.');
+    }
+
+    // Update draft fields
+    bimbingan.draftFeedback = feedback || null;
+    bimbingan.draftStatus = status || null;
+    bimbingan.hasDraft = true;
+
+    // Handle feedback file if uploaded
+    if (req.file) {
+        bimbingan.draftFeedbackFile = req.file.path;
+        bimbingan.draftFeedbackFileName = req.file.originalname;
+    }
+
+    await bimbingan.save();
+
+    console.log(`📝 Draft feedback saved: ${req.user.name} -> ${bimbingan.mahasiswa}`);
+
+    sendSuccess(res, 200, 'Draft feedback berhasil disimpan', {
+        draftFeedback: bimbingan.draftFeedback,
+        draftStatus: bimbingan.draftStatus,
+        draftFeedbackFileName: bimbingan.draftFeedbackFileName,
+        hasDraft: bimbingan.hasDraft
+    });
 });
 
 /**
@@ -600,6 +736,14 @@ const generateSuratSempro = asyncHandler(async (req, res) => {
     const mahasiswa = await User.findById(mahasiswaId).populate('dospem_1 dospem_2', 'name nim_nip');
     if (!mahasiswa || mahasiswa.role !== 'mahasiswa') {
         throw ApiError.notFound('Mahasiswa tidak ditemukan');
+    }
+
+    // Restrict to students who haven't passed sempro yet
+    const postSemproStatuses = ['revisi_sempro', 'bimbingan_lanjut', 'menunggu_semhas', 'revisi_semhas', 'bimbingan_akhir', 'menunggu_sidang', 'revisi_sidang', 'selesai'];
+    if (postSemproStatuses.includes(mahasiswa.statusMahasiswa)) {
+        throw ApiError.badRequest(
+            'Surat persetujuan sempro tidak dapat diunduh karena mahasiswa sudah melewati tahap seminar proposal.'
+        );
     }
 
     // Verify sempro requirements are met
@@ -1107,6 +1251,7 @@ module.exports = {
     getById,
     create,
     giveFeedback,
+    saveFeedbackDraft,
     addReply,
     downloadFile,
     getPendingCount,

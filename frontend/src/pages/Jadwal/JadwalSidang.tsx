@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, type Variants } from 'framer-motion'
 import { Badge } from '@/components/ui/badge'
@@ -30,6 +30,7 @@ import {
 import {
     LayoutDashboard,
     Calendar,
+    CalendarCheck,
     ChevronDown,
     LogOut,
     User,
@@ -77,6 +78,7 @@ const dosenMenuItems = [
 ]
 const dosenAktivitasItems = [
     { label: 'Mahasiswa Bimbingan', icon: Users, path: '/dosen/mahasiswa' },
+    { label: 'Jadwal Penguji', icon: CalendarCheck, path: '/dosen/jadwal-penguji' },
     { label: 'Jadwal Sidang', icon: Calendar, active: true, path: '/jadwal-sidang' },
 ]
 
@@ -158,6 +160,14 @@ export const JadwalSidang = () => {
 
     const menuItems = isDosen ? dosenMenuItems : mahasiswaMenuItems
     const aktivitasItems = isDosen ? dosenAktivitasItems : mahasiswaAktivitasItems
+
+    const totalSesi = useMemo(() => {
+        return new Set(jadwalData.map(j => j.waktu)).size
+    }, [jadwalData])
+
+    const totalRuangan = useMemo(() => {
+        return new Set(jadwalData.map(j => j.ruangan).filter(Boolean)).size
+    }, [jadwalData])
 
     // Animation variants
     const containerVariants: Variants = {
@@ -433,7 +443,7 @@ export const JadwalSidang = () => {
                                     <Clock className="w-5 h-5 text-orange-600" />
                                 </div>
                                 <div>
-                                    <p className="text-2xl font-bold text-gray-800">2</p>
+                                    <p className="text-2xl font-bold text-gray-800">{totalSesi}</p>
                                     <p className="text-xs text-gray-500">Sesi Waktu</p>
                                 </div>
                             </div>
@@ -442,7 +452,7 @@ export const JadwalSidang = () => {
                                     <MapPin className="w-5 h-5 text-purple-600" />
                                 </div>
                                 <div>
-                                    <p className="text-2xl font-bold text-gray-800">3</p>
+                                    <p className="text-2xl font-bold text-gray-800">{totalRuangan}</p>
                                     <p className="text-xs text-gray-500">Ruangan</p>
                                 </div>
                             </div>

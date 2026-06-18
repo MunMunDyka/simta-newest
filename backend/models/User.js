@@ -86,7 +86,25 @@ const userSchema = new Schema({
         type: String,
         trim: true,
         default: 'BAB I',
-        enum: ['BAB I', 'BAB II', 'BAB III', 'BAB IV', 'BAB V', 'Selesai']
+        enum: ['BAB I', 'BAB II', 'BAB III', 'BAB IV', 'BAB V', 'BAB VI', 'Selesai']
+    },
+
+    // ===== Status Akademik Mahasiswa (Alur Sidang) =====
+    statusMahasiswa: {
+        type: String,
+        enum: [
+            'pra_sempro',       // Default awal, bimbingan dospem BAB I-III
+            'menunggu_sempro',   // Telah dijadwalkan / sedang menunggu ujian sempro
+            'revisi_sempro',     // Pasca sempro, wajib bimbingan revisi ke penguji
+            'bimbingan_lanjut',  // Telah lulus revisi sempro, lanjut bimbingan dospem BAB IV-V
+            'menunggu_semhas',   // Sedang menunggu jadwal ujian semhas
+            'revisi_semhas',     // Pasca semhas, wajib bimbingan revisi ke penguji
+            'bimbingan_akhir',   // Telah lulus revisi semhas, lanjut bimbingan dospem bab akhir
+            'menunggu_sidang',   // Sedang menunggu jadwal ujian sidang akhir
+            'revisi_sidang',     // Pasca sidang, bimbingan revisi laporan akhir ke penguji
+            'selesai'            // Telah lulus semua sidang dan revisi penguji
+        ],
+        default: 'pra_sempro'
     },
 
     // ===== Dosen Pembimbing (ref ke User dengan role dosen) =====
@@ -97,6 +115,19 @@ const userSchema = new Schema({
     },
 
     dospem_2: {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+        default: null
+    },
+
+    // ===== Dosen Penguji (di-assign dari jadwal sidang) =====
+    penguji_1: {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+        default: null
+    },
+
+    penguji_2: {
         type: Schema.Types.ObjectId,
         ref: 'User',
         default: null
@@ -135,6 +166,9 @@ userSchema.index({ role: 1 });
 userSchema.index({ status: 1 });
 userSchema.index({ dospem_1: 1 });
 userSchema.index({ dospem_2: 1 });
+userSchema.index({ penguji_1: 1 });
+userSchema.index({ penguji_2: 1 });
+userSchema.index({ statusMahasiswa: 1 });
 userSchema.index({ name: 'text' }); // Text search index
 
 // ===== Virtual: Get initials for avatar fallback =====
@@ -212,19 +246,39 @@ userSchema.statics.findByRole = function (role) {
 };
 
 /**
- * Find mahasiswa by dosen pembimbing
+ * Find mahasiswa by dosen pembimbing atau penguji
  * @param {ObjectId} dosenId - ID dosen
+ * @param {string} filterRole - 'pembimbing', 'penguji', atau 'semua' (default: 'semua')
  * @returns {Promise<User[]>}
  */
-userSchema.statics.findMahasiswaByDosen = function (dosenId) {
+userSchema.statics.findMahasiswaByDosen = function (dosenId, filterRole = 'semua') {
+    let orConditions;
+    
+    if (filterRole === 'pembimbing') {
+        orConditions = [
+            { dospem_1: dosenId },
+            { dospem_2: dosenId }
+        ];
+    } else if (filterRole === 'penguji') {
+        orConditions = [
+            { penguji_1: dosenId },
+            { penguji_2: dosenId }
+        ];
+    } else {
+        // 'semua' - include both
+        orConditions = [
+            { dospem_1: dosenId },
+            { dospem_2: dosenId },
+            { penguji_1: dosenId },
+            { penguji_2: dosenId }
+        ];
+    }
+    
     return this.find({
         role: 'mahasiswa',
         status: 'aktif',
-        $or: [
-            { dospem_1: dosenId },
-            { dospem_2: dosenId }
-        ]
-    }).populate('dospem_1 dospem_2', 'name nim_nip');
+        $or: orConditions
+    }).populate('dospem_1 dospem_2 penguji_1 penguji_2', 'name nim_nip');
 };
 
 /**

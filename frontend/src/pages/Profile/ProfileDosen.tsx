@@ -19,6 +19,7 @@ import {
     LayoutDashboard,
     Users,
     Calendar,
+    CalendarCheck,
     ChevronDown,
     LogOut,
     User,
@@ -42,6 +43,7 @@ const managementItems = [
 ]
 
 const scheduleItems = [
+    { label: 'Jadwal Penguji', icon: CalendarCheck, path: '/dosen/jadwal-penguji' },
     { label: 'Jadwal Sidang', icon: Calendar, path: '/jadwal-sidang' },
 ]
 

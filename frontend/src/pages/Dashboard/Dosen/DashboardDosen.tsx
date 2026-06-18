@@ -32,6 +32,7 @@ import {
     LayoutDashboard,
     Users,
     Calendar,
+    CalendarCheck,
     Search,
     ChevronDown,
     ExternalLink,
@@ -72,6 +73,7 @@ interface Student {
     lastActionAt?: string
     pendingReviewCount?: number
     reviewStatus?: 'menunggu_review' | 'sudah_direview' | 'belum_ada'
+    dosenRelation?: 'pembimbing' | 'penguji'
 }
 
 interface DosenStats {
@@ -89,6 +91,7 @@ const menuItems = [
 
 const aktivitasItems = [
     { label: 'Mahasiswa Bimbingan', icon: Users, path: '/dosen/mahasiswa' },
+    { label: 'Jadwal Penguji', icon: CalendarCheck, path: '/dosen/jadwal-penguji' },
     { label: 'Jadwal Sidang', icon: Calendar, path: '/jadwal-sidang' },
 ]
 
@@ -100,6 +103,7 @@ export const DashboardDosen = () => {
     const [searchQuery, setSearchQuery] = useState('')
     const [entriesPerPage, setEntriesPerPage] = useState('10')
     const [currentPage, setCurrentPage] = useState(1)
+    const [filterRole, setFilterRole] = useState<'pembimbing' | 'penguji' | 'semua'>('pembimbing')
 
     // Data states
     const [studentsData, setStudentsData] = useState<Student[]>([])
@@ -120,7 +124,9 @@ export const DashboardDosen = () => {
             try {
                 setIsLoading(true)
                 setLoadError(null)
-                const response = await api.get('/users/mahasiswa-bimbingan')
+                const response = await api.get('/users/mahasiswa-bimbingan', {
+                    params: { filterRole }
+                })
                 const mahasiswaList = response.data.data || []
 
                 // Transform data
@@ -141,6 +147,7 @@ export const DashboardDosen = () => {
                     lastActionAt?: string | null;
                     pendingReviewCount?: number;
                     reviewStatus?: Student['reviewStatus'];
+                    dosenRelation?: Student['dosenRelation'];
                 }) => {
                     const pendingReviewCount = mhs.pendingReviewCount || 0;
                     const status = pendingReviewCount > 0
@@ -153,7 +160,15 @@ export const DashboardDosen = () => {
                         _id: mhs._id,
                         nim: mhs.nim_nip,
                         nama: mhs.name,
-                        progress: mhs.currentProgress || 'BAB I',
+                        progress: mhs.dosenRelation === 'penguji'
+                            ? (mhs.statusMahasiswa === 'revisi_sempro'
+                                ? 'BAB I - III (Revisi)'
+                                : mhs.statusMahasiswa === 'revisi_semhas'
+                                ? 'BAB I - V (Revisi)'
+                                : mhs.statusMahasiswa === 'revisi_sidang'
+                                ? 'BAB I - VI (Revisi)'
+                                : mhs.currentProgress || 'BAB I')
+                            : mhs.currentProgress || 'BAB I',
                         tanggalUpdate: displayDate ? new Date(displayDate).toLocaleDateString('id-ID') : '-',
                         status,
                         lastBimbinganStatus: mhs.lastBimbinganStatus || undefined,
@@ -166,7 +181,8 @@ export const DashboardDosen = () => {
                         lastActionJudul: mhs.lastActionJudul || undefined,
                         lastActionAt: mhs.lastActionAt || undefined,
                         pendingReviewCount,
-                        reviewStatus: mhs.reviewStatus || (status === 'belum_ada' ? 'belum_ada' : status === 'menunggu' ? 'menunggu_review' : 'sudah_direview')
+                        reviewStatus: mhs.reviewStatus || (status === 'belum_ada' ? 'belum_ada' : status === 'menunggu' ? 'menunggu_review' : 'sudah_direview'),
+                        dosenRelation: mhs.dosenRelation
                     }
                 })
 
@@ -193,7 +209,7 @@ export const DashboardDosen = () => {
         }
 
         fetchData()
-    }, [])
+    }, [filterRole])
 
     // Animation variants
     const containerVariants: Variants = {
@@ -316,6 +332,22 @@ export const DashboardDosen = () => {
             'BAB V': {
                 label: 'BAB V',
                 className: 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+            },
+            'BAB VI': {
+                label: 'BAB VI',
+                className: 'bg-violet-50 text-violet-700 ring-violet-200'
+            },
+            'BAB I - III (REVISI)': {
+                label: 'BAB I - III (Revisi)',
+                className: 'bg-purple-50 text-purple-700 ring-purple-200'
+            },
+            'BAB I - V (REVISI)': {
+                label: 'BAB I - V (Revisi)',
+                className: 'bg-purple-50 text-purple-700 ring-purple-200'
+            },
+            'BAB I - VI (REVISI)': {
+                label: 'BAB I - VI (Revisi)',
+                className: 'bg-purple-50 text-purple-700 ring-purple-200'
             },
             'SELESAI': {
                 label: 'Selesai',
@@ -750,6 +782,20 @@ export const DashboardDosen = () => {
                                                 className="pl-9 h-9 w-64 bg-gray-50 border-gray-200 focus:border-blue-500 rounded-xl"
                                             />
                                         </div>
+
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm text-gray-600 font-medium">Peran:</span>
+                                            <Select value={filterRole} onValueChange={(val: any) => setFilterRole(val)}>
+                                                <SelectTrigger className="w-44 h-9 bg-gray-50 border-gray-200 focus:border-blue-500 rounded-xl">
+                                                    <SelectValue placeholder="Pilih Peran" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="pembimbing">Pembimbing</SelectItem>
+                                                    <SelectItem value="penguji">Pengujian</SelectItem>
+                                                    <SelectItem value="semua">Semua</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
                                     </div>
 
                                     <DropdownMenu>
@@ -817,6 +863,7 @@ export const DashboardDosen = () => {
                                             <TableHead className="h-12 text-center font-semibold text-gray-700">NIM</TableHead>
                                             <TableHead className="h-12 font-semibold text-gray-700">NAMA</TableHead>
                                             <TableHead className="h-12 font-semibold text-gray-700">PROGRESS</TableHead>
+                                            <TableHead className="h-12 text-center font-semibold text-gray-700">PERAN</TableHead>
                                             <TableHead className="h-12 text-center font-semibold text-gray-700">TANGGAL UPDATE</TableHead>
                                             <TableHead className="h-12 text-center font-semibold text-gray-700">Status</TableHead>
                                             <TableHead className="h-12 w-32 font-semibold text-gray-700 text-center">Action</TableHead>
@@ -825,7 +872,7 @@ export const DashboardDosen = () => {
                                     <TableBody>
                                         {isLoading ? (
                                             <TableRow>
-                                                <TableCell colSpan={6} className="h-32">
+                                                <TableCell colSpan={7} className="h-32">
                                                     <div className="flex items-center justify-center py-8">
                                                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                                                         <span className="ml-3 text-gray-500">Memuat data...</span>
@@ -834,16 +881,20 @@ export const DashboardDosen = () => {
                                             </TableRow>
                                         ) : filteredStudents.length === 0 ? (
                                             <TableRow>
-                                                <TableCell colSpan={6} className="h-32">
+                                                <TableCell colSpan={7} className="h-32">
                                                     <div className="flex flex-col items-center justify-center text-center py-8">
                                                         <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
                                                             <Users className="w-8 h-8 text-gray-400" />
                                                         </div>
-                                                        <h3 className="text-lg font-medium text-gray-700 mb-1">Belum ada mahasiswa bimbingan</h3>
+                                                        <h3 className="text-lg font-medium text-gray-700 mb-1">
+                                                            {filterRole === 'penguji' ? 'Belum ada mahasiswa pengujian' : 'Belum ada mahasiswa bimbingan'}
+                                                        </h3>
                                                         <p className="text-sm text-gray-500">
                                                             {searchQuery
                                                                 ? 'Tidak ada mahasiswa yang sesuai dengan pencarian'
-                                                                : 'Anda belum memiliki mahasiswa bimbingan'}
+                                                                : filterRole === 'penguji'
+                                                                    ? 'Anda belum ditugaskan sebagai penguji'
+                                                                    : 'Anda belum memiliki mahasiswa bimbingan'}
                                                         </p>
                                                     </div>
                                                 </TableCell>
@@ -860,6 +911,17 @@ export const DashboardDosen = () => {
                                                     <TableCell className="py-4 text-center font-medium text-gray-700">{student.nim}</TableCell>
                                                     <TableCell className="py-4 font-semibold text-gray-800">{student.nama}</TableCell>
                                                     <TableCell className="py-4">{getProgressBadge(student.progress)}</TableCell>
+                                                    <TableCell className="py-4 text-center">
+                                                        {student.dosenRelation === 'penguji' ? (
+                                                            <Badge className="bg-purple-100 text-purple-700 border-0 font-medium hover:bg-purple-100">
+                                                                Penguji
+                                                            </Badge>
+                                                        ) : (
+                                                            <Badge className="bg-blue-100 text-blue-700 border-0 font-medium hover:bg-blue-100">
+                                                                Pembimbing
+                                                            </Badge>
+                                                        )}
+                                                    </TableCell>
                                                     <TableCell className="py-4 text-center text-gray-600">{student.tanggalUpdate}</TableCell>
                                                     <TableCell className="py-4 text-center">{getStatusBadge(student)}</TableCell>
                                                     <TableCell className="py-4 text-center">

@@ -27,8 +27,8 @@ const jadwalSchema = new Schema({
     jenisJadwal: {
         type: String,
         enum: {
-            values: ['sidang_proposal', 'sidang_skripsi'],
-            message: 'Jenis jadwal harus sidang_proposal atau sidang_skripsi'
+            values: ['sidang_proposal', 'sidang_semhas', 'sidang_skripsi'],
+            message: 'Jenis jadwal harus sidang_proposal, sidang_semhas, atau sidang_skripsi'
         },
         required: [true, 'Jenis jadwal wajib diisi']
     },
@@ -144,6 +144,7 @@ jadwalSchema.virtual('statusColor').get(function () {
 jadwalSchema.virtual('jenisJadwalDisplay').get(function () {
     const display = {
         sidang_proposal: 'Sidang Proposal',
+        sidang_semhas: 'Seminar Hasil',
         sidang_skripsi: 'Sidang Skripsi'
     };
     return display[this.jenisJadwal] || this.jenisJadwal;

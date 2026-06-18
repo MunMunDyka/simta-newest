@@ -32,10 +32,20 @@ const bimbinganSchema = new Schema({
     dosenType: {
         type: String,
         enum: {
-            values: ['dospem_1', 'dospem_2'],
-            message: 'Jenis dosen harus dospem_1 atau dospem_2'
+            values: ['dospem_1', 'dospem_2', 'penguji_1', 'penguji_2'],
+            message: 'Jenis dosen harus dospem_1, dospem_2, penguji_1, atau penguji_2'
         },
         required: [true, 'Jenis dosen pembimbing wajib diisi']
+    },
+
+    // ===== Kategori Bimbingan =====
+    kategoriBimbingan: {
+        type: String,
+        enum: {
+            values: ['bimbingan_dospem', 'revisi_sempro', 'revisi_semhas', 'revisi_sidang'],
+            message: 'Kategori bimbingan tidak valid'
+        },
+        default: 'bimbingan_dospem'
     },
 
     // ===== Submission Info =====
@@ -119,6 +129,36 @@ const bimbinganSchema = new Schema({
         type: String,
         trim: true,
         default: null
+    },
+
+    // ===== Draft Feedback =====
+    draftFeedback: {
+        type: String,
+        trim: true,
+        maxlength: [2000, 'Draft feedback maksimal 2000 karakter'],
+        default: null
+    },
+
+    draftStatus: {
+        type: String,
+        default: null
+    },
+
+    draftFeedbackFile: {
+        type: String,
+        trim: true,
+        default: null
+    },
+
+    draftFeedbackFileName: {
+        type: String,
+        trim: true,
+        default: null
+    },
+
+    hasDraft: {
+        type: Boolean,
+        default: false
     }
 
 }, {

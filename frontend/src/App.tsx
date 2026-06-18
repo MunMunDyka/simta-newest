@@ -20,6 +20,7 @@ import { DashboardAdmin } from './pages/Admin/DashboardAdmin'
 import { ManajemenUser } from './pages/Admin/ManajemenUser'
 import { ManajemenUserMahasiswa } from './pages/Admin/ManajemenUserMahasiswa'
 import { ManajemenUserDosen } from './pages/Admin/ManajemenUserDosen'
+import { KelolaPlottingDosen } from './pages/Admin/KelolaPlottingDosen'
 import { EditUser } from './pages/Admin/EditUser'
 import { KelolaJadwal } from './pages/Admin/KelolaJadwal'
 import { KelolaBimbingan } from './pages/Admin/KelolaBimbingan'
@@ -30,6 +31,7 @@ import { BimbinganDosen } from './pages/Bimbingan/Dosen/BimbinganDosen'
 import { ListMahasiswaBimbingan } from './pages/Bimbingan/Dosen/ListMahasiswaBimbingan'
 import { ProfileMahasiswa } from './pages/Profile/ProfileMahasiswa'
 import { ProfileDosen } from './pages/Profile/ProfileDosen'
+import { JadwalPenguji } from './pages/Dosen/JadwalPenguji'
 
 // Wireframe Pages (untuk dokumentasi skripsi)
 import { LoginWireframe, DashboardWireframe, BimbinganWireframe } from './pages/Wireframe'
@@ -133,6 +135,14 @@ function App() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/dosen/jadwal-penguji"
+        element={
+          <ProtectedRoute allowedRoles={['dosen']}>
+            <JadwalPenguji />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Admin Routes */}
       <Route
@@ -164,6 +174,14 @@ function App() {
         element={
           <ProtectedRoute allowedRoles={['admin']}>
             <ManajemenUserDosen />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/plotting"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <KelolaPlottingDosen />
           </ProtectedRoute>
         }
       />

@@ -24,6 +24,7 @@ import {
     LayoutDashboard,
     Users,
     Calendar,
+    CalendarCheck,
     ChevronDown,
     LogOut,
     User,
@@ -54,6 +55,7 @@ const menuItems = [
 
 const managementItems = [
     { label: 'Mahasiswa Bimbingan', icon: Users, path: '/dosen/mahasiswa' },
+    { label: 'Jadwal Penguji', icon: CalendarCheck, path: '/dosen/jadwal-penguji' },
     { label: 'Jadwal Sidang', icon: Calendar, path: '/jadwal-sidang' },
 ]
 
@@ -72,6 +74,7 @@ export const BimbinganDosen = () => {
     const [status, setStatus] = useState<string>('')
     const [feedback, setFeedback] = useState('')
     const [selectedFile, setSelectedFile] = useState<File | null>(null)
+    const [draftFileName, setDraftFileName] = useState<string | null>(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [, setIsLoading] = useState(true)
     const [loadError, setLoadError] = useState<string | null>(null)
@@ -89,6 +92,7 @@ export const BimbinganDosen = () => {
         catatan: string
         status: string
         createdAt: string
+        kategoriBimbingan?: string
     } | null>(null)
     // State for bimbingan history
     const [bimbinganHistory, setBimbinganHistory] = useState<Array<{
@@ -102,6 +106,7 @@ export const BimbinganDosen = () => {
         feedback: string
         feedbackDate: string
         createdAt: string
+        kategoriBimbingan?: string
     }>>([]);
     const [expandedHistory, setExpandedHistory] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null)
@@ -152,11 +157,23 @@ export const BimbinganDosen = () => {
                         fileSize: data.fileSize ? `${(parseInt(data.fileSize) / 1024 / 1024).toFixed(2)} MB` : '-',
                         catatan: data.catatan || '',
                         status: data.status,
-                        createdAt: new Date(data.createdAt).toLocaleString('id-ID')
+                        createdAt: new Date(data.createdAt).toLocaleString('id-ID'),
+                        kategoriBimbingan: data.kategoriBimbingan
                     })
 
+                    // Auto-fill draft if available
+                    if (data.status === 'menunggu' && data.hasDraft) {
+                        setStatus(data.draftStatus || '')
+                        setFeedback(data.draftFeedback || '')
+                        setDraftFileName(data.draftFeedbackFileName || null)
+                    } else {
+                        setStatus('')
+                        setFeedback('')
+                        setDraftFileName(null)
+                    }
+
                     // Set all bimbingan as history (including current)
-                    const history = bimbinganList.map((item: { _id: string; version: string; judul: string; fileOriginalName?: string; fileName: string; fileSize?: string; catatan?: string; status: string; feedback?: string; feedbackDate?: string; createdAt: string }) => ({
+                    const history = bimbinganList.map((item: any) => ({
                         id: item._id,
                         version: `V${item.version}`,
                         judul: item.judul,
@@ -166,7 +183,8 @@ export const BimbinganDosen = () => {
                         status: item.status,
                         feedback: item.feedback || '',
                         feedbackDate: item.feedbackDate ? new Date(item.feedbackDate).toLocaleString('id-ID') : '-',
-                        createdAt: new Date(item.createdAt).toLocaleString('id-ID')
+                        createdAt: new Date(item.createdAt).toLocaleString('id-ID'),
+                        kategoriBimbingan: item.kategoriBimbingan
                     }));
                     setBimbinganHistory(history);
                 } else {
@@ -258,6 +276,31 @@ export const BimbinganDosen = () => {
         }
     }
 
+    const getKategoriBadge = (kategori?: string) => {
+        if (!kategori || kategori === 'bimbingan_dospem') return null;
+        const config: Record<string, { label: string; className: string }> = {
+            revisi_sempro: {
+                label: 'Revisi Sempro',
+                className: 'bg-orange-100 text-orange-700 border-0 hover:bg-orange-100'
+            },
+            revisi_semhas: {
+                label: 'Revisi Semhas',
+                className: 'bg-indigo-100 text-indigo-700 border-0 hover:bg-indigo-100'
+            },
+            revisi_sidang: {
+                label: 'Revisi Sidang Akhir',
+                className: 'bg-purple-100 text-purple-700 border-0 hover:bg-purple-100'
+            }
+        }
+        const item = config[kategori];
+        if (!item) return null;
+        return (
+            <Badge className={`${item.className} text-xs font-semibold py-1 px-3.5 rounded-full`}>
+                {item.label}
+            </Badge>
+        )
+    }
+
     const validateFeedbackForm = () => {
         const nextErrors: FeedbackFieldErrors = {}
         const allowedStatuses = ['revisi', 'acc', 'lanjut_bab', 'acc_sempro']
@@ -302,6 +345,71 @@ export const BimbinganDosen = () => {
 
         setFieldErrors(nextErrors)
         return Object.keys(nextErrors).length > 0
+    }
+
+    const validateDraftForm = () => {
+        const nextErrors: FeedbackFieldErrors = {}
+        const cleanFeedback = feedback.trim()
+
+        if (cleanFeedback && cleanFeedback.length > 2000) {
+            nextErrors.feedback = 'Draft feedback maksimal 2000 karakter.'
+        }
+
+        if (selectedFile && selectedFile.type !== 'application/pdf') {
+            nextErrors.feedbackFile = 'Lampiran harus berformat PDF.'
+        }
+
+        if (!bimbinganData?.id) {
+            setFormError('Data bimbingan tidak ditemukan.')
+        }
+
+        setFieldErrors(nextErrors)
+        return Object.keys(nextErrors).length === 0 && Boolean(bimbinganData?.id)
+    }
+
+    const handleSaveDraft = async () => {
+        setFormError(null)
+        setFormSuccess(null)
+
+        if (!validateDraftForm()) {
+            return
+        }
+
+        setIsSubmitting(true)
+        const bimbinganId = bimbinganData?.id
+
+        try {
+            const formData = new FormData()
+            if (status) {
+                formData.append('status', status)
+            }
+            if (feedback) {
+                formData.append('feedback', feedback.trim())
+            }
+            if (selectedFile) {
+                formData.append('feedbackFile', selectedFile)
+            }
+
+            await api.put(`/bimbingan/${bimbinganId}/draft-feedback`, formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            })
+
+            setFormSuccess('Draft feedback berhasil disimpan.')
+            setFieldErrors({})
+            
+            if (selectedFile) {
+                setDraftFileName(selectedFile.name)
+                setSelectedFile(null)
+            }
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string; errors?: Array<{ field?: string; message?: string }> } } }
+            const hasFieldError = mapBackendValidationErrors(err.response?.data?.errors || [])
+            setFormError(hasFieldError ? null : err.response?.data?.message || 'Gagal menyimpan draft feedback')
+        } finally {
+            setIsSubmitting(false)
+        }
     }
 
     const handleSubmit = async () => {
@@ -576,14 +684,17 @@ export const BimbinganDosen = () => {
                                     <Clock className="w-5 h-5 text-white" />
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-bold text-gray-800">
-                                        {bimbinganData?.status === 'menunggu' && 'Menunggu Review'}
-                                        {bimbinganData?.status === 'revisi' && 'Revisi'}
-                                        {bimbinganData?.status === 'acc' && 'ACC ✓'}
-                                        {bimbinganData?.status === 'lanjut_bab' && 'Lanjut BAB ✓'}
-                                        {bimbinganData?.status === 'acc_sempro' && 'ACC Maju Sempro ✓'}
-                                        {!bimbinganData?.status && 'Loading...'}
-                                    </h3>
+                                    <div className="flex items-center gap-2.5 flex-wrap">
+                                        <h3 className="text-lg font-bold text-gray-800">
+                                            {bimbinganData?.status === 'menunggu' && 'Menunggu Review'}
+                                            {bimbinganData?.status === 'revisi' && 'Revisi'}
+                                            {bimbinganData?.status === 'acc' && 'ACC ✓'}
+                                            {bimbinganData?.status === 'lanjut_bab' && 'Lanjut BAB ✓'}
+                                            {bimbinganData?.status === 'acc_sempro' && 'ACC Maju Sempro ✓'}
+                                            {!bimbinganData?.status && 'Loading...'}
+                                        </h3>
+                                        {getKategoriBadge(bimbinganData?.kategoriBimbingan)}
+                                    </div>
                                     <p className="text-sm text-gray-500">{bimbinganData?.version || '-'} - {bimbinganData?.judul || '-'}</p>
                                 </div>
                             </div>
@@ -774,6 +885,12 @@ export const BimbinganDosen = () => {
                                                     <span className="font-medium text-gray-800">{selectedFile.name}</span>
                                                     <span className="text-xs text-gray-500">({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)</span>
                                                 </div>
+                                            ) : draftFileName ? (
+                                                <div className="flex items-center justify-center gap-3">
+                                                    <Paperclip className="w-5 h-5 text-blue-500" />
+                                                    <span className="font-medium text-gray-800">{draftFileName}</span>
+                                                    <span className="text-xs text-blue-500">(Tersimpan di draft)</span>
+                                                </div>
                                             ) : (
                                                 <div className="flex items-center justify-center gap-2 text-gray-500">
                                                     <Upload className="w-5 h-5" />
@@ -789,26 +906,38 @@ export const BimbinganDosen = () => {
                                         )}
                                     </div>
 
-                                    {/* Submit Button */}
-                                    <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
-                                        <Button
-                                            onClick={handleSubmit}
-                                            disabled={isSubmitting}
-                                            className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-xl py-6 text-lg"
-                                        >
-                                            {isSubmitting ? (
-                                                <>
-                                                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                                                    Mengirim...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Send className="w-5 h-5 mr-2" />
-                                                    Kirim Feedback
-                                                </>
-                                            )}
-                                        </Button>
-                                    </motion.div>
+                                    {/* Submit & Draft Buttons */}
+                                    <div className="flex flex-col sm:flex-row gap-3">
+                                        <motion.div className="flex-1" whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
+                                            <Button
+                                                onClick={handleSaveDraft}
+                                                disabled={isSubmitting}
+                                                variant="outline"
+                                                className="w-full border-blue-200 hover:border-blue-400 text-blue-600 rounded-xl py-6 text-lg font-semibold"
+                                            >
+                                                {isSubmitting ? 'Menyimpan...' : 'Simpan Draft'}
+                                            </Button>
+                                        </motion.div>
+                                        <motion.div className="flex-1" whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
+                                            <Button
+                                                onClick={handleSubmit}
+                                                disabled={isSubmitting}
+                                                className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-xl py-6 text-lg font-semibold"
+                                            >
+                                                {isSubmitting ? (
+                                                    <>
+                                                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                                                        Mengirim...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Send className="w-5 h-5 mr-2" />
+                                                        Kirim Feedback
+                                                    </>
+                                                )}
+                                            </Button>
+                                        </motion.div>
+                                    </div>
 
                                     {/* Info */}
                                     <p className="text-xs text-gray-400 text-center">
@@ -898,7 +1027,10 @@ export const BimbinganDosen = () => {
                                                         {getStatusIcon(item.status)}
                                                     </div>
                                                     <div className="text-left">
-                                                        <p className="font-medium text-gray-800">{item.version} - {item.judul}</p>
+                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                            <p className="font-medium text-gray-800">{item.version} - {item.judul}</p>
+                                                            {getKategoriBadge(item.kategoriBimbingan)}
+                                                        </div>
                                                         <p className="text-xs text-gray-500">{item.createdAt}</p>
                                                     </div>
                                                 </div>

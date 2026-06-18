@@ -23,6 +23,13 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
+import {
     Table,
     TableBody,
     TableCell,
@@ -52,6 +59,11 @@ import {
     CheckCircle,
     XCircle,
     ChevronRight,
+    Plus,
+    BookOpen,
+    UserPlus,
+    X,
+    Shield,
 } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
@@ -78,6 +90,15 @@ interface MahasiswaBimbingan {
     prodi?: string
     currentProgress?: string
     judulTA?: string
+    dosenRelation?: 'pembimbing' | 'penguji'
+}
+
+interface MahasiswaData {
+    _id: string
+    name: string
+    nim_nip: string
+    prodi?: string
+    statusMahasiswa?: string
 }
 
 // Bimbingan History interface
@@ -102,6 +123,7 @@ const menuItems = [
 
 const managementItems = [
     { label: 'Manajemen User', icon: Users, active: true, path: '/admin/users' },
+    { label: 'Manajemen Dosen', icon: GraduationCap, path: '/admin/plotting' },
     { label: 'Kelola Bimbingan', icon: FileText, path: '/admin/bimbingan' },
     { label: 'Kelola Jadwal', icon: Calendar, path: '/admin/jadwal' },
 ]
@@ -131,6 +153,17 @@ export const ManajemenUserDosen = () => {
     const [isLoadingHistory, setIsLoadingHistory] = useState(false)
     const [historyError, setHistoryError] = useState<string | null>(null)
 
+    // Inline Add States
+    const [students, setStudents] = useState<MahasiswaData[]>([])
+    const [allDosen, setAllDosen] = useState<{ _id: string; name: string }[]>([])
+    const [showAddBimbingan, setShowAddBimbingan] = useState(false)
+    const [showAddPengujian, setShowAddPengujian] = useState(false)
+    const [addBimbinganMhs, setAddBimbinganMhs] = useState('')
+    const [addBimbinganRole, setAddBimbinganRole] = useState<'dospem_1' | 'dospem_2'>('dospem_1')
+    const [addPengujianMhs, setAddPengujianMhs] = useState('')
+    const [addPengujianRole, setAddPengujianRole] = useState<'penguji_1' | 'penguji_2'>('penguji_1')
+    const [isSavingAdd, setIsSavingAdd] = useState(false)
+
     // Fetch dosen data
     const fetchDosen = async () => {
         if (!id) return
@@ -142,13 +175,21 @@ export const ManajemenUserDosen = () => {
 
             // Fetch mahasiswa under this dosen
             try {
-                const mahasiswaResponse = await api.get(`/users/mahasiswa-bimbingan?dosenId=${id}`)
+                const mahasiswaResponse = await api.get(`/users/mahasiswa-bimbingan`, {
+                    params: { dosenId: id, filterRole: 'semua' }
+                })
                 setMahasiswaBimbingan(mahasiswaResponse.data.data || [])
             } catch {
-                const allMahasiswa = await api.get('/users/mahasiswa-bimbingan')
-                const filtered = (allMahasiswa.data.data || []).filter((m: { dosenPembimbing1?: { _id: string }; dosenPembimbing2?: { _id: string } }) =>
-                    m.dosenPembimbing1?._id === id || m.dosenPembimbing2?._id === id
-                )
+                const allMahasiswa = await api.get('/users/mahasiswa-bimbingan', {
+                    params: { filterRole: 'semua' }
+                })
+                const filtered = (allMahasiswa.data.data || []).filter((m: { dospem_1?: any; dospem_2?: any; penguji_1?: any; penguji_2?: any }) => {
+                    const getDosenIdStr = (d: any) => d?._id || d;
+                    return getDosenIdStr(m.dospem_1) === id ||
+                           getDosenIdStr(m.dospem_2) === id ||
+                           getDosenIdStr(m.penguji_1) === id ||
+                           getDosenIdStr(m.penguji_2) === id;
+                })
                 setMahasiswaBimbingan(filtered)
             }
         } catch (error) {
@@ -162,6 +203,79 @@ export const ManajemenUserDosen = () => {
     useEffect(() => {
         fetchDosen()
     }, [id])
+
+    useEffect(() => {
+        const fetchDropdownData = async () => {
+            try {
+                const studentResponse = await api.get('/users', {
+                    params: { role: 'mahasiswa', status: 'aktif', limit: 100 }
+                })
+                setStudents(studentResponse.data.data || [])
+            } catch (err) {
+                console.error('Failed to fetch dropdown data:', err)
+            }
+        }
+        fetchDropdownData()
+    }, [])
+
+    // Handle inline add bimbingan
+    const handleAddBimbingan = async () => {
+        if (!addBimbinganMhs) {
+            alert('Silakan pilih mahasiswa terlebih dahulu')
+            return
+        }
+        try {
+            setIsSavingAdd(true)
+            await api.put(`/users/${addBimbinganMhs}/assign-dospem`, {
+                [addBimbinganRole]: id
+            })
+            setShowAddBimbingan(false)
+            setAddBimbinganMhs('')
+            setAddBimbinganRole('dospem_1')
+            fetchDosen()
+            alert('Mahasiswa berhasil ditambahkan sebagai bimbingan!')
+        } catch (err: any) {
+            console.error('Failed to add bimbingan:', err)
+            alert(err.response?.data?.message || 'Gagal menambahkan mahasiswa bimbingan.')
+        } finally {
+            setIsSavingAdd(false)
+        }
+    }
+
+    // Handle inline add pengujian
+    const handleAddPengujian = async () => {
+        if (!addPengujianMhs) {
+            alert('Silakan pilih mahasiswa terlebih dahulu')
+            return
+        }
+        try {
+            setIsSavingAdd(true)
+            await api.put(`/users/${addPengujianMhs}/assign-dospem`, {
+                [addPengujianRole]: id
+            })
+            setShowAddPengujian(false)
+            setAddPengujianMhs('')
+            setAddPengujianRole('penguji_1')
+            fetchDosen()
+            alert('Mahasiswa berhasil ditambahkan sebagai pengujian!')
+        } catch (err: any) {
+            console.error('Failed to add pengujian:', err)
+            alert(err.response?.data?.message || 'Gagal menambahkan mahasiswa pengujian.')
+        } finally {
+            setIsSavingAdd(false)
+        }
+    }
+
+    // Get available students (not already assigned to this dosen)
+    const getAvailableBimbinganStudents = () => {
+        const existingIds = new Set(mahasiswaBimbingan.filter(m => m.dosenRelation !== 'penguji').map(m => m._id))
+        return students.filter(s => !existingIds.has(s._id))
+    }
+
+    const getAvailablePengujianStudents = () => {
+        const existingIds = new Set(mahasiswaBimbingan.filter(m => m.dosenRelation === 'penguji').map(m => m._id))
+        return students.filter(s => !existingIds.has(s._id))
+    }
 
     // Handle reset password
     const handleResetPassword = async () => {
@@ -482,20 +596,33 @@ export const ManajemenUserDosen = () => {
                                         </div>
                                     </div>
                                     <div className="flex flex-col gap-3">
-                                        <div className="text-center p-4 bg-orange-50 rounded-xl">
-                                            <GraduationCap className="w-8 h-8 text-orange-500 mx-auto mb-2" />
-                                            <p className="text-3xl font-bold text-orange-600">{mahasiswaBimbingan.length}</p>
-                                            <p className="text-sm text-gray-500">Mahasiswa Bimbingan</p>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div className="text-center p-3 bg-blue-50 rounded-xl">
+                                                <BookOpen className="w-6 h-6 text-blue-500 mx-auto mb-1" />
+                                                <p className="text-2xl font-bold text-blue-600">
+                                                    {mahasiswaBimbingan.filter(m => m.dosenRelation !== 'penguji').length}
+                                                </p>
+                                                <p className="text-xs text-gray-500">Bimbingan</p>
+                                            </div>
+                                            <div className="text-center p-3 bg-purple-50 rounded-xl">
+                                                <Shield className="w-6 h-6 text-purple-500 mx-auto mb-1" />
+                                                <p className="text-2xl font-bold text-purple-600">
+                                                    {mahasiswaBimbingan.filter(m => m.dosenRelation === 'penguji').length}
+                                                </p>
+                                                <p className="text-xs text-gray-500">Pengujian</p>
+                                            </div>
                                         </div>
                                         <Button
                                             onClick={() => navigate(`/admin/users/dosen/${id}/edit`)}
-                                            className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+                                            variant="outline"
+                                            className="border-green-500 text-green-600 hover:bg-green-50 font-semibold"
                                         >
                                             <Edit className="w-4 h-4 mr-2" />Edit Data
                                         </Button>
                                         <Button
                                             onClick={() => setShowDeleteModal(true)}
                                             variant="destructive"
+                                            className="font-semibold"
                                         >
                                             <Trash2 className="w-4 h-4 mr-2" />Hapus
                                         </Button>
@@ -506,13 +633,69 @@ export const ManajemenUserDosen = () => {
                             {/* Mahasiswa Bimbingan Table */}
                             <motion.div variants={itemVariants} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                                 <div className="p-6 border-b border-gray-100">
-                                    <div>
-                                        <h3 className="text-lg font-bold text-gray-800">Mahasiswa Bimbingan</h3>
-                                        <p className="text-sm text-gray-500">Daftar mahasiswa yang dibimbing oleh dosen ini</p>
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <h3 className="text-lg font-bold text-gray-800">Mahasiswa Bimbingan</h3>
+                                            <p className="text-sm text-gray-500">Daftar mahasiswa yang dibimbing (Dospem 1 & 2) oleh dosen ini</p>
+                                        </div>
+                                        <Button
+                                            size="sm"
+                                            onClick={() => setShowAddBimbingan(!showAddBimbingan)}
+                                            className={showAddBimbingan ? 'bg-gray-500 hover:bg-gray-600' : 'bg-blue-500 hover:bg-blue-600'}
+                                        >
+                                            {showAddBimbingan ? <><X className="w-4 h-4 mr-1" />Batal</> : <><UserPlus className="w-4 h-4 mr-1" />Tambah Mahasiswa</>}
+                                        </Button>
                                     </div>
+
+                                    {/* Inline Add Form */}
+                                    {showAddBimbingan && (
+                                        <motion.div
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: 'auto' }}
+                                            exit={{ opacity: 0, height: 0 }}
+                                            className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-200"
+                                        >
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-xs font-semibold text-gray-700">Pilih Mahasiswa</Label>
+                                                    <Select value={addBimbinganMhs} onValueChange={setAddBimbinganMhs}>
+                                                        <SelectTrigger className="rounded-lg h-9 border-gray-200 bg-white">
+                                                            <SelectValue placeholder="Cari mahasiswa..." />
+                                                        </SelectTrigger>
+                                                        <SelectContent className="max-h-[200px] overflow-y-auto">
+                                                            {getAvailableBimbinganStudents().map((s) => (
+                                                                <SelectItem key={s._id} value={s._id}>
+                                                                    {s.nim_nip} - {s.name}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-xs font-semibold text-gray-700">Sebagai</Label>
+                                                    <Select value={addBimbinganRole} onValueChange={(v) => setAddBimbinganRole(v as 'dospem_1' | 'dospem_2')}>
+                                                        <SelectTrigger className="rounded-lg h-9 border-gray-200 bg-white">
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="dospem_1">Pembimbing 1</SelectItem>
+                                                            <SelectItem value="dospem_2">Pembimbing 2</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <Button
+                                                    onClick={handleAddBimbingan}
+                                                    disabled={!addBimbinganMhs || isSavingAdd}
+                                                    className="bg-blue-500 hover:bg-blue-600 h-9"
+                                                >
+                                                    {isSavingAdd ? 'Menyimpan...' : 'Tambahkan'}
+                                                </Button>
+                                            </div>
+                                        </motion.div>
+                                    )}
                                 </div>
 
-                                {mahasiswaBimbingan.length > 0 ? (
+                                {mahasiswaBimbingan.filter(m => m.dosenRelation !== 'penguji').length > 0 ? (
                                     <Table>
                                         <TableHeader>
                                             <TableRow className="bg-gray-50/50">
@@ -524,7 +707,7 @@ export const ManajemenUserDosen = () => {
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            {mahasiswaBimbingan.map((mhs, index) => (
+                                            {mahasiswaBimbingan.filter(m => m.dosenRelation !== 'penguji').map((mhs, index) => (
                                                 <motion.tr
                                                     key={mhs._id}
                                                     initial={{ opacity: 0, y: 10 }}
@@ -549,14 +732,14 @@ export const ManajemenUserDosen = () => {
                                                     <TableCell className="text-gray-600 max-w-xs truncate">{mhs.judulTA || '-'}</TableCell>
                                                     <TableCell>
                                                         <Badge className="bg-blue-100 text-blue-600">{mhs.currentProgress || 'BAB I'}</Badge>
-                                                    </TableCell>
+                                                     </TableCell>
                                                     <TableCell className="text-center">
                                                         <div className="flex items-center justify-center gap-1">
                                                             <Button
                                                                 variant="ghost"
                                                                 size="sm"
                                                                 onClick={() => viewBimbinganHistory(mhs)}
-                                                                className="text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                                                                className="text-purple-600 hover:text-purple-700 hover:bg-purple-50 font-semibold"
                                                             >
                                                                 <History className="w-4 h-4 mr-1" />Riwayat
                                                             </Button>
@@ -564,6 +747,7 @@ export const ManajemenUserDosen = () => {
                                                                 variant="ghost"
                                                                 size="sm"
                                                                 onClick={() => navigate(`/admin/users/mahasiswa/${mhs._id}`)}
+                                                                className="font-semibold"
                                                             >
                                                                 <Eye className="w-4 h-4 mr-1" />Detail
                                                             </Button>
@@ -577,6 +761,141 @@ export const ManajemenUserDosen = () => {
                                     <div className="p-8 text-center">
                                         <GraduationCap className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                                         <p className="text-gray-500">Belum ada mahasiswa bimbingan</p>
+                                    </div>
+                                )}
+                            </motion.div>
+
+                            {/* Mahasiswa Pengujian Table */}
+                            <motion.div variants={itemVariants} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                                <div className="p-6 border-b border-gray-100">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <h3 className="text-lg font-bold text-gray-800">Mahasiswa Pengujian</h3>
+                                            <p className="text-sm text-gray-500">Daftar mahasiswa yang diuji (Penguji 1 & 2) oleh dosen ini</p>
+                                        </div>
+                                        <Button
+                                            size="sm"
+                                            onClick={() => setShowAddPengujian(!showAddPengujian)}
+                                            className={showAddPengujian ? 'bg-gray-500 hover:bg-gray-600' : 'bg-purple-500 hover:bg-purple-600'}
+                                        >
+                                            {showAddPengujian ? <><X className="w-4 h-4 mr-1" />Batal</> : <><UserPlus className="w-4 h-4 mr-1" />Tambah Mahasiswa</>}
+                                        </Button>
+                                    </div>
+
+                                    {/* Inline Add Form */}
+                                    {showAddPengujian && (
+                                        <motion.div
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: 'auto' }}
+                                            exit={{ opacity: 0, height: 0 }}
+                                            className="mt-4 p-4 bg-purple-50 rounded-xl border border-purple-200"
+                                        >
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-xs font-semibold text-gray-700">Pilih Mahasiswa</Label>
+                                                    <Select value={addPengujianMhs} onValueChange={setAddPengujianMhs}>
+                                                        <SelectTrigger className="rounded-lg h-9 border-gray-200 bg-white">
+                                                            <SelectValue placeholder="Cari mahasiswa..." />
+                                                        </SelectTrigger>
+                                                        <SelectContent className="max-h-[200px] overflow-y-auto">
+                                                            {getAvailablePengujianStudents().map((s) => (
+                                                                <SelectItem key={s._id} value={s._id}>
+                                                                    {s.nim_nip} - {s.name}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <Label className="text-xs font-semibold text-gray-700">Sebagai</Label>
+                                                    <Select value={addPengujianRole} onValueChange={(v) => setAddPengujianRole(v as 'penguji_1' | 'penguji_2')}>
+                                                        <SelectTrigger className="rounded-lg h-9 border-gray-200 bg-white">
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="penguji_1">Penguji 1</SelectItem>
+                                                            <SelectItem value="penguji_2">Penguji 2</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <Button
+                                                    onClick={handleAddPengujian}
+                                                    disabled={!addPengujianMhs || isSavingAdd}
+                                                    className="bg-purple-500 hover:bg-purple-600 h-9"
+                                                >
+                                                    {isSavingAdd ? 'Menyimpan...' : 'Tambahkan'}
+                                                </Button>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </div>
+
+                                {mahasiswaBimbingan.filter(m => m.dosenRelation === 'penguji').length > 0 ? (
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow className="bg-gray-50/50">
+                                                <TableHead className="font-semibold text-gray-700">Nama</TableHead>
+                                                <TableHead className="font-semibold text-gray-700">NIM</TableHead>
+                                                <TableHead className="font-semibold text-gray-700">Judul TA</TableHead>
+                                                <TableHead className="font-semibold text-gray-700">Progress</TableHead>
+                                                <TableHead className="font-semibold text-gray-700 text-center">Aksi</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {mahasiswaBimbingan.filter(m => m.dosenRelation === 'penguji').map((mhs, index) => (
+                                                <motion.tr
+                                                    key={mhs._id}
+                                                    initial={{ opacity: 0, y: 10 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    transition={{ delay: 0.05 * index }}
+                                                    className="border-b border-gray-50 hover:bg-gray-50/50"
+                                                >
+                                                    <TableCell>
+                                                        <div className="flex items-center gap-3">
+                                                            <Avatar className="w-8 h-8">
+                                                                <AvatarFallback className="bg-gradient-to-br from-purple-500 to-purple-600 text-white text-xs">
+                                                                    {mhs.name.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
+                                                                </AvatarFallback>
+                                                            </Avatar>
+                                                            <div>
+                                                                <p className="font-medium text-gray-800">{mhs.name}</p>
+                                                                <p className="text-xs text-gray-400">{mhs.prodi || 'Sistem Informasi'}</p>
+                                                            </div>
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="font-medium text-gray-700">{mhs.nim_nip}</TableCell>
+                                                    <TableCell className="text-gray-600 max-w-xs truncate">{mhs.judulTA || '-'}</TableCell>
+                                                    <TableCell>
+                                                        <Badge className="bg-purple-100 text-purple-600">{mhs.currentProgress || 'BAB I'}</Badge>
+                                                     </TableCell>
+                                                    <TableCell className="text-center">
+                                                        <div className="flex items-center justify-center gap-1">
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={() => viewBimbinganHistory(mhs)}
+                                                                className="text-purple-600 hover:text-purple-700 hover:bg-purple-50 font-semibold"
+                                                            >
+                                                                <History className="w-4 h-4 mr-1" />Riwayat
+                                                            </Button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={() => navigate(`/admin/users/mahasiswa/${mhs._id}`)}
+                                                                className="font-semibold"
+                                                            >
+                                                                <Eye className="w-4 h-4 mr-1" />Detail
+                                                            </Button>
+                                                        </div>
+                                                    </TableCell>
+                                                </motion.tr>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                ) : (
+                                    <div className="p-8 text-center">
+                                        <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                                        <p className="text-gray-500">Belum ada mahasiswa pengujian</p>
                                     </div>
                                 )}
                             </motion.div>
@@ -795,6 +1114,8 @@ export const ManajemenUserDosen = () => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+
         </div>
     )
 }

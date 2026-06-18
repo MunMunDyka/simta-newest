@@ -19,10 +19,14 @@ export interface User {
     semester?: string;
     judulTA?: string;
     currentProgress?: string;
+    statusMahasiswa?: 'pra_sempro' | 'menunggu_sempro' | 'revisi_sempro' | 'bimbingan_lanjut' | 'menunggu_semhas' | 'revisi_semhas' | 'bimbingan_akhir' | 'menunggu_sidang' | 'revisi_sidang' | 'selesai';
     dospem_1?: string | { _id: string; name: string; nim_nip: string };
     dospem_2?: string | { _id: string; name: string; nim_nip: string };
+    penguji_1?: string | { _id: string; name: string; nim_nip: string };
+    penguji_2?: string | { _id: string; name: string; nim_nip: string };
     status: 'aktif' | 'nonaktif';
     avatar?: string;
+    whatsapp?: string;
     initials?: string;
     createdAt: string;
     updatedAt: string;
