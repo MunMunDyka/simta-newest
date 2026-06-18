@@ -31,24 +31,35 @@
 ## ✨ Fitur Utama
 
 ### 👨‍🎓 Mahasiswa
-- 📊 **Dashboard** - Melihat ringkasan status tugas akhir
-- 📝 **Bimbingan** - Upload progress, catatan, dan berkas bimbingan
-- 💬 **Feedback** - Menerima dan membalas feedback dari dosen
-- 📅 **Jadwal Sidang** - Melihat jadwal sidang tugas akhir
-- 👤 **Profil** - Mengelola informasi profil
+- 📊 **Dashboard** - Melihat ringkasan status tugas akhir dan timeline progres (Sempro, Semhas, Sidang).
+- 📝 **Bimbingan & Revisi Dinamis** - Upload progres skripsi ke Dosen Pembimbing (fase pengerjaan) atau Dosen Penguji (fase revisi ujian) sesuai dengan status akademik yang aktif.
+- 💬 **Feedback & Balasan** - Menerima feedback dari dosen serta mengirimkan komentar balasan secara interaktif.
+- 📅 **Jadwal Sidang** - Melihat jadwal pelaksanaan ujian secara riil.
 
 ### 👨‍🏫 Dosen
-- 📊 **Dashboard** - Melihat daftar mahasiswa bimbingan
-- 📋 **Review Bimbingan** - Mereview progress mahasiswa
-- ✅ **Feedback** - Memberikan status (Revisi/ACC/Lanjut Bab) dan komentar
-- 📅 **Jadwal Sidang** - Melihat jadwal sidang
-- 👤 **Profil** - Mengelola informasi profil
+- 📊 **Dashboard & List Mahasiswa** - Melihat daftar bimbingan (sebagai pembimbing) dan pengujian (sebagai penguji) dengan pemetaan progres bimbingan/revisi yang adaptif.
+- ✅ **Review & Feedback** - Memberikan feedback dengan status keputusan (Revisi, ACC, Lanjut BAB, ACC Sidang).
+- 📅 **Jadwal Sidang & Pengujian** - Melihat jadwal sidang mahasiswa bimbingan maupun mahasiswa yang diuji.
 
 ### 👨‍💼 Admin
-- 📊 **Dashboard** - Statistik keseluruhan sistem
-- 👥 **Manajemen User** - CRUD data mahasiswa dan dosen
-- 📅 **Kelola Jadwal** - Mengatur jadwal sidang tugas akhir
-- 📥 **Export PDF** - Download jadwal sidang dalam format PDF
+- 👥 **Manajemen User & Plotting** - CRUD data mahasiswa & dosen, serta atur plotting Dosen Pembimbing & Penguji secara terpusat melalui detail profil.
+- 📊 **Monitoring Beban Kerja Dosen** - Memantau distribusi beban bimbingan dan pengujian setiap dosen untuk menjaga keseimbangan beban kerja.
+- 📅 **Kelola Jadwal & Ruangan** - Penjadwalan sidang proposal, seminar hasil, dan sidang akhir mahasiswa dengan pembatasan tinggi dropdown ruangan yang bersih.
+- 📥 **Export PDF** - Mengunduh berkas rekap jadwal sidang.
+
+---
+
+## 🔄 Alur Status Akademik & Bimbingan
+
+Sistem mengadopsi transisi status otomatis untuk memandu mahasiswa melalui tahapan skripsi secara terstruktur:
+
+1. **Bimbingan Awal (Pra-Sempro)**: Mahasiswa melakukan bimbingan dengan Dosen Pembimbing 1 & 2 untuk menyelesaikan proposal skripsi (BAB I - III).
+2. **Penjadwalan Sidang**: Penginputan jadwal sidang oleh admin otomatis mensinkronisasikan Dosen Penguji 1 & 2 ke dalam rekam data mahasiswa.
+3. **Fase Revisi (revisi_sempro / revisi_semhas / revisi_sidang)**: 
+   - Akses bimbingan dengan Dosen Pembimbing dikunci sementara.
+   - Mahasiswa melakukan bimbingan revisi khusus dengan Dosen Penguji 1 & 2.
+   - Setelah **kedua** penguji memberikan ACC pada bimbingan revisi, status mahasiswa otomatis naik (contoh: dari `revisi_sempro` ke `bimbingan_lanjut`) dan akses bimbingan dengan Dosen Pembimbing terbuka kembali untuk bab berikutnya.
+4. **Bimbingan Lanjut & Akhir**: Mahasiswa melanjutkan penyusunan tugas akhir (BAB IV - V untuk Semhas, BAB VI/Selesai untuk Sidang Akhir).
 
 ---
 
