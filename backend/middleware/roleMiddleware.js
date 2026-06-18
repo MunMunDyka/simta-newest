@@ -32,8 +32,14 @@ const roleMiddleware = (allowedRoles) => {
 
         // 2. Check if user's role is in allowed roles
         const userRole = req.user.role;
+        let hasAccess = allowedRoles.includes(userRole);
 
-        if (!allowedRoles.includes(userRole)) {
+        // 3. Multiple role: dosen with canAccessAdmin can access admin routes
+        if (!hasAccess && allowedRoles.includes('admin') && req.user.canAccessAdmin) {
+            hasAccess = true;
+        }
+
+        if (!hasAccess) {
             // Build friendly error message
             const rolesText = allowedRoles.join(', ');
             throw ApiError.forbidden(
@@ -42,7 +48,7 @@ const roleMiddleware = (allowedRoles) => {
             );
         }
 
-        // 3. User has permission, continue
+        // 4. User has permission, continue
         next();
     };
 };
@@ -84,7 +90,7 @@ const selfOrAdmin = (paramName = 'id') => {
         }
 
         const targetId = req.params[paramName];
-        const isAdmin = req.user.role === 'admin';
+        const isAdmin = req.user.role === 'admin' || req.user.canAccessAdmin === true;
         const isSelf = req.user._id.toString() === targetId;
 
         if (!isAdmin && !isSelf) {
@@ -106,8 +112,8 @@ const selfOrAdmin = (paramName = 'id') => {
  * @param {string} currentUserRole - Current user role
  * @returns {boolean} - True if user can access
  */
-const canAccess = (resourceOwnerId, currentUserId, currentUserRole) => {
-    if (currentUserRole === 'admin') return true;
+const canAccess = (resourceOwnerId, currentUserId, currentUserRole, canAccessAdmin = false) => {
+    if (currentUserRole === 'admin' || canAccessAdmin === true) return true;
     return resourceOwnerId.toString() === currentUserId.toString();
 };
 

@@ -139,6 +139,15 @@ const authSlice = createSlice({
         setUser: (state, action: PayloadAction<User>) => {
             state.user = action.payload;
         },
+        toggleActiveRole: (state) => {
+            if (state.user && state.user.canAccessAdmin) {
+                const currentActive = state.user.activeRole || state.user.role;
+                const newRole = currentActive === 'admin' ? 'dosen' : 'admin';
+                state.user = { ...state.user, activeRole: newRole };
+                localStorage.setItem('activeRole', newRole);
+                localStorage.setItem('user', JSON.stringify(state.user));
+            }
+        },
     },
     extraReducers: (builder) => {
         builder
@@ -150,7 +159,15 @@ const authSlice = createSlice({
             .addCase(login.fulfilled, (state, action) => {
                 state.isLoading = false;
                 state.isAuthenticated = true;
-                state.user = action.payload.user;
+                const savedActiveRole = localStorage.getItem('activeRole') as 'dosen' | 'admin' | null;
+                const user = action.payload.user;
+                if (user.canAccessAdmin && savedActiveRole) {
+                    user.activeRole = savedActiveRole;
+                } else {
+                    user.activeRole = user.role;
+                    localStorage.removeItem('activeRole');
+                }
+                state.user = user;
                 state.accessToken = action.payload.accessToken;
                 state.refreshToken = action.payload.refreshToken;
                 state.error = null;
@@ -168,7 +185,14 @@ const authSlice = createSlice({
             .addCase(getMe.fulfilled, (state, action) => {
                 state.isLoading = false;
                 state.isAuthenticated = true;
-                state.user = action.payload;
+                const savedActiveRole = localStorage.getItem('activeRole') as 'dosen' | 'admin' | null;
+                const user = action.payload;
+                if (user.canAccessAdmin && savedActiveRole) {
+                    user.activeRole = savedActiveRole;
+                } else {
+                    user.activeRole = user.role;
+                }
+                state.user = user;
             })
             .addCase(getMe.rejected, (state) => {
                 state.isLoading = false;
@@ -185,6 +209,7 @@ const authSlice = createSlice({
                 state.refreshToken = null;
                 state.isAuthenticated = false;
                 state.error = null;
+                localStorage.removeItem('activeRole');
             })
 
             // Initialize
@@ -203,5 +228,5 @@ const authSlice = createSlice({
     },
 });
 
-export const { clearError, setUser } = authSlice.actions;
+export const { clearError, setUser, toggleActiveRole } = authSlice.actions;
 export default authSlice.reducer;

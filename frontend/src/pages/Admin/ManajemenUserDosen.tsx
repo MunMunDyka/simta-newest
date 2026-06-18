@@ -80,6 +80,7 @@ interface DosenData {
     avatar?: string
     whatsapp?: string
     plainPassword?: string
+    canAccessAdmin?: boolean
 }
 
 interface MahasiswaBimbingan {
@@ -578,7 +579,11 @@ export const ManajemenUserDosen = () => {
                                             <Badge className={dosen.status === 'aktif' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}>
                                                 {dosen.status === 'aktif' ? 'Aktif' : 'Nonaktif'}
                                             </Badge>
-                                            <Badge className="bg-purple-100 text-purple-600">Dosen</Badge>
+                                            {dosen.canAccessAdmin ? (
+                                                <Badge className="bg-gradient-to-r from-purple-500 to-orange-500 text-white border-0">Dosen & Admin</Badge>
+                                            ) : (
+                                                <Badge className="bg-purple-100 text-purple-600">Dosen</Badge>
+                                            )}
                                         </div>
                                         <p className="text-gray-500 mb-4">NIP: {dosen.nim_nip}</p>
 
@@ -592,6 +597,29 @@ export const ManajemenUserDosen = () => {
                                                 <span className="text-sm">{dosen.whatsapp || '-'}</span>
                                             </div>
                                         </div>
+
+                                        {user?.nim_nip === 'admin001' && (
+                                            <div className="flex items-center gap-2 mt-4 pt-4 border-t border-gray-100 animate-fadeIn">
+                                                <label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-gray-700">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={dosen.canAccessAdmin || false}
+                                                        onChange={async (e) => {
+                                                            const checked = e.target.checked;
+                                                            try {
+                                                                await api.put(`/users/${dosen._id}`, { canAccessAdmin: checked });
+                                                                setDosen({ ...dosen, canAccessAdmin: checked });
+                                                                setLoadError(null);
+                                                            } catch (err: any) {
+                                                                alert('Gagal memperbarui hak akses admin: ' + (err.response?.data?.message || 'Error'));
+                                                            }
+                                                        }}
+                                                        className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                                                    />
+                                                    Berikan Akses Admin (Multi-role)
+                                                </label>
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="flex flex-col gap-3">
                                         <div className="grid grid-cols-2 gap-2">

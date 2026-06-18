@@ -28,6 +28,8 @@ export interface User {
     avatar?: string;
     whatsapp?: string;
     initials?: string;
+    canAccessAdmin?: boolean;
+    activeRole?: 'mahasiswa' | 'dosen' | 'admin';
     createdAt: string;
     updatedAt: string;
 }

@@ -23,9 +23,10 @@ import {
     TrendingUp,
     Clock,
     Activity,
+    Shield,
 } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
-import { logout } from '@/store/slices/authSlice'
+import { logout, toggleActiveRole } from '@/store/slices/authSlice'
 import api from '@/lib/api'
 import { FeedbackAlert } from '@/components/FeedbackAlert'
 import { getApiErrorMessage } from '@/lib/errorMessage'
@@ -425,7 +426,23 @@ export const DashboardAdmin = () => {
                                 >
                                     <User className="w-4 h-4 mr-2" />
                                     Profile
-                                </DropdownMenuItem>                                <DropdownMenuSeparator />
+                                </DropdownMenuItem>
+                                {user?.canAccessAdmin && (
+                                    <>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem
+                                            className="cursor-pointer text-blue-600 font-medium"
+                                            onClick={() => {
+                                                dispatch(toggleActiveRole())
+                                                navigate('/dashboard/dosen')
+                                            }}
+                                        >
+                                            <Shield className="w-4 h-4 mr-2" />
+                                            Masuk Mode Dosen
+                                        </DropdownMenuItem>
+                                    </>
+                                )}
+                                <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                     className="cursor-pointer text-red-600"
                                     onClick={() => {

@@ -66,7 +66,8 @@ function App() {
         dosen: '/dashboard/dosen',
         admin: '/admin/dashboard',
       }
-      return <Navigate to={dashboards[user.role]} replace />
+      const activeRole = user.activeRole || user.role
+      return <Navigate to={dashboards[activeRole]} replace />
     }
     return <Login />
   }

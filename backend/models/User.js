@@ -151,8 +151,11 @@ const userSchema = new Schema({
         default: null
     },
 
-    // Untuk dosen - jumlah mahasiswa bimbingan
-    // (opsional, bisa dihitung dari query)
+    // ===== Multiple Role (Dosen + Admin) =====
+    canAccessAdmin: {
+        type: Boolean,
+        default: false
+    },
 
 }, {
     timestamps: true, // Automatically adds createdAt and updatedAt

@@ -75,6 +75,7 @@ interface UserData {
     status: 'aktif' | 'nonaktif'
     prodi?: string
     avatar?: string
+    canAccessAdmin?: boolean
 }
 
 // Menu items
@@ -372,11 +373,14 @@ export const ManajemenUser = () => {
         return <Badge className="bg-red-100 text-red-600 hover:bg-red-100 border-0">Nonaktif</Badge>
     }
 
-    const getRoleBadge = (role: string) => {
+    const getRoleBadge = (role: string, canAccessAdmin?: boolean) => {
         if (role === 'mahasiswa') {
             return <Badge className="bg-blue-100 text-blue-600 hover:bg-blue-100 border-0">Mahasiswa</Badge>
         }
         if (role === 'dosen') {
+            if (canAccessAdmin) {
+                return <Badge className="bg-gradient-to-r from-purple-500 to-orange-500 text-white hover:opacity-90 border-0">Dosen & Admin</Badge>
+            }
             return <Badge className="bg-purple-100 text-purple-600 hover:bg-purple-100 border-0">Dosen</Badge>
         }
         if (role === 'admin') {
@@ -716,7 +720,7 @@ export const ManajemenUser = () => {
                                                         </TableCell>
                                                         <TableCell className="font-medium text-gray-700">{userData.nim_nip}</TableCell>
                                                         <TableCell className="text-gray-600">{userData.email}</TableCell>
-                                                        <TableCell>{getRoleBadge(userData.role)}</TableCell>
+                                                        <TableCell>{getRoleBadge(userData.role, userData.canAccessAdmin)}</TableCell>
                                                         <TableCell>{getStatusBadge(userData.status)}</TableCell>
                                                         <TableCell className="text-center">
                                                             <DropdownMenu>

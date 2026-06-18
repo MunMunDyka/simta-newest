@@ -74,7 +74,7 @@ const getById = asyncHandler(async (req, res) => {
     let query = User.findById(req.params.id)
         .populate('dospem_1 dospem_2 penguji_1 penguji_2', 'name nim_nip email');
 
-    if (req.user.role === 'admin') {
+    if (req.user.role === 'admin' || req.user.canAccessAdmin) {
         query = query.select('+plainPassword');
     } else {
         query = query.select('-password');
@@ -87,7 +87,7 @@ const getById = asyncHandler(async (req, res) => {
     }
 
     // Check authorization (admin can view anyone, others can only view themselves)
-    if (req.user.role !== 'admin' && req.user._id.toString() !== user._id.toString()) {
+    if (req.user.role !== 'admin' && !req.user.canAccessAdmin && req.user._id.toString() !== user._id.toString()) {
         // Dosen can view their bimbingan students
         if (req.user.role === 'dosen') {
             const isBimbinganStudent =
@@ -111,7 +111,12 @@ const getById = asyncHandler(async (req, res) => {
  * @access  Admin
  */
 const create = asyncHandler(async (req, res) => {
-    const { nim_nip, password, name, email, role, prodi, semester, status, judulTA } = req.body;
+    const { nim_nip, password, name, email, role, prodi, semester, status, judulTA, canAccessAdmin } = req.body;
+
+    // Only Master Admin (admin001) can grant admin access
+    if (canAccessAdmin === true && req.user.nim_nip !== 'admin001') {
+        throw ApiError.forbidden('Hanya Master Admin (admin001) yang dapat memberikan akses admin');
+    }
 
     // Check if nim_nip already exists
     const existingUser = await User.findOne({ nim_nip });
@@ -134,6 +139,7 @@ const create = asyncHandler(async (req, res) => {
         prodi,
         semester,
         judulTA,
+        canAccessAdmin: role === 'dosen' ? (canAccessAdmin || false) : false,
         status: status || 'aktif'
     });
 
@@ -154,7 +160,14 @@ const update = asyncHandler(async (req, res) => {
         throw ApiError.notFound(`User dengan ID '${req.params.id}' tidak ditemukan`);
     }
 
-    const isAdmin = req.user.role === 'admin';
+    // Only Master Admin (admin001) can modify admin access
+    if (req.body.canAccessAdmin !== undefined && req.body.canAccessAdmin !== user.canAccessAdmin) {
+        if (req.user.nim_nip !== 'admin001') {
+            throw ApiError.forbidden('Hanya Master Admin (admin001) yang dapat memberikan atau mencabut akses admin');
+        }
+    }
+
+    const isAdmin = req.user.role === 'admin' || req.user.canAccessAdmin === true;
     const isSelf = req.user._id.toString() === user._id.toString();
 
     if (!isAdmin && !isSelf) {
@@ -166,7 +179,7 @@ const update = asyncHandler(async (req, res) => {
 
     if (isAdmin) {
         // Admin can update all fields except password (use change-password)
-        allowedFields = ['name', 'email', 'prodi', 'semester', 'judulTA', 'currentProgress', 'statusMahasiswa', 'penguji_1', 'penguji_2', 'status', 'avatar', 'whatsapp'];
+        allowedFields = ['name', 'email', 'prodi', 'semester', 'judulTA', 'currentProgress', 'statusMahasiswa', 'penguji_1', 'penguji_2', 'status', 'avatar', 'whatsapp', 'canAccessAdmin'];
     } else {
         // Self can only update limited fields
         allowedFields = ['email', 'avatar'];

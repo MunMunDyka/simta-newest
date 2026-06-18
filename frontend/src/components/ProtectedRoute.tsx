@@ -35,16 +35,19 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
         return <Navigate to="/" state={{ from: location }} replace />;
     }
 
-    // Check role-based access
-    if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-        // Redirect to appropriate dashboard based on role
-        const roleDashboards = {
-            mahasiswa: '/dashboard/mahasiswa',
-            dosen: '/dashboard/dosen',
-            admin: '/admin/users',
-        };
+    // Check role-based access (use activeRole for multiple-role users)
+    if (allowedRoles && user) {
+        const activeRole = user.activeRole || user.role;
+        if (!allowedRoles.includes(activeRole)) {
+            // Redirect to appropriate dashboard based on active role
+            const roleDashboards = {
+                mahasiswa: '/dashboard/mahasiswa',
+                dosen: '/dashboard/dosen',
+                admin: '/admin/users',
+            };
 
-        return <Navigate to={roleDashboards[user.role]} replace />;
+            return <Navigate to={roleDashboards[activeRole]} replace />;
+        }
     }
 
     return <>{children}</>;

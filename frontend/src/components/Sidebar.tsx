@@ -15,8 +15,9 @@ export const Sidebar = () => {
     const location = useLocation()
     const { user } = useAppSelector((state) => state.auth)
 
-    // Get sidebar config based on role
-    const config = getSidebarConfig(user?.role)
+    // Get sidebar config based on active role (supports multiple role switching)
+    const activeRole = user?.activeRole || user?.role
+    const config = getSidebarConfig(activeRole)
 
     // Set active states
     const mainMenu = setActiveMenuItem(config.mainMenu, location.pathname)
