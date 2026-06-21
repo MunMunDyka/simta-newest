@@ -1133,11 +1133,24 @@ const updateBimbinganSettings = asyncHandler(async (req, res) => {
  * @access  Admin
  */
 const getProgressReport = asyncHandler(async (req, res) => {
+    // Get all active mahasiswa to calculate workloads
+    const studentsForWorkload = await User.find({ role: 'mahasiswa', status: 'aktif' }).lean();
+    const pembimbingCounts = {};
+    const pengujiCounts = {};
+    studentsForWorkload.forEach(s => {
+        if (s.dospem_1) pembimbingCounts[s.dospem_1.toString()] = (pembimbingCounts[s.dospem_1.toString()] || 0) + 1;
+        if (s.dospem_2) pembimbingCounts[s.dospem_2.toString()] = (pembimbingCounts[s.dospem_2.toString()] || 0) + 1;
+        if (s.penguji_1) pengujiCounts[s.penguji_1.toString()] = (pengujiCounts[s.penguji_1.toString()] || 0) + 1;
+        if (s.penguji_2) pengujiCounts[s.penguji_2.toString()] = (pengujiCounts[s.penguji_2.toString()] || 0) + 1;
+    });
+
     // Get all mahasiswa with their dospem info
     const mahasiswaList = await User.find({ role: 'mahasiswa', status: 'aktif' })
-        .select('name nim_nip prodi judulTA currentProgress dospem_1 dospem_2')
+        .select('name nim_nip prodi judulTA currentProgress dospem_1 dospem_2 penguji_1 penguji_2')
         .populate('dospem_1', 'name nim_nip')
         .populate('dospem_2', 'name nim_nip')
+        .populate('penguji_1', 'name nim_nip')
+        .populate('penguji_2', 'name nim_nip')
         .sort({ name: 1 });
 
     const settingDocs = await SystemSetting.find({
@@ -1174,6 +1187,12 @@ const getProgressReport = asyncHandler(async (req, res) => {
         const dospem2Data = bimbinganAgg.find(
             a => a._id.mahasiswa.toString() === mhs._id.toString() && a._id.dosenType === 'dospem_2'
         );
+        const penguji1Data = bimbinganAgg.find(
+            a => a._id.mahasiswa.toString() === mhs._id.toString() && a._id.dosenType === 'penguji_1'
+        );
+        const penguji2Data = bimbinganAgg.find(
+            a => a._id.mahasiswa.toString() === mhs._id.toString() && a._id.dosenType === 'penguji_2'
+        );
 
         const d1Total = dospem1Data?.total || 0;
         const d2Total = dospem2Data?.total || 0;
@@ -1181,6 +1200,14 @@ const getProgressReport = asyncHandler(async (req, res) => {
         const d2Acc = dospem2Data?.acc || 0;
         const d1AccSempro = dospem1Data?.acc_sempro || 0;
         const d2AccSempro = dospem2Data?.acc_sempro || 0;
+
+        const p1Total = penguji1Data?.total || 0;
+        const p2Total = penguji2Data?.total || 0;
+        const p1Acc = penguji1Data?.acc || 0;
+        const p2Acc = penguji2Data?.acc || 0;
+        const p1AccSempro = penguji1Data?.acc_sempro || 0;
+        const p2AccSempro = penguji2Data?.acc_sempro || 0;
+
         const minRequirements = minByMahasiswa.get(mhs._id.toString()) || {
             dospem1: DEFAULT_MIN_BIMBINGAN_SEMPRO,
             dospem2: DEFAULT_MIN_BIMBINGAN_SEMPRO
@@ -1190,6 +1217,9 @@ const getProgressReport = asyncHandler(async (req, res) => {
         const d1IsSufficient = d1MeetsMinimum && d1AccSempro > 0;
         const d2IsSufficient = d2MeetsMinimum && d2AccSempro > 0;
 
+        const p1IsSufficient = p1Acc > 0 || p1AccSempro > 0;
+        const p2IsSufficient = p2Acc > 0 || p2AccSempro > 0;
+
         return {
             _id: mhs._id,
             name: mhs.name,
@@ -1197,8 +1227,26 @@ const getProgressReport = asyncHandler(async (req, res) => {
             prodi: mhs.prodi,
             judulTA: mhs.judulTA,
             currentProgress: mhs.currentProgress,
-            dospem_1: mhs.dospem_1 ? { name: mhs.dospem_1.name, nim_nip: mhs.dospem_1.nim_nip } : null,
-            dospem_2: mhs.dospem_2 ? { name: mhs.dospem_2.name, nim_nip: mhs.dospem_2.nim_nip } : null,
+            dospem_1: mhs.dospem_1 ? { 
+                name: mhs.dospem_1.name, 
+                nim_nip: mhs.dospem_1.nim_nip,
+                workload: pembimbingCounts[mhs.dospem_1._id.toString()] || 0
+            } : null,
+            dospem_2: mhs.dospem_2 ? { 
+                name: mhs.dospem_2.name, 
+                nim_nip: mhs.dospem_2.nim_nip,
+                workload: pembimbingCounts[mhs.dospem_2._id.toString()] || 0
+            } : null,
+            penguji_1: mhs.penguji_1 ? { 
+                name: mhs.penguji_1.name, 
+                nim_nip: mhs.penguji_1.nim_nip,
+                workload: pengujiCounts[mhs.penguji_1._id.toString()] || 0
+            } : null,
+            penguji_2: mhs.penguji_2 ? { 
+                name: mhs.penguji_2.name, 
+                nim_nip: mhs.penguji_2.nim_nip,
+                workload: pengujiCounts[mhs.penguji_2._id.toString()] || 0
+            } : null,
             dospem1: {
                 total: d1Total,
                 acc: d1Acc,
@@ -1220,6 +1268,24 @@ const getProgressReport = asyncHandler(async (req, res) => {
                 lastActivity: dospem2Data?.lastActivity || null,
                 meetsMinimum: d2MeetsMinimum,
                 isSufficient: d2IsSufficient
+            },
+            penguji1: {
+                total: p1Total,
+                acc: p1Acc,
+                revisi: penguji1Data?.revisi || 0,
+                menunggu: penguji1Data?.menunggu || 0,
+                acc_sempro: p1AccSempro,
+                lastActivity: penguji1Data?.lastActivity || null,
+                isSufficient: p1IsSufficient
+            },
+            penguji2: {
+                total: p2Total,
+                acc: p2Acc,
+                revisi: penguji2Data?.revisi || 0,
+                menunggu: penguji2Data?.menunggu || 0,
+                acc_sempro: p2AccSempro,
+                lastActivity: penguji2Data?.lastActivity || null,
+                isSufficient: p2IsSufficient
             },
             totalBimbingan: d1Total + d2Total,
             totalAcc: d1Acc + d2Acc,

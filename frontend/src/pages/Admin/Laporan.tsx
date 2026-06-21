@@ -72,6 +72,16 @@ interface DospemProgress {
     isSufficient: boolean
 }
 
+interface PengujiProgress {
+    total: number
+    acc: number
+    revisi: number
+    menunggu: number
+    acc_sempro: number
+    lastActivity: string | null
+    isSufficient: boolean
+}
+
 interface MahasiswaProgress {
     _id: string
     name: string
@@ -79,10 +89,14 @@ interface MahasiswaProgress {
     prodi: string
     judulTA: string
     currentProgress: string
-    dospem_1: { name: string; nim_nip: string } | null
-    dospem_2: { name: string; nim_nip: string } | null
+    dospem_1: { name: string; nim_nip: string; workload?: number } | null
+    dospem_2: { name: string; nim_nip: string; workload?: number } | null
+    penguji_1: { name: string; nim_nip: string; workload?: number } | null
+    penguji_2: { name: string; nim_nip: string; workload?: number } | null
     dospem1: DospemProgress
     dospem2: DospemProgress
+    penguji1: PengujiProgress
+    penguji2: PengujiProgress
     totalBimbingan: number
     totalAcc: number
     isBothSufficient: boolean
@@ -403,23 +417,24 @@ export const Laporan = () => {
 
                             {/* Table Content */}
                             <div className="overflow-x-auto">
-                                <Table>
+                                <Table className="min-w-[1350px]">
                                     <TableHeader>
                                         <TableRow className="bg-gray-50/50 hover:bg-gray-50/50">
-                                            <TableHead className="font-semibold text-gray-700 w-12">No</TableHead>
-                                            <TableHead className="font-semibold text-gray-700">Mahasiswa</TableHead>
-                                            <TableHead className="font-semibold text-gray-700">Progress</TableHead>
-                                            <TableHead className="font-semibold text-gray-700 text-center">Dospem 1</TableHead>
-                                            <TableHead className="font-semibold text-gray-700 text-center">Dospem 2</TableHead>
-                                            <TableHead className="font-semibold text-gray-700 text-center">Total</TableHead>
-                                            <TableHead className="font-semibold text-gray-700 text-center">Status</TableHead>
-                                            <TableHead className="font-semibold text-gray-700 text-center">Aksi</TableHead>
+                                            <TableHead className="font-semibold text-gray-700 w-12 pl-4 py-3">No</TableHead>
+                                            <TableHead className="font-semibold text-gray-700 py-3">Mahasiswa</TableHead>
+                                            <TableHead className="font-semibold text-gray-700 py-3">Progress</TableHead>
+                                            <TableHead className="font-semibold text-gray-700 text-center py-3">Dospem 1</TableHead>
+                                            <TableHead className="font-semibold text-gray-700 text-center py-3">Dospem 2</TableHead>
+                                            <TableHead className="font-semibold text-gray-700 text-center py-3">Penguji 1</TableHead>
+                                            <TableHead className="font-semibold text-gray-700 text-center py-3">Penguji 2</TableHead>
+                                            <TableHead className="font-semibold text-gray-700 text-center py-3">Status</TableHead>
+                                            <TableHead className="font-semibold text-gray-700 text-center pr-4 py-3">Aksi</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {isLoading ? (
                                             <TableRow>
-                                                <TableCell colSpan={8} className="text-center py-12">
+                                                <TableCell colSpan={9} className="text-center py-12">
                                                     <div className="flex flex-col items-center gap-3">
                                                         <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-orange-500"></div>
                                                         <p className="text-gray-500 text-sm">Memuat data laporan...</p>
@@ -428,7 +443,7 @@ export const Laporan = () => {
                                             </TableRow>
                                         ) : filteredReport.length === 0 ? (
                                             <TableRow>
-                                                <TableCell colSpan={8} className="text-center py-12">
+                                                <TableCell colSpan={9} className="text-center py-12">
                                                     <div className="flex flex-col items-center gap-3">
                                                         <BarChart3 className="w-12 h-12 text-gray-300" />
                                                         <p className="text-gray-500">Tidak ada data yang cocok</p>
@@ -444,8 +459,8 @@ export const Laporan = () => {
                                                     transition={{ delay: 0.03 * index }}
                                                     className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors"
                                                 >
-                                                    <TableCell className="text-gray-500 text-sm">{index + 1}</TableCell>
-                                                    <TableCell>
+                                                    <TableCell className="text-gray-500 text-sm py-4 pl-4">{index + 1}</TableCell>
+                                                    <TableCell className="py-4">
                                                         <div className="flex items-center gap-3">
                                                             <Avatar className="w-9 h-9">
                                                                 <AvatarFallback className="bg-gradient-to-br from-blue-500 to-blue-600 text-white text-xs">
@@ -453,21 +468,26 @@ export const Laporan = () => {
                                                                 </AvatarFallback>
                                                             </Avatar>
                                                             <div>
-                                                                <p className="font-medium text-gray-800 text-sm">{mhs.name}</p>
+                                                                <p className="font-semibold text-gray-800 text-sm">{mhs.name}</p>
                                                                 <p className="text-xs text-gray-400">{mhs.nim_nip}</p>
                                                             </div>
                                                         </div>
                                                     </TableCell>
-                                                    <TableCell>
+                                                    <TableCell className="py-4">
                                                         <Badge className="bg-blue-100 text-blue-700 text-xs">
                                                             <BookOpen className="w-3 h-3 mr-1" />{mhs.currentProgress || 'BAB I'}
                                                         </Badge>
                                                     </TableCell>
-                                                    <TableCell>
+                                                    <TableCell className="py-4">
                                                         <div className="text-center space-y-1">
-                                                            <p className="text-xs text-gray-400 truncate max-w-[120px] mx-auto" title={mhs.dospem_1?.name}>
+                                                            <p className="text-xs text-gray-700 truncate max-w-[120px] mx-auto font-semibold" title={mhs.dospem_1?.name}>
                                                                 {mhs.dospem_1?.name || 'Belum ada'}
                                                             </p>
+                                                            {mhs.dospem_1 && (
+                                                                <p className="text-[10px] text-gray-500 font-medium">
+                                                                    (Membimbing: {mhs.dospem_1.workload || 0} mhs)
+                                                                </p>
+                                                            )}
                                                             <ProgressBar
                                                                 current={mhs.dospem1.total}
                                                                 min={minBimbingan}
@@ -478,11 +498,16 @@ export const Laporan = () => {
                                                             </p>
                                                         </div>
                                                     </TableCell>
-                                                    <TableCell>
+                                                    <TableCell className="py-4">
                                                         <div className="text-center space-y-1">
-                                                            <p className="text-xs text-gray-400 truncate max-w-[120px] mx-auto" title={mhs.dospem_2?.name}>
+                                                            <p className="text-xs text-gray-700 truncate max-w-[120px] mx-auto font-semibold" title={mhs.dospem_2?.name}>
                                                                 {mhs.dospem_2?.name || 'Belum ada'}
                                                             </p>
+                                                            {mhs.dospem_2 && (
+                                                                <p className="text-[10px] text-gray-500 font-medium">
+                                                                    (Membimbing: {mhs.dospem_2.workload || 0} mhs)
+                                                                </p>
+                                                            )}
                                                             <ProgressBar
                                                                 current={mhs.dospem2.total}
                                                                 min={minBimbingan}
@@ -493,10 +518,59 @@ export const Laporan = () => {
                                                             </p>
                                                         </div>
                                                     </TableCell>
-                                                    <TableCell className="text-center">
-                                                        <span className="text-lg font-bold text-gray-800">{mhs.totalBimbingan}</span>
+                                                    <TableCell className="py-4">
+                                                        <div className="text-center space-y-1">
+                                                            <p className="text-xs text-gray-700 truncate max-w-[120px] mx-auto font-semibold" title={mhs.penguji_1?.name}>
+                                                                {mhs.penguji_1?.name || '—'}
+                                                            </p>
+                                                            {mhs.penguji_1 ? (
+                                                                <>
+                                                                    <p className="text-[10px] text-gray-500 font-medium">
+                                                                        (Menguji: {mhs.penguji_1.workload || 0} mhs)
+                                                                    </p>
+                                                                    <ProgressBar
+                                                                        current={mhs.penguji1.total}
+                                                                        min={1}
+                                                                        color={mhs.penguji1.isSufficient ? 'bg-green-500' : 'bg-orange-400'}
+                                                                    />
+                                                                    <p className="text-[10px] text-gray-400">
+                                                                        {mhs.penguji1.isSufficient ? 'ACC Sempro' : 'Belum ACC Sempro'}
+                                                                    </p>
+                                                                </>
+                                                            ) : (
+                                                                <p className="text-[10px] text-gray-400 mt-1">
+                                                                    Belum di-assign
+                                                                </p>
+                                                            )}
+                                                        </div>
                                                     </TableCell>
-                                                    <TableCell className="text-center">
+                                                    <TableCell className="py-4">
+                                                        <div className="text-center space-y-1">
+                                                            <p className="text-xs text-gray-700 truncate max-w-[120px] mx-auto font-semibold" title={mhs.penguji_2?.name}>
+                                                                {mhs.penguji_2?.name || '—'}
+                                                            </p>
+                                                            {mhs.penguji_2 ? (
+                                                                <>
+                                                                    <p className="text-[10px] text-gray-500 font-medium">
+                                                                        (Menguji: {mhs.penguji_2.workload || 0} mhs)
+                                                                    </p>
+                                                                    <ProgressBar
+                                                                        current={mhs.penguji2.total}
+                                                                        min={1}
+                                                                        color={mhs.penguji2.isSufficient ? 'bg-green-500' : 'bg-orange-400'}
+                                                                    />
+                                                                    <p className="text-[10px] text-gray-400">
+                                                                        {mhs.penguji2.isSufficient ? 'ACC Sempro' : 'Belum ACC Sempro'}
+                                                                    </p>
+                                                                </>
+                                                            ) : (
+                                                                <p className="text-[10px] text-gray-400 mt-1">
+                                                                    Belum di-assign
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="py-4 text-center">
                                                         {mhs.isBothSufficient ? (
                                                             <Badge className="bg-green-100 text-green-700 border-0">
                                                                 <CheckCircle className="w-3 h-3 mr-1" />Cukup
@@ -515,7 +589,7 @@ export const Laporan = () => {
                                                             </Badge>
                                                         )}
                                                     </TableCell>
-                                                    <TableCell className="text-center">
+                                                    <TableCell className="py-4 pr-4 text-center">
                                                         {mhs.isSemproReady ? (
                                                             <motion.button
                                                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-green-500 to-green-600 text-white text-xs font-semibold rounded-lg shadow-sm hover:shadow-md transition-all"
