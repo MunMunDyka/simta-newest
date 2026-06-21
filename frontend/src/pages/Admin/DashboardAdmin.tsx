@@ -101,7 +101,7 @@ export const DashboardAdmin = () => {
                 // Fetch jadwal sidang count
                 let jadwalCount = 0
                 try {
-                    const jadwalResponse = await api.get('/jadwal')
+                    const jadwalResponse = await api.get('/jadwal', { params: { limit: 100 } })
                     const jadwalData = jadwalResponse.data.data || []
                     // Count jadwal this month
                     const now = new Date()

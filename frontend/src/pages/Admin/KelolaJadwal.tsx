@@ -672,6 +672,18 @@ export const KelolaJadwal = () => {
         return matchesSearch && matchesStatus
     })
 
+    const sortedJadwal = [...filteredJadwal].sort((a, b) => {
+        const priorityA = a.status === 'dijadwalkan' ? 2 : a.status === 'selesai' ? 1 : 0
+        const priorityB = b.status === 'dijadwalkan' ? 2 : b.status === 'selesai' ? 1 : 0
+        if (priorityA !== priorityB) {
+            return priorityB - priorityA
+        }
+        if (a.status === 'dijadwalkan') {
+            return new Date(a.tanggal).getTime() - new Date(b.tanggal).getTime()
+        }
+        return new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime()
+    })
+
     const getStatusBadge = (status: string) => {
         switch (status) {
             case 'dijadwalkan':
@@ -951,7 +963,7 @@ export const KelolaJadwal = () => {
                                                     </div>
                                                 </TableCell>
                                             </TableRow>
-                                        ) : filteredJadwal.length === 0 ? (
+                                        ) : sortedJadwal.length === 0 ? (
                                             <TableRow>
                                                 <TableCell colSpan={7} className="text-center py-12">
                                                     <div className="flex flex-col items-center gap-3">
@@ -964,12 +976,12 @@ export const KelolaJadwal = () => {
                                                         >
                                                             <Plus className="w-4 h-4 mr-2" />
                                                             Buat Jadwal Pertama
-                                                        </Button>
+                                                         </Button>
                                                     </div>
                                                 </TableCell>
                                             </TableRow>
                                         ) : (
-                                            filteredJadwal.map((jadwal, index) => (
+                                            sortedJadwal.map((jadwal, index) => (
                                                 <motion.tr
                                                     key={jadwal._id}
                                                     initial={{ opacity: 0, y: 10 }}
@@ -1094,7 +1106,7 @@ export const KelolaJadwal = () => {
 
                             {/* Pagination */}
                             <div className="p-4 border-t border-gray-100 flex items-center justify-between">
-                                <p className="text-sm text-gray-500">Menampilkan {filteredJadwal.length} dari {jadwalList.length} jadwal</p>
+                                <p className="text-sm text-gray-500">Menampilkan {sortedJadwal.length} dari {jadwalList.length} jadwal</p>
                                 <div className="flex items-center gap-2">
                                     <Button variant="ghost" size="sm" onClick={() => setCurrentPage(Math.max(1, currentPage - 1))} disabled={currentPage === 1}>
                                         <ChevronLeft className="w-4 h-4 mr-1" />Previous

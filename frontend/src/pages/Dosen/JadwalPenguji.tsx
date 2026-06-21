@@ -99,7 +99,7 @@ export const JadwalPenguji = () => {
                 setIsLoading(true)
                 setLoadError(null)
                 // In backend controller, Dosen role is automatically restricted to see only schedules where they are penguji
-                const response = await api.get('/jadwal')
+                const response = await api.get('/jadwal', { params: { limit: 100 } })
                 setJadwalList(response.data.data || [])
             } catch (error) {
                 console.error('Failed to fetch jadwal penguji:', error)
