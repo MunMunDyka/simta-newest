@@ -25,6 +25,7 @@ import { EditUser } from './pages/Admin/EditUser'
 import { KelolaJadwal } from './pages/Admin/KelolaJadwal'
 import { KelolaBimbingan } from './pages/Admin/KelolaBimbingan'
 import { Laporan } from './pages/Admin/Laporan'
+import { VerifikasiWisuda } from './pages/Admin/VerifikasiWisuda'
 import { JadwalSidang } from './pages/Jadwal/JadwalSidang'
 import { BimbinganMahasiswa } from './pages/Bimbingan/Mahasiswa/BimbinganMahasiswa'
 import { BimbinganDosen } from './pages/Bimbingan/Dosen/BimbinganDosen'
@@ -207,6 +208,14 @@ function App() {
         element={
           <ProtectedRoute allowedRoles={['admin']}>
             <Laporan />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/wisuda"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <VerifikasiWisuda />
           </ProtectedRoute>
         }
       />

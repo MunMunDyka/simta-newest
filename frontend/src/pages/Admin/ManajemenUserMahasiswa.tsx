@@ -97,6 +97,7 @@ const getStatusMahasiswaLabel = (status: string | undefined) => {
         case 'bimbingan_akhir': return 'Bimbingan Akhir (BAB VI)'
         case 'menunggu_sidang': return 'Menunggu Sidang Akhir'
         case 'revisi_sidang': return 'Revisi Sidang Akhir'
+        case 'persiapan_wisuda': return 'Persiapan Wisuda'
         case 'selesai': return 'Selesai'
         default: return 'Pra-Sempro'
     }
@@ -116,6 +117,8 @@ const getStatusMahasiswaColor = (status: string | undefined) => {
         case 'revisi_semhas':
         case 'revisi_sidang':
             return 'bg-purple-100 text-purple-600'
+        case 'persiapan_wisuda':
+            return 'bg-orange-100 text-orange-600'
         case 'selesai':
             return 'bg-green-100 text-green-600'
         default:
@@ -133,6 +136,7 @@ const managementItems = [
     { label: 'Manajemen Dosen', icon: GraduationCap, path: '/admin/plotting' },
     { label: 'Kelola Bimbingan', icon: FileText, path: '/admin/bimbingan' },
     { label: 'Kelola Jadwal', icon: Calendar, path: '/admin/jadwal' },
+    { label: 'Verifikasi Wisuda', icon: GraduationCap, path: '/admin/wisuda' },
 ]
 
 const reportItems = [

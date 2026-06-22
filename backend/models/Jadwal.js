@@ -143,9 +143,9 @@ jadwalSchema.virtual('statusColor').get(function () {
 // ===== Virtual: Jenis jadwal display =====
 jadwalSchema.virtual('jenisJadwalDisplay').get(function () {
     const display = {
-        sidang_proposal: 'Sidang Proposal',
+        sidang_proposal: 'Seminar Proposal',
         sidang_semhas: 'Seminar Hasil',
-        sidang_skripsi: 'Sidang Skripsi'
+        sidang_skripsi: 'Sidang Akhir'
     };
     return display[this.jenisJadwal] || this.jenisJadwal;
 });

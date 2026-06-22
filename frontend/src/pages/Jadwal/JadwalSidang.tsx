@@ -41,6 +41,8 @@ import {
     MapPin,
     Users,
     CalendarDays,
+    CheckCircle,
+    XCircle,
 } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
@@ -61,6 +63,7 @@ interface JadwalSidangItem {
     penguji1: string
     penguji2: string
     ruangan: string
+    status: string
 }
 
 // Menu items untuk mahasiswa
@@ -87,9 +90,10 @@ export const JadwalSidang = () => {
     const dispatch = useAppDispatch()
     const { user } = useAppSelector((state) => state.auth)
 
-    const [tahun, setTahun] = useState('2025')
-    const [gelombang, setGelombang] = useState('II')
-    const [periode, setPeriode] = useState('1')
+    const [jenisJadwalFilter, setJenisJadwalFilter] = useState('all')
+    const [statusFilter, setStatusFilter] = useState('dijadwalkan')
+    const [ruanganFilter, setRuanganFilter] = useState('all')
+    const [dosenFilter, setDosenFilter] = useState('all')
     const [jadwalData, setJadwalData] = useState<JadwalSidangItem[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [loadError, setLoadError] = useState<string | null>(null)
@@ -100,9 +104,14 @@ export const JadwalSidang = () => {
             try {
                 setIsLoading(true)
                 setLoadError(null)
-                const response = await api.get('/jadwal', {
-                    params: { limit: 50, viewAll: 'true', status: 'dijadwalkan' }
-                })
+                const params: Record<string, string | number> = { limit: 500, viewAll: 'true' }
+                if (jenisJadwalFilter !== 'all') {
+                    params.jenisJadwal = jenisJadwalFilter
+                }
+                if (statusFilter !== 'all') {
+                    params.status = statusFilter
+                }
+                const response = await api.get('/jadwal', { params })
 
                 const jadwalList = response.data.data || []
 
@@ -115,6 +124,7 @@ export const JadwalSidang = () => {
                     waktuSelesai?: string
                     ruangan?: string
                     penguji?: { name?: string }[]
+                    status: string
                 }, index: number) => {
                     const tanggalObj = new Date(jadwal.tanggal)
                     const tanggalFormatted = tanggalObj.toLocaleDateString('id-ID', {
@@ -137,7 +147,8 @@ export const JadwalSidang = () => {
                         pembimbing2: jadwal.mahasiswa?.dospem_2?.name || '',
                         penguji1: jadwal.penguji?.[0]?.name || '-',
                         penguji2: jadwal.penguji?.[1]?.name || '-',
-                        ruangan: jadwal.ruangan || 'B302'
+                        ruangan: jadwal.ruangan || 'B302',
+                        status: jadwal.status || 'dijadwalkan'
                     }
                 })
 
@@ -153,7 +164,7 @@ export const JadwalSidang = () => {
         }
 
         fetchJadwal()
-    }, [])
+    }, [jenisJadwalFilter, statusFilter])
 
     // Determine which menu to show based on user role
     const isDosen = user?.role === 'dosen'
@@ -161,13 +172,65 @@ export const JadwalSidang = () => {
     const menuItems = isDosen ? dosenMenuItems : mahasiswaMenuItems
     const aktivitasItems = isDosen ? dosenAktivitasItems : mahasiswaAktivitasItems
 
-    const totalSesi = useMemo(() => {
-        return new Set(jadwalData.map(j => j.waktu)).size
+    const ruanganOptions = useMemo(() => {
+        return Array.from(new Set(jadwalData.map(j => j.ruangan).filter(Boolean))).sort()
     }, [jadwalData])
 
-    const totalRuangan = useMemo(() => {
-        return new Set(jadwalData.map(j => j.ruangan).filter(Boolean)).size
+    const dosenOptions = useMemo(() => {
+        return Array.from(new Set(
+            jadwalData
+                .flatMap(j => [j.penguji1, j.penguji2])
+                .filter((name) => name && name !== '-')
+        )).sort()
     }, [jadwalData])
+
+    useEffect(() => {
+        if (ruanganFilter !== 'all' && !ruanganOptions.includes(ruanganFilter)) {
+            setRuanganFilter('all')
+        }
+        if (dosenFilter !== 'all' && !dosenOptions.includes(dosenFilter)) {
+            setDosenFilter('all')
+        }
+    }, [ruanganFilter, ruanganOptions, dosenFilter, dosenOptions])
+
+    const filteredJadwalData = useMemo(() => {
+        return jadwalData.filter(jadwal => {
+            const matchesRuangan = ruanganFilter === 'all' || jadwal.ruangan === ruanganFilter
+            const matchesDosen = dosenFilter === 'all' || jadwal.penguji1 === dosenFilter || jadwal.penguji2 === dosenFilter
+            return matchesRuangan && matchesDosen
+        })
+    }, [jadwalData, ruanganFilter, dosenFilter])
+
+    const totalSesi = useMemo(() => {
+        return new Set(filteredJadwalData.map(j => j.waktu)).size
+    }, [filteredJadwalData])
+
+    const totalRuangan = useMemo(() => {
+        return new Set(filteredJadwalData.map(j => j.ruangan).filter(Boolean)).size
+    }, [filteredJadwalData])
+
+    const getStatusBadge = (status: string) => {
+        switch (status) {
+            case 'selesai':
+                return <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-0"><CheckCircle className="w-3 h-3 mr-1" />Selesai</Badge>
+            case 'dibatalkan':
+                return <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border-0"><XCircle className="w-3 h-3 mr-1" />Dibatalkan</Badge>
+            case 'berlangsung':
+                return <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 border-0"><Clock className="w-3 h-3 mr-1" />Berlangsung</Badge>
+            default:
+                return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-0"><Clock className="w-3 h-3 mr-1" />Terjadwal</Badge>
+        }
+    }
+
+    const getStatusFilterLabel = () => {
+        switch (statusFilter) {
+            case 'dijadwalkan': return 'Terjadwal'
+            case 'berlangsung': return 'Berlangsung'
+            case 'selesai': return 'Selesai'
+            case 'dibatalkan': return 'Dibatalkan'
+            default: return 'Semua Status'
+        }
+    }
 
     // Animation variants
     const containerVariants: Variants = {
@@ -363,39 +426,56 @@ export const JadwalSidang = () => {
 
                                 {/* Filters */}
                                 <div className="flex flex-wrap items-center gap-3">
-                                    {/* Tahun */}
-                                    <Select value={tahun} onValueChange={setTahun}>
-                                        <SelectTrigger className="w-28 h-9 bg-gray-50 border-gray-200 rounded-lg text-sm">
-                                            <SelectValue placeholder="Tahun" />
+                                    {/* Jenis Sidang */}
+                                    <Select value={jenisJadwalFilter} onValueChange={setJenisJadwalFilter}>
+                                        <SelectTrigger className="w-44 h-9 bg-gray-50 border-gray-200 rounded-lg text-sm font-medium text-gray-700">
+                                            <SelectValue placeholder="Jenis Sidang" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="2024">2024</SelectItem>
-                                            <SelectItem value="2025">2025</SelectItem>
-                                            <SelectItem value="2026">2026</SelectItem>
+                                            <SelectItem value="all">Semua Ujian</SelectItem>
+                                            <SelectItem value="sidang_proposal">Seminar Proposal</SelectItem>
+                                            <SelectItem value="sidang_semhas">Seminar Hasil</SelectItem>
+                                            <SelectItem value="sidang_skripsi">Sidang Akhir</SelectItem>
                                         </SelectContent>
                                     </Select>
 
-                                    {/* Gelombang */}
-                                    <Select value={gelombang} onValueChange={setGelombang}>
+                                    {/* Status Jadwal */}
+                                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                                        <SelectTrigger className="w-40 h-9 bg-gray-50 border-gray-200 rounded-lg text-sm">
+                                            <SelectValue placeholder="Status Jadwal" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="dijadwalkan">Terjadwal</SelectItem>
+                                            <SelectItem value="berlangsung">Berlangsung</SelectItem>
+                                            <SelectItem value="selesai">Selesai</SelectItem>
+                                            <SelectItem value="dibatalkan">Dibatalkan</SelectItem>
+                                            <SelectItem value="all">Semua Status</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+
+                                    {/* Ruangan */}
+                                    <Select value={ruanganFilter} onValueChange={setRuanganFilter}>
                                         <SelectTrigger className="w-32 h-9 bg-gray-50 border-gray-200 rounded-lg text-sm">
-                                            <SelectValue placeholder="Gelombang" />
+                                            <SelectValue placeholder="Ruangan" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="I">Gelombang I</SelectItem>
-                                            <SelectItem value="II">Gelombang II</SelectItem>
-                                            <SelectItem value="III">Gelombang III</SelectItem>
+                                            <SelectItem value="all">Semua Ruang</SelectItem>
+                                            {ruanganOptions.map((room) => (
+                                                <SelectItem key={room} value={room}>{room}</SelectItem>
+                                            ))}
                                         </SelectContent>
                                     </Select>
 
-                                    {/* Periode */}
-                                    <Select value={periode} onValueChange={setPeriode}>
-                                        <SelectTrigger className="w-28 h-9 bg-gray-50 border-gray-200 rounded-lg text-sm">
-                                            <SelectValue placeholder="Periode" />
+                                    {/* Dosen Penguji */}
+                                    <Select value={dosenFilter} onValueChange={setDosenFilter}>
+                                        <SelectTrigger className="w-52 h-9 bg-gray-50 border-gray-200 rounded-lg text-sm">
+                                            <SelectValue placeholder="Dosen Penguji" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="1">Periode 1</SelectItem>
-                                            <SelectItem value="2">Periode 2</SelectItem>
-                                            <SelectItem value="3">Periode 3</SelectItem>
+                                            <SelectItem value="all">Semua Dosen</SelectItem>
+                                            {dosenOptions.map((dosen) => (
+                                                <SelectItem key={dosen} value={dosen}>{dosen}</SelectItem>
+                                            ))}
                                         </SelectContent>
                                     </Select>
 
@@ -425,7 +505,7 @@ export const JadwalSidang = () => {
                                     <CalendarDays className="w-5 h-5 text-blue-600" />
                                 </div>
                                 <div>
-                                    <p className="text-2xl font-bold text-gray-800">{jadwalData.length}</p>
+                                    <p className="text-2xl font-bold text-gray-800">{filteredJadwalData.length}</p>
                                     <p className="text-xs text-gray-500">Total Sidang</p>
                                 </div>
                             </div>
@@ -434,7 +514,7 @@ export const JadwalSidang = () => {
                                     <Users className="w-5 h-5 text-green-600" />
                                 </div>
                                 <div>
-                                    <p className="text-2xl font-bold text-gray-800">{jadwalData.length}</p>
+                                    <p className="text-2xl font-bold text-gray-800">{filteredJadwalData.length}</p>
                                     <p className="text-xs text-gray-500">Mahasiswa</p>
                                 </div>
                             </div>
@@ -464,11 +544,17 @@ export const JadwalSidang = () => {
                             <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-white">
                                 <div className="text-center">
                                     <h2 className="text-lg font-bold text-gray-800 uppercase tracking-wide">
-                                        Jadwal Sidang Proposal Tugas Akhir
+                                        {jenisJadwalFilter === 'all'
+                                            ? 'Jadwal Ujian Tugas Akhir'
+                                            : jenisJadwalFilter === 'sidang_proposal'
+                                                ? 'Jadwal Seminar Proposal Tugas Akhir'
+                                                : jenisJadwalFilter === 'sidang_semhas'
+                                                    ? 'Jadwal Seminar Hasil Tugas Akhir'
+                                                    : 'Jadwal Sidang Akhir Tugas Akhir'}
                                     </h2>
                                     <p className="text-sm text-gray-600 mt-1">Sistem Informasi</p>
                                     <Badge className="mt-2 bg-blue-100 text-blue-700 hover:bg-blue-100 border-0">
-                                        Ganjil {tahun} - {parseInt(tahun) + 1} / Periode {periode}
+                                        {getStatusFilterLabel()}
                                     </Badge>
                                 </div>
                             </div>
@@ -485,21 +571,22 @@ export const JadwalSidang = () => {
                                             <TableHead className="text-white font-semibold text-xs py-3 px-3">Judul</TableHead>
                                             <TableHead className="text-white font-semibold text-xs py-3 px-3">Penguji</TableHead>
                                             <TableHead className="text-white font-semibold text-xs py-3 px-3 text-center">Ruang</TableHead>
+                                            <TableHead className="text-white font-semibold text-xs py-3 px-3 text-center">Status</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {isLoading ? (
                                             <TableRow>
-                                                <TableCell colSpan={7} className="text-center py-12">
+                                                <TableCell colSpan={8} className="text-center py-12">
                                                     <div className="flex flex-col items-center gap-3">
                                                         <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500"></div>
                                                         <p className="text-gray-500 text-sm">Memuat data jadwal...</p>
                                                     </div>
                                                 </TableCell>
                                             </TableRow>
-                                        ) : jadwalData.length === 0 ? (
+                                        ) : filteredJadwalData.length === 0 ? (
                                             <TableRow>
-                                                <TableCell colSpan={7} className="text-center py-12">
+                                                <TableCell colSpan={8} className="text-center py-12">
                                                     <div className="flex flex-col items-center gap-3">
                                                         <Calendar className="w-12 h-12 text-gray-300" />
                                                         <p className="text-gray-500">Belum ada jadwal sidang</p>
@@ -508,7 +595,7 @@ export const JadwalSidang = () => {
                                                 </TableCell>
                                             </TableRow>
                                         ) : (
-                                            jadwalData.map((jadwal, index) => (
+                                            filteredJadwalData.map((jadwal, index) => (
                                                 <motion.tr
                                                     key={jadwal.no}
                                                     initial={{ opacity: 0, y: 10 }}
@@ -516,7 +603,7 @@ export const JadwalSidang = () => {
                                                     transition={{ delay: 0.03 * index }}
                                                     className={`border-b border-gray-100 hover:bg-blue-50/30 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
                                                 >
-                                                    <TableCell className="text-center font-medium text-gray-700 py-3 px-3">{jadwal.no}</TableCell>
+                                                    <TableCell className="text-center font-medium text-gray-700 py-3 px-3">{index + 1}</TableCell>
                                                     <TableCell className="text-gray-700 py-3 px-3 whitespace-nowrap text-xs">{jadwal.tanggal.split(', ')[1] || jadwal.tanggal}</TableCell>
                                                     <TableCell className="text-gray-700 py-3 px-3 whitespace-nowrap text-xs">{jadwal.waktu}</TableCell>
                                                     <TableCell className="py-3 px-3">
@@ -539,6 +626,9 @@ export const JadwalSidang = () => {
                                                             {jadwal.ruangan}
                                                         </Badge>
                                                     </TableCell>
+                                                    <TableCell className="text-center py-3 px-3">
+                                                        {getStatusBadge(jadwal.status)}
+                                                    </TableCell>
                                                 </motion.tr>
                                             ))
                                         )}
@@ -550,7 +640,7 @@ export const JadwalSidang = () => {
                             <div className="p-4 border-t border-gray-100 bg-gray-50/50">
                                 <div className="flex items-center justify-between">
                                     <p className="text-sm text-gray-500">
-                                        Menampilkan {jadwalData.length} jadwal sidang
+                                        Menampilkan {filteredJadwalData.length} dari {jadwalData.length} jadwal sidang
                                     </p>
                                     <p className="text-xs text-gray-400">
                                         * Jadwal dapat berubah sewaktu-waktu. Harap konfirmasi dengan prodi.

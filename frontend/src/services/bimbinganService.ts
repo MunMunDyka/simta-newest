@@ -202,6 +202,8 @@ export interface AdminBimbinganSummary {
         currentProgress: string;
         dospem_1: { _id: string; name: string; nim_nip: string } | null;
         dospem_2: { _id: string; name: string; nim_nip: string } | null;
+        penguji_1: { _id: string; name: string; nim_nip: string } | null;
+        penguji_2: { _id: string; name: string; nim_nip: string } | null;
     };
     dospem1: {
         stats: BimbinganStats;

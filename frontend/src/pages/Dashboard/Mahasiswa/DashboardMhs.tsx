@@ -7,6 +7,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, type Variants } from 'framer-motion'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
     DropdownMenu,
@@ -28,12 +30,19 @@ import {
     CheckCircle,
     XCircle,
     Download,
+    Clock,
+    CheckCircle2,
+    Award,
+    Upload,
+    AlertTriangle,
 } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
 import api from '@/lib/api'
 import { FeedbackAlert } from '@/components/FeedbackAlert'
 import { getApiErrorMessage } from '@/lib/errorMessage'
+import { uploadWisuda } from '@/services/wisudaService'
+import type { DokumenWisuda } from '@/services/authService'
 
 // Types
 interface DosenInfo {
@@ -56,6 +65,7 @@ interface MahasiswaData {
     penguji_2?: DosenInfo
     dospem_1?: DosenInfo
     dospem_2?: DosenInfo
+    dokumenWisuda?: DokumenWisuda
 }
 
 type BimbinganStatus = 'menunggu' | 'revisi' | 'acc' | 'lanjut_bab' | 'acc_sempro' | null
@@ -132,74 +142,121 @@ export const DashboardMhs = () => {
     const [loadError, setLoadError] = useState<string | null>(null)
     const [studentMascotError, setStudentMascotError] = useState(false)
 
+    // Wisuda Upload States
+    const [skripsiFullFile, setSkripsiFullFile] = useState<File | null>(null)
+    const [pptFile, setPptFile] = useState<File | null>(null)
+    const [halamanFile, setHalamanFile] = useState<File | null>(null)
+    const [formFile, setFormFile] = useState<File | null>(null)
+    const [isUploadingWisuda, setIsUploadingWisuda] = useState(false)
+    const [uploadWisudaError, setUploadWisudaError] = useState<string | null>(null)
+    const [uploadWisudaSuccess, setUploadWisudaSuccess] = useState<string | null>(null)
 
+    const fetchData = async (showLoading = true) => {
+        try {
+            if (showLoading) setIsLoading(true)
+            setLoadError(null)
+
+            // Get user data with dosen pembimbing populated
+            const userResponse = await api.get('/auth/me')
+            const userData = userResponse.data.data
+            setMahasiswaData(userData)
+
+            // Get bimbingan stats
+            try {
+                const bimbinganResponse = await api.get('/bimbingan', { params: { limit: 50 } })
+                const bimbinganList = bimbinganResponse.data.data || []
+
+                // Calculate stats
+                const pendingCount = bimbinganList.filter((b: { status: string }) => b.status === 'menunggu').length
+
+                // Get last status per dospem and penguji
+                const lastDospem1 = bimbinganList.find((b: { dosenType: string }) => b.dosenType === 'dospem_1')
+                const lastDospem2 = bimbinganList.find((b: { dosenType: string }) => b.dosenType === 'dospem_2')
+                const lastPenguji1 = bimbinganList.find((b: { dosenType: string }) => b.dosenType === 'penguji_1')
+                const lastPenguji2 = bimbinganList.find((b: { dosenType: string }) => b.dosenType === 'penguji_2')
+
+                setBimbinganStats({
+                    dospem1Status: {
+                        status: lastDospem1?.status || null,
+                    },
+                    dospem2Status: {
+                        status: lastDospem2?.status || null,
+                    },
+                    penguji1Status: {
+                        status: lastPenguji1?.status || null,
+                    },
+                    penguji2Status: {
+                        status: lastPenguji2?.status || null,
+                    },
+                    totalBimbingan: bimbinganList.length,
+                    pendingCount
+                })
+            } catch {
+                // Bimbingan endpoint might not have data yet
+                console.log('No bimbingan data yet')
+            }
+
+            // Get sempro status
+            try {
+                const semproResponse = await api.get(`/bimbingan/sempro-status/${userData._id}`)
+                setSemproStatus(semproResponse.data.data)
+            } catch {
+                console.log('Failed to fetch sempro status')
+            }
+        } catch (error) {
+            console.error('Failed to fetch data:', error)
+            setLoadError(getApiErrorMessage(error, 'Gagal memuat data dashboard. Silakan refresh halaman.'))
+        } finally {
+            if (showLoading) setIsLoading(false)
+        }
+    }
 
     // Fetch mahasiswa data on mount
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                setIsLoading(true)
-                setLoadError(null)
-
-                // Get user data with dosen pembimbing populated
-                const userResponse = await api.get('/auth/me')
-                const userData = userResponse.data.data
-                setMahasiswaData(userData)
-
-                // Get bimbingan stats
-                try {
-                    const bimbinganResponse = await api.get('/bimbingan', { params: { limit: 50 } })
-                    const bimbinganList = bimbinganResponse.data.data || []
-
-                    // Calculate stats
-                    const pendingCount = bimbinganList.filter((b: { status: string }) => b.status === 'menunggu').length
-
-                    // Get last status per dospem and penguji
-                    const lastDospem1 = bimbinganList.find((b: { dosenType: string }) => b.dosenType === 'dospem_1')
-                    const lastDospem2 = bimbinganList.find((b: { dosenType: string }) => b.dosenType === 'dospem_2')
-                    const lastPenguji1 = bimbinganList.find((b: { dosenType: string }) => b.dosenType === 'penguji_1')
-                    const lastPenguji2 = bimbinganList.find((b: { dosenType: string }) => b.dosenType === 'penguji_2')
-
-                    setBimbinganStats({
-                        dospem1Status: {
-                            status: lastDospem1?.status || null,
-                        },
-                        dospem2Status: {
-                            status: lastDospem2?.status || null,
-                        },
-                        penguji1Status: {
-                            status: lastPenguji1?.status || null,
-                        },
-                        penguji2Status: {
-                            status: lastPenguji2?.status || null,
-                        },
-                        totalBimbingan: bimbinganList.length,
-                        pendingCount
-                    })
-                } catch (bimbinganError) {
-                    // Bimbingan endpoint might not have data yet
-                    console.log('No bimbingan data yet')
-                    setLoadError(getApiErrorMessage(bimbinganError, 'Sebagian data bimbingan gagal dimuat. Data dashboard utama tetap ditampilkan.'))
-                }
-
-                // Get sempro status
-                try {
-                    const semproResponse = await api.get(`/bimbingan/sempro-status/${userData._id}`)
-                    setSemproStatus(semproResponse.data.data)
-                } catch (semproError) {
-                    console.log('Failed to fetch sempro status')
-                    setLoadError(getApiErrorMessage(semproError, 'Status persiapan sidang gagal dimuat. Data dashboard utama tetap ditampilkan.'))
-                }
-            } catch (error) {
-                console.error('Failed to fetch data:', error)
-                setLoadError(getApiErrorMessage(error, 'Gagal memuat data dashboard. Silakan refresh halaman.'))
-            } finally {
-                setIsLoading(false)
-            }
-        }
-
         fetchData()
     }, [])
+
+    const handleUploadWisuda = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (!skripsiFullFile && !pptFile && !halamanFile && !formFile) {
+            setUploadWisudaError('Pilih setidaknya satu file PDF untuk diunggah')
+            return
+        }
+
+        setIsUploadingWisuda(true)
+        setUploadWisudaError(null)
+        setUploadWisudaSuccess(null)
+
+        try {
+            const formData = new FormData()
+            if (skripsiFullFile) formData.append('skripsiFull', skripsiFullFile)
+            if (pptFile) formData.append('pptSkripsi', pptFile)
+            if (halamanFile) formData.append('halamanPengesahan', halamanFile)
+            if (formFile) formData.append('formBimbingan', formFile)
+
+            const res = await uploadWisuda(formData)
+            if (res.success) {
+                setUploadWisudaSuccess('Dokumen wisuda berhasil diunggah')
+                setSkripsiFullFile(null)
+                setPptFile(null)
+                setHalamanFile(null)
+                setFormFile(null)
+                // Refresh data without full layout spinner
+                fetchData(false)
+            }
+        } catch (err: unknown) {
+            setUploadWisudaError(getApiErrorMessage(err, 'Gagal mengunggah berkas wisuda.'))
+        } finally {
+            setIsUploadingWisuda(false)
+        }
+    }
+
+    const getFileUrl = (path: string) => {
+        if (!path) return ''
+        const apiBaseUrl = import.meta.env.VITE_API_URL || '/api'
+        const assetBaseUrl = apiBaseUrl.replace(/\/api\/?$/, '')
+        return `${assetBaseUrl}/${path.replace(/\\/g, '/')}`
+    }
 
     // Animation variants
     const containerVariants: Variants = {
@@ -610,8 +667,254 @@ export const DashboardMhs = () => {
                         </motion.div>
 
 
-                        {/* ===== STATUS BIMBINGAN CARD ===== */}
-                        {semproStatus && (
+                        {/* ===== WISUDA CARD ===== */}
+                        {mahasiswaData && ['persiapan_wisuda', 'selesai'].includes(mahasiswaData.statusMahasiswa || '') && (
+                            <motion.div
+                                variants={itemVariants}
+                                className={`rounded-2xl p-6 shadow-sm border ${
+                                    mahasiswaData.dokumenWisuda?.statusVerifikasi === 'disetujui'
+                                        ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200'
+                                        : mahasiswaData.dokumenWisuda?.statusVerifikasi === 'ditolak'
+                                        ? 'bg-gradient-to-r from-red-50 to-rose-50 border-red-200'
+                                        : 'bg-white border-gray-100'
+                                }`}
+                            >
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-50 to-orange-100 flex items-center justify-center shadow-sm border border-orange-200">
+                                        <Award className="w-5 h-5 text-orange-600" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold text-gray-800">Persiapan Wisuda</h3>
+                                        <p className="text-xs text-gray-500">Unggah berkas administrasi kelulusan akhir Anda (Format PDF, Maksimal 25MB)</p>
+                                    </div>
+
+                                    {mahasiswaData.dokumenWisuda?.statusVerifikasi === 'disetujui' && (
+                                        <Badge className="ml-auto bg-green-600 hover:bg-green-700 text-white font-semibold flex items-center gap-1.5 py-1 px-3.5 rounded-full text-xs shadow-sm">
+                                            <CheckCircle2 className="w-4 h-4" />
+                                            LULUS & SELESAI!
+                                        </Badge>
+                                    )}
+                                    {mahasiswaData.dokumenWisuda?.statusVerifikasi === 'menunggu_verifikasi' && (
+                                        <Badge className="ml-auto bg-yellow-500 hover:bg-yellow-650 text-white font-semibold flex items-center gap-1.5 py-1 px-3.5 rounded-full text-xs animate-pulse">
+                                            <Clock className="w-4 h-4" />
+                                            Menunggu Verifikasi
+                                        </Badge>
+                                    )}
+                                    {mahasiswaData.dokumenWisuda?.statusVerifikasi === 'ditolak' && (
+                                        <Badge className="ml-auto bg-red-650 hover:bg-red-700 text-white font-semibold flex items-center gap-1.5 py-1 px-3.5 rounded-full text-xs">
+                                            <XCircle className="w-4 h-4" />
+                                            Perlu Perbaikan
+                                        </Badge>
+                                    )}
+                                </div>
+
+                                {uploadWisudaError && (
+                                    <FeedbackAlert message={uploadWisudaError} onClose={() => setUploadWisudaError(null)} className="mb-4" />
+                                )}
+                                {uploadWisudaSuccess && (
+                                    <FeedbackAlert message={uploadWisudaSuccess} type="success" onClose={() => setUploadWisudaSuccess(null)} className="mb-4" />
+                                )}
+
+                                {/* Admin notes if rejected */}
+                                {mahasiswaData.dokumenWisuda?.statusVerifikasi === 'ditolak' && mahasiswaData.dokumenWisuda?.catatanAdmin && (
+                                    <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 text-sm">
+                                        <span className="font-bold flex items-center gap-1.5 mb-1">
+                                            <AlertTriangle className="w-4 h-4" />
+                                            Catatan Evaluasi Admin:
+                                        </span>
+                                        <p>{mahasiswaData.dokumenWisuda.catatanAdmin}</p>
+                                    </div>
+                                )}
+
+                                {/* Upload Form */}
+                                <form onSubmit={handleUploadWisuda} className="space-y-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {/* File 1: Skripsi Full */}
+                                        <div className="p-4 rounded-xl border border-gray-250 bg-white">
+                                            <label className="block text-sm font-bold text-gray-700 mb-2">1. File Skripsi Lengkap (PDF)</label>
+                                            {mahasiswaData.dokumenWisuda?.skripsiFull?.fileName ? (
+                                                <div className="flex items-center justify-between text-xs bg-gray-55 p-2.5 rounded-lg border border-gray-150 mb-2">
+                                                    <a
+                                                        href={getFileUrl(mahasiswaData.dokumenWisuda.skripsiFull.filePath)}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="font-semibold text-blue-600 hover:underline truncate max-w-[200px]"
+                                                    >
+                                                        {mahasiswaData.dokumenWisuda.skripsiFull.fileOriginalName}
+                                                    </a>
+                                                    <span className="text-gray-400 font-medium">{mahasiswaData.dokumenWisuda.skripsiFull.fileSize}</span>
+                                                </div>
+                                            ) : (
+                                                <p className="text-xs text-gray-400 italic mb-2">Belum ada file diunggah</p>
+                                            )}
+                                            {mahasiswaData.dokumenWisuda?.statusVerifikasi !== 'disetujui' && (
+                                                <div className="mt-2 flex items-center gap-2">
+                                                    <input
+                                                        type="file"
+                                                        accept=".pdf"
+                                                        id="skripsiFullInput"
+                                                        className="hidden"
+                                                        onChange={(e) => setSkripsiFullFile(e.target.files?.[0] || null)}
+                                                    />
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => document.getElementById('skripsiFullInput')?.click()}
+                                                        className="text-xs flex items-center gap-1.5 h-8 border-gray-300 hover:bg-gray-50"
+                                                    >
+                                                        <Upload className="w-3.5 h-3.5 text-gray-500" />
+                                                        Pilih File
+                                                    </Button>
+                                                    {skripsiFullFile && <span className="text-xs text-green-600 truncate font-semibold">{skripsiFullFile.name}</span>}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* File 2: PPT Skripsi */}
+                                        <div className="p-4 rounded-xl border border-gray-250 bg-white">
+                                            <label className="block text-sm font-bold text-gray-700 mb-2">2. PPT Presentasi Skripsi (PDF)</label>
+                                            {mahasiswaData.dokumenWisuda?.pptSkripsi?.fileName ? (
+                                                <div className="flex items-center justify-between text-xs bg-gray-55 p-2.5 rounded-lg border border-gray-150 mb-2">
+                                                    <a
+                                                        href={getFileUrl(mahasiswaData.dokumenWisuda.pptSkripsi.filePath)}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="font-semibold text-blue-600 hover:underline truncate max-w-[200px]"
+                                                    >
+                                                        {mahasiswaData.dokumenWisuda.pptSkripsi.fileOriginalName}
+                                                    </a>
+                                                    <span className="text-gray-400 font-medium">{mahasiswaData.dokumenWisuda.pptSkripsi.fileSize}</span>
+                                                </div>
+                                            ) : (
+                                                <p className="text-xs text-gray-400 italic mb-2">Belum ada file diunggah</p>
+                                            )}
+                                            {mahasiswaData.dokumenWisuda?.statusVerifikasi !== 'disetujui' && (
+                                                <div className="mt-2 flex items-center gap-2">
+                                                    <input
+                                                        type="file"
+                                                        accept=".pdf"
+                                                        id="pptInput"
+                                                        className="hidden"
+                                                        onChange={(e) => setPptFile(e.target.files?.[0] || null)}
+                                                    />
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => document.getElementById('pptInput')?.click()}
+                                                        className="text-xs flex items-center gap-1.5 h-8 border-gray-300 hover:bg-gray-50"
+                                                    >
+                                                        <Upload className="w-3.5 h-3.5 text-gray-500" />
+                                                        Pilih File
+                                                    </Button>
+                                                    {pptFile && <span className="text-xs text-green-600 truncate font-semibold">{pptFile.name}</span>}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* File 3: Halaman Pengesahan */}
+                                        <div className="p-4 rounded-xl border border-gray-250 bg-white">
+                                            <label className="block text-sm font-bold text-gray-700 mb-2">3. Halaman Pengesahan Ber-TTD (PDF)</label>
+                                            {mahasiswaData.dokumenWisuda?.halamanPengesahan?.fileName ? (
+                                                <div className="flex items-center justify-between text-xs bg-gray-55 p-2.5 rounded-lg border border-gray-150 mb-2">
+                                                    <a
+                                                        href={getFileUrl(mahasiswaData.dokumenWisuda.halamanPengesahan.filePath)}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="font-semibold text-blue-600 hover:underline truncate max-w-[200px]"
+                                                    >
+                                                        {mahasiswaData.dokumenWisuda.halamanPengesahan.fileOriginalName}
+                                                    </a>
+                                                    <span className="text-gray-400 font-medium">{mahasiswaData.dokumenWisuda.halamanPengesahan.fileSize}</span>
+                                                </div>
+                                            ) : (
+                                                <p className="text-xs text-gray-400 italic mb-2">Belum ada file diunggah</p>
+                                            )}
+                                            {mahasiswaData.dokumenWisuda?.statusVerifikasi !== 'disetujui' && (
+                                                <div className="mt-2 flex items-center gap-2">
+                                                    <input
+                                                        type="file"
+                                                        accept=".pdf"
+                                                        id="halamanInput"
+                                                        className="hidden"
+                                                        onChange={(e) => setHalamanFile(e.target.files?.[0] || null)}
+                                                    />
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => document.getElementById('halamanInput')?.click()}
+                                                        className="text-xs flex items-center gap-1.5 h-8 border-gray-300 hover:bg-gray-50"
+                                                    >
+                                                        <Upload className="w-3.5 h-3.5 text-gray-500" />
+                                                        Pilih File
+                                                    </Button>
+                                                    {halamanFile && <span className="text-xs text-green-600 truncate font-semibold">{halamanFile.name}</span>}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* File 4: Form Bimbingan */}
+                                        <div className="p-4 rounded-xl border border-gray-250 bg-white">
+                                            <label className="block text-sm font-bold text-gray-700 mb-2">4. Form Logbook Bimbingan (PDF)</label>
+                                            {mahasiswaData.dokumenWisuda?.formBimbingan?.fileName ? (
+                                                <div className="flex items-center justify-between text-xs bg-gray-55 p-2.5 rounded-lg border border-gray-150 mb-2">
+                                                    <a
+                                                        href={getFileUrl(mahasiswaData.dokumenWisuda.formBimbingan.filePath)}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="font-semibold text-blue-600 hover:underline truncate max-w-[200px]"
+                                                    >
+                                                        {mahasiswaData.dokumenWisuda.formBimbingan.fileOriginalName}
+                                                    </a>
+                                                    <span className="text-gray-400 font-medium">{mahasiswaData.dokumenWisuda.formBimbingan.fileSize}</span>
+                                                </div>
+                                            ) : (
+                                                <p className="text-xs text-gray-400 italic mb-2">Belum ada file diunggah</p>
+                                            )}
+                                            {mahasiswaData.dokumenWisuda?.statusVerifikasi !== 'disetujui' && (
+                                                <div className="mt-2 flex items-center gap-2">
+                                                    <input
+                                                        type="file"
+                                                        accept=".pdf"
+                                                        id="formInput"
+                                                        className="hidden"
+                                                        onChange={(e) => setFormFile(e.target.files?.[0] || null)}
+                                                    />
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => document.getElementById('formInput')?.click()}
+                                                        className="text-xs flex items-center gap-1.5 h-8 border-gray-300 hover:bg-gray-50"
+                                                    >
+                                                        <Upload className="w-3.5 h-3.5 text-gray-500" />
+                                                        Pilih File
+                                                    </Button>
+                                                    {formFile && <span className="text-xs text-green-600 truncate font-semibold">{formFile.name}</span>}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {mahasiswaData.dokumenWisuda?.statusVerifikasi !== 'disetujui' && (
+                                        <div className="pt-2 flex justify-end">
+                                            <Button
+                                                type="submit"
+                                                disabled={isUploadingWisuda || (!skripsiFullFile && !pptFile && !halamanFile && !formFile)}
+                                                className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-6 py-2 rounded-xl transition-all shadow-md shadow-orange-500/20"
+                                            >
+                                                {isUploadingWisuda ? 'Mengunggah...' : 'Unggah Berkas'}
+                                            </Button>
+                                        </div>
+                                    )}
+                                </form>
+                            </motion.div>
+                        )}
+
+                        {/* ===== STATUS BIMBINGAN CARD (Only show when NOT in persiapan_wisuda / selesai) ===== */}
+                        {semproStatus && mahasiswaData && !['persiapan_wisuda', 'selesai'].includes(mahasiswaData.statusMahasiswa || '') && (
                             <motion.div
                                 variants={itemVariants}
                                 className={`rounded-2xl p-6 shadow-sm border ${semproStatus.isReady
@@ -765,27 +1068,29 @@ export const DashboardMhs = () => {
                             </motion.div>
                         )}
 
-                        {/* Quick Actions */}
-                        <motion.div
-                            variants={itemVariants}
-                            className="bg-gradient-to-r from-blue-500 via-blue-600 to-gray-600 rounded-2xl p-6 shadow-lg"
-                        >
-                            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                                <div className="text-white">
-                                    <h3 className="text-xl font-bold mb-1">Mulai Bimbingan Sekarang</h3>
-                                    <p className="text-blue-100 text-sm">Upload dokumen revisi dan kirim ke dosen pembimbing</p>
+                        {/* Quick Actions (Only show when NOT in persiapan_wisuda / selesai) */}
+                        {mahasiswaData && !['persiapan_wisuda', 'selesai'].includes(mahasiswaData.statusMahasiswa || '') && (
+                            <motion.div
+                                variants={itemVariants}
+                                className="bg-gradient-to-r from-blue-500 via-blue-600 to-gray-600 rounded-2xl p-6 shadow-lg"
+                            >
+                                <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                                    <div className="text-white">
+                                        <h3 className="text-xl font-bold mb-1">Mulai Bimbingan Sekarang</h3>
+                                        <p className="text-blue-100 text-sm">Upload dokumen revisi dan kirim ke dosen pembimbing</p>
+                                    </div>
+                                    <motion.button
+                                        className="bg-white text-blue-600 font-semibold px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2"
+                                        whileHover={{ scale: 1.05, x: 5 }}
+                                        whileTap={{ scale: 0.95 }}
+                                        onClick={handleStartBimbingan}
+                                    >
+                                        <FileEdit className="w-5 h-5" />
+                                        Upload Bimbingan
+                                    </motion.button>
                                 </div>
-                                <motion.button
-                                    className="bg-white text-blue-600 font-semibold px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2"
-                                    whileHover={{ scale: 1.05, x: 5 }}
-                                    whileTap={{ scale: 0.95 }}
-                                    onClick={handleStartBimbingan}
-                                >
-                                    <FileEdit className="w-5 h-5" />
-                                    Upload Bimbingan
-                                </motion.button>
-                            </div>
-                        </motion.div>
+                            </motion.div>
+                        )}
                     </motion.div>
                 </main>
             </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, type Variants } from 'framer-motion'
 import { Button } from '@/components/ui/button'
@@ -21,7 +21,7 @@ import {
 import {
     LayoutDashboard, Users, Calendar, ChevronDown, LogOut, User, GraduationCap,
     FileText, BookOpen, Trash2, AlertTriangle, CheckCircle2, Clock, XCircle,
-    ArrowRight, RotateCcw, Search, BarChart3, X, Settings,
+    ArrowRight, RotateCcw, Search, BarChart3, Settings, Eye,
 } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
@@ -34,7 +34,32 @@ import {
     type AdminBimbinganSummary, type Bimbingan, type BimbinganSettings,
 } from '@/services/bimbinganService'
 
-interface MahasiswaOption { _id: string; name: string; nim_nip: string }
+type StatusMahasiswa =
+    | 'pra_sempro'
+    | 'menunggu_sempro'
+    | 'revisi_sempro'
+    | 'bimbingan_lanjut'
+    | 'menunggu_semhas'
+    | 'revisi_semhas'
+    | 'bimbingan_akhir'
+    | 'menunggu_sidang'
+    | 'revisi_sidang'
+    | 'persiapan_wisuda'
+    | 'selesai'
+
+interface MahasiswaOption {
+    _id: string;
+    name: string;
+    nim_nip: string;
+    prodi?: string;
+    judulTA?: string;
+    currentProgress?: string;
+    statusMahasiswa?: StatusMahasiswa;
+    dospem_1?: { _id: string; name: string; nim_nip: string } | null;
+    dospem_2?: { _id: string; name: string; nim_nip: string } | null;
+    penguji_1?: { _id: string; name: string; nim_nip: string } | null;
+    penguji_2?: { _id: string; name: string; nim_nip: string } | null;
+}
 
 const progressOptions = ['BAB I', 'BAB II', 'BAB III', 'BAB IV', 'BAB V', 'Selesai']
 
@@ -46,6 +71,7 @@ const managementItems = [
     { label: 'Manajemen Dosen', icon: GraduationCap, path: '/admin/plotting' },
     { label: 'Kelola Bimbingan', icon: FileText, active: true, path: '/admin/bimbingan' },
     { label: 'Kelola Jadwal', icon: Calendar, path: '/admin/jadwal' },
+    { label: 'Verifikasi Wisuda', icon: GraduationCap, path: '/admin/wisuda' },
 ]
 const reportItems = [
     { label: 'Laporan', icon: BarChart3, path: '/admin/laporan' },
@@ -59,15 +85,74 @@ const statusConfig: Record<string, { label: string; color: string; icon: React.E
     acc_sempro: { label: 'ACC Sempro', color: 'bg-purple-100 text-purple-700', icon: CheckCircle2 },
 }
 
+const passedSemproStatuses: StatusMahasiswa[] = [
+    'revisi_sempro',
+    'bimbingan_lanjut',
+    'menunggu_semhas',
+    'revisi_semhas',
+    'bimbingan_akhir',
+    'menunggu_sidang',
+    'revisi_sidang',
+    'persiapan_wisuda',
+    'selesai',
+]
+
+const passedSemhasStatuses: StatusMahasiswa[] = [
+    'revisi_semhas',
+    'bimbingan_akhir',
+    'menunggu_sidang',
+    'revisi_sidang',
+    'persiapan_wisuda',
+    'selesai',
+]
+
+const passedSidangStatuses: StatusMahasiswa[] = [
+    'revisi_sidang',
+    'persiapan_wisuda',
+    'selesai',
+]
+
+const getAcademicStage = (status: StatusMahasiswa = 'pra_sempro') => {
+    if (passedSidangStatuses.includes(status)) {
+        return {
+            label: 'Sudah Sidang Akhir',
+            color: 'bg-green-100 text-green-700',
+            sort: 3,
+        }
+    }
+    if (passedSemhasStatuses.includes(status)) {
+        return {
+            label: 'Sudah Semhas',
+            color: 'bg-blue-100 text-blue-700',
+            sort: 2,
+        }
+    }
+    if (passedSemproStatuses.includes(status)) {
+        return {
+            label: 'Sudah Sempro',
+            color: 'bg-purple-100 text-purple-700',
+            sort: 1,
+        }
+    }
+    return {
+        label: 'Belum Sempro',
+        color: 'bg-gray-100 text-gray-700',
+        sort: 0,
+    }
+}
+
 export const KelolaBimbingan = () => {
     const navigate = useNavigate()
     const dispatch = useAppDispatch()
     const { user } = useAppSelector((state) => state.auth)
+    const detailSectionRef = useRef<HTMLDivElement | null>(null)
 
     const [mahasiswaList, setMahasiswaList] = useState<MahasiswaOption[]>([])
     const [selectedMhs, setSelectedMhs] = useState<string>('')
     const [mahasiswaSearch, setMahasiswaSearch] = useState('')
-    const [isMahasiswaDropdownOpen, setIsMahasiswaDropdownOpen] = useState(false)
+    const [stageFilter, setStageFilter] = useState<'all' | 'belum_sempro' | 'sudah_sempro' | 'sudah_semhas' | 'sudah_sidang'>('all')
+    const [entriesPerPage, setEntriesPerPage] = useState('10')
+    const [currentPage, setCurrentPage] = useState(1)
     const [summary, setSummary] = useState<AdminBimbinganSummary | null>(null)
     const [activeTab, setActiveTab] = useState<'dospem_1' | 'dospem_2'>('dospem_1')
     const [isLoading, setIsLoading] = useState(false)
@@ -103,7 +188,7 @@ export const KelolaBimbingan = () => {
             try {
                 setIsFetchingList(true)
                 setListError(null)
-                const res = await api.get('/users', { params: { role: 'mahasiswa', limit: 100 } })
+                const res = await api.get('/users', { params: { role: 'mahasiswa', status: 'aktif', limit: 500 } })
                 setMahasiswaList(res.data.data || [])
             } catch (e) {
                 console.error(e)
@@ -119,7 +204,6 @@ export const KelolaBimbingan = () => {
         if (!selectedMhs) {
             console.log('[SIMTA KelolaBimbingan Debug] no selected mahasiswa, reset summary/settings', {
                 selectedMhs,
-                mahasiswaSearch,
             })
             setSummary(null)
             setSettings(null)
@@ -140,7 +224,6 @@ export const KelolaBimbingan = () => {
                 setSettingsMessage(null)
                 console.log('[SIMTA KelolaBimbingan Debug] fetching selected mahasiswa data', {
                     selectedMhs,
-                    mahasiswaSearch,
                 })
                 const [summaryRes, settingsRes] = await Promise.all([
                     getAdminBimbinganSummary(selectedMhs),
@@ -264,29 +347,81 @@ export const KelolaBimbingan = () => {
     const currentData = summary ? (activeTab === 'dospem_1' ? summary.dospem1 : summary.dospem2) : null
     const currentDosen = summary?.mahasiswa ? (activeTab === 'dospem_1' ? summary.mahasiswa.dospem_1 : summary.mahasiswa.dospem_2) : null
     const selectedMahasiswaData = mahasiswaList.find((mhs) => mhs._id === selectedMhs)
-    const filteredMahasiswaOptions = mahasiswaList.filter((mhs) => {
-        const keyword = mahasiswaSearch.toLowerCase()
-        return (
-            mhs.name.toLowerCase().includes(keyword) ||
-            mhs.nim_nip.toLowerCase().includes(keyword)
-        )
-    })
-
-    const handleMahasiswaSearchChange = (value: string) => {
-        setMahasiswaSearch(value)
-        setIsMahasiswaDropdownOpen(true)
-
-        if (selectedMahasiswaData && value !== `${selectedMahasiswaData.name} (${selectedMahasiswaData.nim_nip})`) {
-            setSelectedMhs('')
-        }
+    const academicStageStats = {
+        total: mahasiswaList.length,
+        sempro: mahasiswaList.filter((mhs) => passedSemproStatuses.includes(mhs.statusMahasiswa || 'pra_sempro')).length,
+        semhas: mahasiswaList.filter((mhs) => passedSemhasStatuses.includes(mhs.statusMahasiswa || 'pra_sempro')).length,
+        sidang: mahasiswaList.filter((mhs) => passedSidangStatuses.includes(mhs.statusMahasiswa || 'pra_sempro')).length,
     }
+    const academicStageCards = [
+        {
+            label: 'Sudah Sempro',
+            value: academicStageStats.sempro,
+            note: `${academicStageStats.total - academicStageStats.sempro} belum melewati Sempro`,
+            icon: CheckCircle2,
+            color: 'border-purple-100 bg-purple-50 text-purple-700',
+            iconColor: 'bg-purple-100 text-purple-600',
+        },
+        {
+            label: 'Sudah Semhas',
+            value: academicStageStats.semhas,
+            note: `${academicStageStats.total - academicStageStats.semhas} belum melewati Semhas`,
+            icon: GraduationCap,
+            color: 'border-blue-100 bg-blue-50 text-blue-700',
+            iconColor: 'bg-blue-100 text-blue-600',
+        },
+        {
+            label: 'Sudah Sidang Akhir',
+            value: academicStageStats.sidang,
+            note: `${academicStageStats.total - academicStageStats.sidang} belum melewati Sidang Akhir`,
+            icon: FileText,
+            color: 'border-green-100 bg-green-50 text-green-700',
+            iconColor: 'bg-green-100 text-green-600',
+        },
+    ]
+    const filteredMahasiswaList = mahasiswaList.filter((mhs) => {
+        const keyword = mahasiswaSearch.toLowerCase()
+        const stage = getAcademicStage(mhs.statusMahasiswa || 'pra_sempro')
+        const matchesSearch = (
+            mhs.name.toLowerCase().includes(keyword) ||
+            mhs.nim_nip.toLowerCase().includes(keyword) ||
+            (mhs.prodi || '').toLowerCase().includes(keyword)
+        )
+        const matchesStage =
+            stageFilter === 'all' ||
+            (stageFilter === 'belum_sempro' && stage.sort === 0) ||
+            (stageFilter === 'sudah_sempro' && stage.sort === 1) ||
+            (stageFilter === 'sudah_semhas' && stage.sort === 2) ||
+            (stageFilter === 'sudah_sidang' && stage.sort === 3)
+
+        return matchesSearch && matchesStage
+    })
+    const totalPages = Math.max(1, Math.ceil(filteredMahasiswaList.length / parseInt(entriesPerPage)))
+    const startIndex = (currentPage - 1) * parseInt(entriesPerPage)
+    const endIndex = startIndex + parseInt(entriesPerPage)
+    const paginatedMahasiswa = filteredMahasiswaList.slice(startIndex, endIndex)
 
     const handleSelectMahasiswa = (mhs: MahasiswaOption) => {
-        console.log('[SIMTA KelolaBimbingan Debug] mahasiswa selected from dropdown', mhs)
+        console.log('[SIMTA KelolaBimbingan Debug] mahasiswa detail selected from table', mhs)
         setSelectedMhs(mhs._id)
-        setMahasiswaSearch(`${mhs.name} (${mhs.nim_nip})`)
-        setIsMahasiswaDropdownOpen(false)
+        setActiveTab('dospem_1')
     }
+
+    useEffect(() => {
+        setCurrentPage(1)
+    }, [mahasiswaSearch, stageFilter, entriesPerPage])
+
+    useEffect(() => {
+        if (currentPage > totalPages) {
+            setCurrentPage(totalPages)
+        }
+    }, [currentPage, totalPages])
+
+    useEffect(() => {
+        if (summary && selectedMhs && !isLoading) {
+            detailSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+    }, [summary, selectedMhs, isLoading])
 
     useEffect(() => {
         console.log('[SIMTA KelolaBimbingan Debug] render state', {
@@ -395,60 +530,173 @@ export const KelolaBimbingan = () => {
                             </div>
                         )}
 
-                        {/* Select Mahasiswa */}
-                        <motion.div variants={itemVariants} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                            <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><Search className="w-5 h-5 text-orange-500" />Pilih Mahasiswa</h3>
-                            <div className="relative">
-                                <div className="relative">
-                                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                                    <Input
-                                        value={mahasiswaSearch}
-                                        onChange={(e) => handleMahasiswaSearchChange(e.target.value)}
-                                        onFocus={() => setIsMahasiswaDropdownOpen(true)}
-                                        onBlur={() => setTimeout(() => setIsMahasiswaDropdownOpen(false), 120)}
-                                        disabled={isFetchingList}
-                                        placeholder={isFetchingList ? 'Memuat data mahasiswa...' : 'Ketik nama atau NIM mahasiswa...'}
-                                        className="h-11 rounded-xl pl-9 pr-9"
-                                    />
-                                    {selectedMhs && (
-                                        <button
-                                            type="button"
-                                            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                                            onMouseDown={(e) => e.preventDefault()}
-                                            onClick={() => {
-                                                setSelectedMhs('')
-                                                setMahasiswaSearch('')
-                                                setIsMahasiswaDropdownOpen(true)
-                                            }}
-                                            aria-label="Hapus pilihan mahasiswa"
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </button>
-                                    )}
-                                </div>
-
-                                {isMahasiswaDropdownOpen && !isFetchingList && (
-                                    <div className="absolute z-50 mt-2 max-h-72 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white p-1 shadow-lg">
-                                        {filteredMahasiswaOptions.length === 0 ? (
-                                            <div className="px-3 py-6 text-center text-sm text-gray-500">
-                                                Mahasiswa tidak ditemukan
-                                            </div>
-                                        ) : (
-                                            filteredMahasiswaOptions.map((mhs) => (
-                                                <button
-                                                    key={mhs._id}
-                                                    type="button"
-                                                    className="w-full rounded-lg px-3 py-2 text-left transition-colors hover:bg-orange-50"
-                                                    onMouseDown={(e) => e.preventDefault()}
-                                                    onClick={() => handleSelectMahasiswa(mhs)}
-                                                >
-                                                    <p className="truncate text-sm font-semibold text-gray-800">{mhs.name}</p>
-                                                    <p className="truncate text-xs text-gray-500">{mhs.nim_nip}</p>
-                                                </button>
-                                            ))
-                                        )}
+                        <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {academicStageCards.map((card) => (
+                                <div key={card.label} className={`rounded-2xl border p-5 shadow-sm ${card.color}`}>
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div>
+                                            <p className="text-sm font-semibold">{card.label}</p>
+                                            <p className="mt-2 text-3xl font-bold text-gray-900">{card.value}</p>
+                                            <p className="mt-1 text-xs text-gray-500">{card.note}</p>
+                                        </div>
+                                        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${card.iconColor}`}>
+                                            <card.icon className="h-5 w-5" />
+                                        </div>
                                     </div>
-                                )}
+                                </div>
+                            ))}
+                        </motion.div>
+
+                        {/* Mahasiswa List */}
+                        <motion.div variants={itemVariants} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                            <div className="p-6 border-b border-gray-100">
+                                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                                    <div>
+                                        <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                                            <Users className="w-5 h-5 text-orange-500" />Daftar Mahasiswa Bimbingan
+                                        </h3>
+                                        <p className="text-sm text-gray-500">Pilih detail untuk melihat riwayat dan pengaturan bimbingan mahasiswa.</p>
+                                    </div>
+
+                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                                        <Select value={entriesPerPage} onValueChange={setEntriesPerPage}>
+                                            <SelectTrigger className="h-10 w-full rounded-xl bg-gray-50 border-gray-200 sm:w-28">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="10">10 data</SelectItem>
+                                                <SelectItem value="25">25 data</SelectItem>
+                                                <SelectItem value="50">50 data</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+
+                                        <Select value={stageFilter} onValueChange={(value) => setStageFilter(value as typeof stageFilter)}>
+                                            <SelectTrigger className="h-10 w-full rounded-xl bg-gray-50 border-gray-200 sm:w-48">
+                                                <SelectValue placeholder="Filter Tahap" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">Semua Tahap</SelectItem>
+                                                <SelectItem value="belum_sempro">Belum Sempro</SelectItem>
+                                                <SelectItem value="sudah_sempro">Sudah Sempro</SelectItem>
+                                                <SelectItem value="sudah_semhas">Sudah Semhas</SelectItem>
+                                                <SelectItem value="sudah_sidang">Sudah Sidang Akhir</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+
+                                        <div className="relative">
+                                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                                            <Input
+                                                value={mahasiswaSearch}
+                                                onChange={(e) => setMahasiswaSearch(e.target.value)}
+                                                disabled={isFetchingList}
+                                                placeholder={isFetchingList ? 'Memuat mahasiswa...' : 'Cari nama, NIM, prodi...'}
+                                                className="h-10 w-full rounded-xl bg-gray-50 pl-9 sm:w-64"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="overflow-x-auto">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="bg-gray-50/70 hover:bg-gray-50/70">
+                                            <TableHead className="font-semibold text-gray-700">Mahasiswa</TableHead>
+                                            <TableHead className="font-semibold text-gray-700">NIM</TableHead>
+                                            <TableHead className="font-semibold text-gray-700">Status Tahap</TableHead>
+                                            <TableHead className="font-semibold text-gray-700">Progress</TableHead>
+                                            <TableHead className="font-semibold text-gray-700">Pembimbing</TableHead>
+                                            <TableHead className="font-semibold text-gray-700 text-center">Aksi</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {isFetchingList ? (
+                                            <TableRow>
+                                                <TableCell colSpan={6} className="h-32 text-center">
+                                                    <div className="mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-orange-500" />
+                                                </TableCell>
+                                            </TableRow>
+                                        ) : paginatedMahasiswa.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={6} className="h-32 text-center text-gray-400">
+                                                    Mahasiswa tidak ditemukan
+                                                </TableCell>
+                                            </TableRow>
+                                        ) : (
+                                            paginatedMahasiswa.map((mhs) => {
+                                                const stage = getAcademicStage(mhs.statusMahasiswa || 'pra_sempro')
+                                                const isSelected = selectedMhs === mhs._id
+
+                                                return (
+                                                    <TableRow key={mhs._id} className={isSelected ? 'bg-orange-50/60' : undefined}>
+                                                        <TableCell>
+                                                            <div className="flex items-center gap-3">
+                                                                <Avatar className="h-10 w-10">
+                                                                    <AvatarFallback className="bg-gradient-to-br from-orange-500 to-orange-600 text-white text-sm">
+                                                                        {mhs.name.split(' ').map(n => n[0]).slice(0, 2).join('')}
+                                                                    </AvatarFallback>
+                                                                </Avatar>
+                                                                <div>
+                                                                    <p className="font-semibold text-gray-800">{mhs.name}</p>
+                                                                    <p className="text-xs text-gray-500">{mhs.prodi || 'Sistem Informasi'}</p>
+                                                                </div>
+                                                            </div>
+                                                        </TableCell>
+                                                        <TableCell className="font-medium text-gray-700">{mhs.nim_nip}</TableCell>
+                                                        <TableCell>
+                                                            <Badge className={stage.color}>{stage.label}</Badge>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Badge variant="outline">{mhs.currentProgress || 'BAB I'}</Badge>
+                                                        </TableCell>
+                                                        <TableCell className="text-sm text-gray-600">
+                                                            <p>{mhs.dospem_1?.name || '-'}</p>
+                                                            <p>{mhs.dospem_2?.name || '-'}</p>
+                                                        </TableCell>
+                                                        <TableCell className="text-center">
+                                                            <Button
+                                                                size="sm"
+                                                                variant={isSelected ? 'default' : 'outline'}
+                                                                className={isSelected ? 'bg-orange-500 hover:bg-orange-600' : ''}
+                                                                onClick={() => handleSelectMahasiswa(mhs)}
+                                                            >
+                                                                <Eye className="w-4 h-4 mr-2" />
+                                                                {isSelected ? 'Terbuka' : 'Detail'}
+                                                            </Button>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                )
+                                            })
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
+
+                            <div className="flex flex-col gap-3 border-t border-gray-100 px-6 py-4 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
+                                <span>
+                                    Menampilkan {filteredMahasiswaList.length === 0 ? 0 : startIndex + 1}-{Math.min(endIndex, filteredMahasiswaList.length)} dari {filteredMahasiswaList.length} mahasiswa
+                                </span>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                                        disabled={currentPage === 1}
+                                    >
+                                        Sebelumnya
+                                    </Button>
+                                    <span className="px-2 text-xs font-medium text-gray-500">
+                                        {currentPage}/{totalPages}
+                                    </span>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                                        disabled={currentPage === totalPages}
+                                    >
+                                        Berikutnya
+                                    </Button>
+                                </div>
                             </div>
                         </motion.div>
 
@@ -523,7 +771,7 @@ export const KelolaBimbingan = () => {
                         )}
 
                         {summary && !isLoading && (
-                            <motion.div initial="hidden" animate="visible" variants={containerVariants} className="space-y-6">
+                            <motion.div ref={detailSectionRef} initial="hidden" animate="visible" variants={containerVariants} className="scroll-mt-6 space-y-6">
                                 {/* Mahasiswa Info Card */}
                                 <motion.div variants={itemVariants} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                                     <div className="flex items-start gap-4">
@@ -537,6 +785,8 @@ export const KelolaBimbingan = () => {
                                         <div className="grid grid-cols-2 gap-3 text-sm">
                                             <div className="p-3 bg-gray-50 rounded-xl"><p className="text-gray-500 text-xs">Dospem 1</p><p className="font-medium text-gray-800">{summary.mahasiswa.dospem_1?.name || '-'}</p></div>
                                             <div className="p-3 bg-gray-50 rounded-xl"><p className="text-gray-500 text-xs">Dospem 2</p><p className="font-medium text-gray-800">{summary.mahasiswa.dospem_2?.name || '-'}</p></div>
+                                            <div className="p-3 bg-gray-50 rounded-xl"><p className="text-gray-500 text-xs">Penguji 1</p><p className="font-medium text-gray-800">{summary.mahasiswa.penguji_1?.name || '-'}</p></div>
+                                            <div className="p-3 bg-gray-50 rounded-xl"><p className="text-gray-500 text-xs">Penguji 2</p><p className="font-medium text-gray-800">{summary.mahasiswa.penguji_2?.name || '-'}</p></div>
                                         </div>
                                     </div>
                                 </motion.div>
@@ -636,11 +886,6 @@ export const KelolaBimbingan = () => {
 
                         {!selectedMhs && !isLoading && (
                             <div className="space-y-6">
-                                <motion.div variants={itemVariants} className="text-center py-16 text-gray-400 bg-white rounded-2xl shadow-sm border border-gray-100">
-                                    <Search className="w-16 h-16 mx-auto mb-4 opacity-30" />
-                                    <p className="text-lg">Pilih mahasiswa untuk melihat riwayat bimbingan</p>
-                                </motion.div>
-
                                 <motion.div variants={itemVariants} className="bg-white rounded-2xl p-6 shadow-sm border border-red-200">
                                     <h3 className="text-lg font-bold text-red-700 mb-2 flex items-center gap-2">
                                         <AlertTriangle className="w-5 h-5 text-red-600" /> Bersih-bersih Database (Global Clear)

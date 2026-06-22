@@ -98,6 +98,8 @@ interface UserOption {
     judulTA?: string
     dospem_1?: { _id: string; name: string } | string | null
     dospem_2?: { _id: string; name: string } | string | null
+    penguji_1?: { _id: string; name: string } | string | null
+    penguji_2?: { _id: string; name: string } | string | null
 }
 
 // Menu items
@@ -110,6 +112,7 @@ const managementItems = [
     { label: 'Manajemen Dosen', icon: GraduationCap, path: '/admin/plotting' },
     { label: 'Kelola Bimbingan', icon: FileText, path: '/admin/bimbingan' },
     { label: 'Kelola Jadwal', icon: Calendar, active: true, path: '/admin/jadwal' },
+    { label: 'Verifikasi Wisuda', icon: GraduationCap, path: '/admin/wisuda' },
 ]
 
 const reportItems = [
@@ -119,6 +122,7 @@ const reportItems = [
 // Ruangan options
 const ruanganOptions = [
     'A301', 'A302', 'A303', 'A304', 'A305', 'A306', 'A307', 'A308', 'A309', 'A310', 'A311', 'A312', 'A313', 'A314', 'A315',
+    'A401', 'A402', 'A403', 'A404', 'A405', 'A406', 'A407', 'A408', 'A409', 'A410', 'A411', 'A412', 'A413', 'A414',
     'B301', 'B302', 'B303', 'B304', 'B305', 'B306', 'B307', 'B308', 'B309'
 ]
 
@@ -155,13 +159,22 @@ const timeOptions = [
     '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00'
 ]
 
+const getJenisJadwalLabel = (val: string) => {
+    switch (val) {
+        case 'sidang_proposal': return 'Sidang Proposal'
+        case 'sidang_semhas': return 'Seminar Hasil'
+        case 'sidang_skripsi': return 'Sidang Skripsi'
+        default: return val
+    }
+}
+
 export const KelolaJadwal = () => {
     const navigate = useNavigate()
     const dispatch = useAppDispatch()
     const { user } = useAppSelector((state) => state.auth)
 
     const [searchQuery, setSearchQuery] = useState('')
-    const [statusFilter, setStatusFilter] = useState('all')
+    const [statusFilter, setStatusFilter] = useState('dijadwalkan')
     const [currentPage, setCurrentPage] = useState(1)
     const [isLoading, setIsLoading] = useState(true)
     const [jadwalList, setJadwalList] = useState<JadwalSidang[]>([])
@@ -207,6 +220,22 @@ export const KelolaJadwal = () => {
     const [ruangan, setRuangan] = useState('')
     const [penguji1, setPenguji1] = useState('')
     const [penguji2, setPenguji2] = useState('')
+
+    useEffect(() => {
+        if (!selectedMahasiswa) {
+            setPenguji1('')
+            setPenguji2('')
+        } else {
+            const mhs = mahasiswaList.find(m => m._id === selectedMahasiswa)
+            if (mhs) {
+                const p1Id = typeof mhs.penguji_1 === 'object' ? (mhs.penguji_1 as any)?._id : mhs.penguji_1;
+                const p2Id = typeof mhs.penguji_2 === 'object' ? (mhs.penguji_2 as any)?._id : mhs.penguji_2;
+
+                if (p1Id) setPenguji1(p1Id);
+                if (p2Id) setPenguji2(p2Id);
+            }
+        }
+    }, [selectedMahasiswa, mahasiswaList])
 
     // Animation variants
     const containerVariants: Variants = {
@@ -328,7 +357,7 @@ export const KelolaJadwal = () => {
             j => j.mahasiswa?._id === selectedMahasiswa && j.jenisJadwal === jenisJadwal && j.status !== 'dibatalkan'
         )
         if (existing) {
-            alert(`${studentName} sudah memiliki jadwal ${jenisJadwal === 'sidang_proposal' ? 'Sidang Proposal' : 'Sidang Skripsi'}. Batalkan jadwal yang ada jika ingin membuat yang baru.`)
+            alert(`${studentName} sudah memiliki jadwal ${getJenisJadwalLabel(jenisJadwal)}. Batalkan jadwal yang ada jika ingin membuat yang baru.`)
             return
         }
 
@@ -566,6 +595,18 @@ export const KelolaJadwal = () => {
 
         return mapped.sort((a, b) => a.workload - b.workload);
     }, [dosenList, selectedMahasiswaData, workloads]);
+
+    const editingStudentData = editingJadwal && mahasiswaList.find(m => m._id === (typeof editingJadwal.mahasiswa === 'object' ? (editingJadwal.mahasiswa as any)?._id : editingJadwal.mahasiswa));
+    const hasPreassignedPenguji = Boolean(
+        (selectedMahasiswaData &&
+            (typeof selectedMahasiswaData.penguji_1 === 'object'
+                ? (selectedMahasiswaData.penguji_1 as any)?._id
+                : selectedMahasiswaData.penguji_1)) ||
+        (editingStudentData &&
+            (typeof editingStudentData.penguji_1 === 'object'
+                ? (editingStudentData.penguji_1 as any)?._id
+                : editingStudentData.penguji_1))
+    );
     const filteredMahasiswaOptions = mahasiswaList.filter((mhs) => {
         const keyword = mahasiswaSearch.toLowerCase()
         return (
@@ -649,7 +690,7 @@ export const KelolaJadwal = () => {
             j => j._id !== jadwal._id && j.mahasiswa?._id === studentId && j.jenisJadwal === jadwal.jenisJadwal && j.status !== 'dibatalkan'
         )
         if (existing) {
-            alert(`${studentName} sudah memiliki jadwal ${jadwal.jenisJadwal === 'sidang_proposal' ? 'Sidang Proposal' : 'Sidang Skripsi'} yang aktif. Batalkan jadwal tersebut terlebih dahulu untuk mengaktifkan kembali jadwal ini.`)
+            alert(`${studentName} sudah memiliki jadwal ${getJenisJadwalLabel(jadwal.jenisJadwal)} yang aktif. Batalkan jadwal tersebut terlebih dahulu untuk mengaktifkan kembali jadwal ini.`)
             return
         }
 
@@ -895,7 +936,7 @@ export const KelolaJadwal = () => {
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="all">Semua Status</SelectItem>
-                                                <SelectItem value="dijadwalkan">Terjadwal</SelectItem>
+                                                <SelectItem value="dijadwalkan">Terjadwal Aktif</SelectItem>
                                                 <SelectItem value="selesai">Selesai</SelectItem>
                                                 <SelectItem value="dibatalkan">Batal</SelectItem>
                                             </SelectContent>
@@ -996,8 +1037,18 @@ export const KelolaJadwal = () => {
                                                         </div>
                                                     </TableCell>
                                                     <TableCell>
-                                                        <Badge className={jadwal.jenisJadwal === 'sidang_proposal' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}>
-                                                            {jadwal.jenisJadwal === 'sidang_proposal' ? 'Proposal' : 'Skripsi'}
+                                                        <Badge className={
+                                                            jadwal.jenisJadwal === 'sidang_proposal'
+                                                                ? 'bg-blue-100 text-blue-700'
+                                                                : jadwal.jenisJadwal === 'sidang_semhas'
+                                                                    ? 'bg-emerald-100 text-emerald-700'
+                                                                    : 'bg-purple-100 text-purple-700'
+                                                        }>
+                                                            {jadwal.jenisJadwal === 'sidang_proposal'
+                                                                ? 'Proposal'
+                                                                : jadwal.jenisJadwal === 'sidang_semhas'
+                                                                    ? 'Semhas'
+                                                                    : 'Skripsi'}
                                                         </Badge>
                                                     </TableCell>
                                                     <TableCell>
@@ -1106,7 +1157,7 @@ export const KelolaJadwal = () => {
 
                             {/* Pagination */}
                             <div className="p-4 border-t border-gray-100 flex items-center justify-between">
-                                <p className="text-sm text-gray-500">Menampilkan {sortedJadwal.length} dari {jadwalList.length} jadwal</p>
+                                <p className="text-sm text-gray-500">Menampilkan {sortedJadwal.length} dari {jadwalList.length} jadwal{statusFilter === 'dijadwalkan' ? ' aktif' : ''}</p>
                                 <div className="flex items-center gap-2">
                                     <Button variant="ghost" size="sm" onClick={() => setCurrentPage(Math.max(1, currentPage - 1))} disabled={currentPage === 1}>
                                         <ChevronLeft className="w-4 h-4 mr-1" />Previous
@@ -1232,6 +1283,7 @@ export const KelolaJadwal = () => {
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="sidang_proposal">Sidang Proposal</SelectItem>
+                                    <SelectItem value="sidang_semhas">Seminar Hasil</SelectItem>
                                     <SelectItem value="sidang_skripsi">Sidang Skripsi</SelectItem>
                                 </SelectContent>
                             </Select>
@@ -1354,6 +1406,7 @@ export const KelolaJadwal = () => {
                                         setPenguji1(value)
                                         if (value === penguji2) setPenguji2('')
                                     }}
+                                    disabled={hasPreassignedPenguji}
                                 >
                                     <SelectTrigger className="mt-1 h-11 w-full rounded-xl [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:max-w-[calc(100%-1.5rem)] [&_[data-slot=select-value]]:truncate">
                                         <SelectValue placeholder="Pilih penguji..." />
@@ -1374,7 +1427,7 @@ export const KelolaJadwal = () => {
                             </div>
                             <div>
                                 <Label className="text-sm font-medium">Penguji 2</Label>
-                                <Select value={penguji2} onValueChange={setPenguji2}>
+                                <Select value={penguji2} onValueChange={setPenguji2} disabled={hasPreassignedPenguji}>
                                     <SelectTrigger className="mt-1 h-11 w-full rounded-xl [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:max-w-[calc(100%-1.5rem)] [&_[data-slot=select-value]]:truncate">
                                         <SelectValue placeholder="Pilih penguji..." />
                                     </SelectTrigger>
@@ -1584,6 +1637,7 @@ export const KelolaJadwal = () => {
                                         setPenguji1(value)
                                         if (value === penguji2) setPenguji2('')
                                     }}
+                                    disabled={hasPreassignedPenguji}
                                 >
                                     <SelectTrigger className="mt-1 h-11 w-full rounded-xl [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:max-w-[calc(100%-1.5rem)] [&_[data-slot=select-value]]:truncate">
                                         <SelectValue placeholder="Pilih penguji..." />
@@ -1604,7 +1658,7 @@ export const KelolaJadwal = () => {
                             </div>
                             <div>
                                 <Label className="text-sm font-medium">Penguji 2</Label>
-                                <Select value={penguji2} onValueChange={setPenguji2}>
+                                <Select value={penguji2} onValueChange={setPenguji2} disabled={hasPreassignedPenguji}>
                                     <SelectTrigger className="mt-1 h-11 w-full rounded-xl [&_[data-slot=select-value]]:block [&_[data-slot=select-value]]:max-w-[calc(100%-1.5rem)] [&_[data-slot=select-value]]:truncate">
                                         <SelectValue placeholder="Pilih penguji..." />
                                     </SelectTrigger>
@@ -1829,7 +1883,7 @@ export const KelolaJadwal = () => {
                             <div className="p-4 bg-red-50 rounded-xl border border-red-200 space-y-2">
                                 <p className="font-medium text-red-800">{hapusJadwal.mahasiswa?.name}</p>
                                 <p className="text-sm text-red-600">
-                                    {hapusJadwal.jenisJadwal === 'sidang_proposal' ? 'Sidang Proposal' : 'Sidang Skripsi'} •{' '}
+                                    {getJenisJadwalLabel(hapusJadwal.jenisJadwal)} •{' '}
                                     {new Date(hapusJadwal.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
                                 </p>
                                 <Badge className={hapusJadwal.status === 'dibatalkan' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}>

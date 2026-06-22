@@ -353,7 +353,7 @@ export const BimbinganMahasiswa = () => {
 
     const renderProgressTimeline = () => {
         const status = user?.statusMahasiswa || 'pra_sempro';
-        
+
         const getStepStatus = (step: 'sempro' | 'semhas' | 'sidang') => {
             if (step === 'sempro') {
                 if (['pra_sempro', 'menunggu_sempro'].includes(status)) return 'active';
@@ -369,7 +369,7 @@ export const BimbinganMahasiswa = () => {
             if (step === 'sidang') {
                 if (['menunggu_sidang'].includes(status)) return 'active';
                 if (status === 'revisi_sidang') return 'revision';
-                if (status === 'selesai') return 'completed';
+                if (['persiapan_wisuda', 'selesai'].includes(status)) return 'completed';
                 return 'upcoming';
             }
             return 'upcoming';
@@ -378,7 +378,7 @@ export const BimbinganMahasiswa = () => {
         const steps = [
             { key: 'sempro', label: 'Seminar Proposal', desc: ['revisi_sempro'].includes(status) ? 'Revisi Penguji' : ['menunggu_sempro'].includes(status) ? 'Menunggu Jadwal' : 'Bimbingan Dospem' },
             { key: 'semhas', label: 'Seminar Hasil', desc: ['revisi_semhas'].includes(status) ? 'Revisi Penguji' : ['menunggu_semhas'].includes(status) ? 'Menunggu Jadwal' : 'Bimbingan Dospem' },
-            { key: 'sidang', label: 'Sidang Akhir', desc: ['revisi_sidang'].includes(status) ? 'Revisi Penguji' : ['menunggu_sidang'].includes(status) ? 'Menunggu Jadwal' : status === 'selesai' ? 'Selesai' : 'Bimbingan Dospem' }
+            { key: 'sidang', label: 'Sidang Akhir', desc: ['revisi_sidang'].includes(status) ? 'Revisi Penguji' : ['menunggu_sidang'].includes(status) ? 'Menunggu Jadwal' : ['persiapan_wisuda', 'selesai'].includes(status) ? 'Selesai' : 'Bimbingan Dospem' }
         ];
 
         return (
@@ -390,7 +390,7 @@ export const BimbinganMahasiswa = () => {
                         let circleClass = 'bg-gray-100 text-gray-400';
                         let textClass = 'text-gray-500';
                         let descClass = 'text-gray-400';
-                        
+
                         if (stepStatus === 'completed') {
                             circleClass = 'bg-green-500 text-white shadow-md shadow-green-500/20';
                             textClass = 'text-green-700 font-semibold';
@@ -744,6 +744,28 @@ export const BimbinganMahasiswa = () => {
     const hasCurrentPenguji = typeof currentPenguji === 'object' ? Boolean((currentPenguji as any)?._id) : Boolean(currentPenguji);
 
     const renderContent = () => {
+        const isGraduated = ['persiapan_wisuda', 'selesai'].includes(user?.statusMahasiswa || '');
+        if (isGraduated) {
+            return (
+                <motion.div
+                    key="graduated_locked"
+                    initial="hidden"
+                    animate="visible"
+                    variants={itemVariants}
+                    className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center flex flex-col items-center justify-center"
+                >
+                    <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center mb-4">
+                        <CheckCircle className="w-8 h-8 text-green-500" />
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-800 mb-2">Seluruh Tahap Bimbingan Selesai</h3>
+                    <p className="text-sm text-gray-500 max-w-md">
+                        Selamat! Anda telah menyelesaikan seluruh rangkaian bimbingan dan revisi skripsi.
+                        Silakan buka halaman <strong>Dashboard</strong> untuk mengunggah dokumen persiapan wisuda Anda.
+                    </p>
+                </motion.div>
+            );
+        }
+
         if (activeCategory === 'pembimbing') {
             if (isPembimbingLocked) {
                 return (

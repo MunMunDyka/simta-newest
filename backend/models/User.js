@@ -102,7 +102,8 @@ const userSchema = new Schema({
             'bimbingan_akhir',   // Telah lulus revisi semhas, lanjut bimbingan dospem bab akhir
             'menunggu_sidang',   // Sedang menunggu jadwal ujian sidang akhir
             'revisi_sidang',     // Pasca sidang, bimbingan revisi laporan akhir ke penguji
-            'selesai'            // Telah lulus semua sidang dan revisi penguji
+            'persiapan_wisuda',  // Tahap persiapan wisuda (upload berkas & verifikasi admin)
+            'selesai'            // Telah lulus semua sidang, revisi penguji, dan berkas wisuda disetujui admin
         ],
         default: 'pra_sempro'
     },
@@ -149,6 +150,51 @@ const userSchema = new Schema({
         type: String,
         trim: true,
         default: null
+    },
+
+    // ===== Dokumen Wisuda (Mahasiswa only) =====
+    dokumenWisuda: {
+        skripsiFull: {
+            fileName: { type: String, default: null },
+            filePath: { type: String, default: null },
+            fileSize: { type: String, default: null },
+            fileOriginalName: { type: String, default: null },
+            uploadedAt: { type: Date, default: null }
+        },
+        pptSkripsi: {
+            fileName: { type: String, default: null },
+            filePath: { type: String, default: null },
+            fileSize: { type: String, default: null },
+            fileOriginalName: { type: String, default: null },
+            uploadedAt: { type: Date, default: null }
+        },
+        halamanPengesahan: {
+            fileName: { type: String, default: null },
+            filePath: { type: String, default: null },
+            fileSize: { type: String, default: null },
+            fileOriginalName: { type: String, default: null },
+            uploadedAt: { type: Date, default: null }
+        },
+        formBimbingan: {
+            fileName: { type: String, default: null },
+            filePath: { type: String, default: null },
+            fileSize: { type: String, default: null },
+            fileOriginalName: { type: String, default: null },
+            uploadedAt: { type: Date, default: null }
+        },
+        statusVerifikasi: {
+            type: String,
+            enum: ['belum_upload', 'menunggu_verifikasi', 'disetujui', 'ditolak'],
+            default: 'belum_upload'
+        },
+        catatanAdmin: {
+            type: String,
+            default: null
+        },
+        verifiedAt: {
+            type: Date,
+            default: null
+        }
     },
 
     // ===== Multiple Role (Dosen + Admin) =====

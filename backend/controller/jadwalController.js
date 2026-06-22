@@ -18,6 +18,15 @@ const { sendSuccess, sendPaginated, sendCreated } = require('../utils/responseHe
 const { notifyJadwalSidang } = require('../services/whatsappService');
 const { notifyJadwalSidangEmail } = require('../services/emailService');
 
+const getJenisJadwalDisplay = (jenis) => {
+    const display = {
+        sidang_proposal: 'Seminar Proposal',
+        sidang_semhas: 'Seminar Hasil',
+        sidang_skripsi: 'Sidang Akhir'
+    };
+    return display[jenis] || jenis;
+};
+
 /**
  * @desc    Get all jadwal with filtering
  * @route   GET /api/jadwal
@@ -109,7 +118,7 @@ const getById = asyncHandler(async (req, res) => {
  * @access  Admin
  */
 const create = asyncHandler(async (req, res) => {
-    const {
+    let {
         mahasiswa,
         jenisJadwal,
         tanggal,
@@ -124,6 +133,12 @@ const create = asyncHandler(async (req, res) => {
     const mahasiswaUser = await User.findById(mahasiswa);
     if (!mahasiswaUser || mahasiswaUser.role !== 'mahasiswa') {
         throw ApiError.badRequest('Mahasiswa tidak valid');
+    }
+
+    // Force immutable examiners if already assigned to the student in a previous exam phase
+    if (mahasiswaUser.penguji_1 || mahasiswaUser.penguji_2) {
+        penguji = [mahasiswaUser.penguji_1, mahasiswaUser.penguji_2].filter(Boolean);
+        console.log(`🔒 Forcing pre-assigned examiners for student: ${mahasiswaUser.name}`);
     }
 
     // Validate penguji (all must be dosen)
@@ -141,7 +156,7 @@ const create = asyncHandler(async (req, res) => {
     // Validate that penguji is not dospem_1 or dospem_2 of the student
     const dospem1Id = mahasiswaUser.dospem_1?.toString();
     const dospem2Id = mahasiswaUser.dospem_2?.toString();
-    
+
     if (penguji && penguji.length > 0) {
         penguji.forEach(pId => {
             const currentPengujiIdStr = pId.toString();
@@ -176,7 +191,7 @@ const create = asyncHandler(async (req, res) => {
 
     if (studentConflict) {
         throw ApiError.conflict(
-            `Mahasiswa sudah memiliki jadwal ${studentConflict.jenisJadwal === 'sidang_proposal' ? 'Sidang Proposal' : 'Sidang Skripsi'} pada tanggal dan waktu yang sama.`
+            `Mahasiswa sudah memiliki jadwal ${getJenisJadwalDisplay(studentConflict.jenisJadwal)} pada tanggal dan waktu yang sama.`
         );
     }
 
@@ -189,7 +204,7 @@ const create = asyncHandler(async (req, res) => {
 
     if (existingJadwal) {
         throw ApiError.conflict(
-            `Mahasiswa sudah memiliki jadwal ${jenisJadwal === 'sidang_proposal' ? 'Sidang Proposal' : 'Sidang Skripsi'}. ` +
+            `Mahasiswa sudah memiliki jadwal ${getJenisJadwalDisplay(jenisJadwal)}. ` +
             'Batalkan jadwal yang ada jika ingin membuat yang baru.'
         );
     }
@@ -353,10 +368,16 @@ const update = asyncHandler(async (req, res) => {
     if (req.body.penguji !== undefined) {
         const student = await User.findById(jadwal.mahasiswa);
         if (student) {
+            // Force immutable examiners on schedule updates if they are already pre-assigned
+            if (student.penguji_1 || student.penguji_2) {
+                req.body.penguji = [student.penguji_1, student.penguji_2].filter(Boolean);
+                console.log(`🔒 Override schedule update to use original plotted examiners`);
+            }
+
             const dospem1Id = student.dospem_1?.toString();
             const dospem2Id = student.dospem_2?.toString();
             const newPenguji = req.body.penguji || [];
-            
+
             newPenguji.forEach(pId => {
                 const currentPengujiIdStr = pId.toString();
                 if (currentPengujiIdStr === dospem1Id || currentPengujiIdStr === dospem2Id) {
@@ -382,7 +403,7 @@ const update = asyncHandler(async (req, res) => {
 
         if (studentConflict) {
             throw ApiError.conflict(
-                `Mahasiswa sudah memiliki jadwal ${studentConflict.jenisJadwal === 'sidang_proposal' ? 'Sidang Proposal' : 'Sidang Skripsi'} pada tanggal dan waktu yang sama.`
+                `Mahasiswa sudah memiliki jadwal ${getJenisJadwalDisplay(studentConflict.jenisJadwal)} pada tanggal dan waktu yang sama.`
             );
         }
     }
@@ -398,7 +419,7 @@ const update = asyncHandler(async (req, res) => {
 
         if (existingJadwal) {
             throw ApiError.conflict(
-                `Mahasiswa sudah memiliki jadwal ${jadwal.jenisJadwal === 'sidang_proposal' ? 'Sidang Proposal' : 'Sidang Skripsi'}. ` +
+                `Mahasiswa sudah memiliki jadwal ${getJenisJadwalDisplay(jadwal.jenisJadwal)}. ` +
                 'Batalkan jadwal yang ada jika ingin mengaktifkan kembali jadwal ini.'
             );
         }
@@ -449,11 +470,21 @@ const update = asyncHandler(async (req, res) => {
                 const directTransition = {
                     'sidang_proposal': 'bimbingan_lanjut',
                     'sidang_semhas': 'bimbingan_akhir',
-                    'sidang_skripsi': 'selesai'
+                    'sidang_skripsi': 'persiapan_wisuda'
                 };
                 const directStatus = directTransition[jadwal.jenisJadwal];
                 if (directStatus) {
                     student.statusMahasiswa = directStatus;
+
+                    // Automatically update progress bab
+                    if (directStatus === 'bimbingan_lanjut') {
+                        student.currentProgress = 'BAB IV';
+                    } else if (directStatus === 'bimbingan_akhir') {
+                        student.currentProgress = 'BAB VI';
+                    } else if (directStatus === 'persiapan_wisuda') {
+                        student.currentProgress = 'Selesai';
+                    }
+
                     await student.save();
                     console.log(`🎓 Student directly transitioned: ${student.name} -> ${directStatus} (lulus tanpa revisi)`);
                 }

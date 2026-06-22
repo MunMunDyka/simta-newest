@@ -115,6 +115,66 @@ router.post(
     userController.uploadAvatar
 );
 
+// Ensure wisuda directory exists
+const wisudaDir = path.join(__dirname, '..', 'uploads', 'wisuda');
+if (!fs.existsSync(wisudaDir)) {
+    fs.mkdirSync(wisudaDir, { recursive: true });
+}
+
+const wisudaStorage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, wisudaDir),
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const cleanName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+        cb(null, `wisuda_${req.user._id}_${file.fieldname}_${uniqueSuffix}${path.extname(cleanName)}`);
+    }
+});
+
+const wisudaUpload = multer({
+    storage: wisudaStorage,
+    limits: { fileSize: 25 * 1024 * 1024 }, // 25MB limit
+    fileFilter: (req, file, cb) => {
+        const allowedTypes = ['application/pdf'];
+        if (allowedTypes.includes(file.mimetype) || path.extname(file.originalname).toLowerCase() === '.pdf') {
+            cb(null, true);
+        } else {
+            cb(new Error('Hanya file PDF yang diperbolehkan untuk dokumen wisuda'));
+        }
+    }
+});
+
+const uploadWisudaFiles = wisudaUpload.fields([
+    { name: 'skripsiFull', maxCount: 1 },
+    { name: 'pptSkripsi', maxCount: 1 },
+    { name: 'halamanPengesahan', maxCount: 1 },
+    { name: 'formBimbingan', maxCount: 1 }
+]);
+
+/**
+ * @route   POST /api/users/upload-wisuda
+ * @desc    Upload graduation documents
+ * @access  Mahasiswa
+ */
+router.post(
+    '/upload-wisuda',
+    roleMiddleware(['mahasiswa']),
+    uploadWisudaFiles,
+    userController.uploadWisuda
+);
+
+/**
+ * @route   PUT /api/users/:id/verifikasi-wisuda
+ * @desc    Verify graduation documents (Admin only)
+ * @access  Admin
+ */
+router.put(
+    '/:id/verifikasi-wisuda',
+    roleMiddleware(['admin']),
+    mongoIdParam('id'),
+    handleValidationErrors,
+    userController.verifikasiWisuda
+);
+
 /**
  * @route   PUT /api/users/profile
  * @desc    Update own profile

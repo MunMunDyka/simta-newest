@@ -194,6 +194,13 @@ const create = asyncHandler(async (req, res) => {
     const REVISION_STATUSES = ['revisi_sempro', 'revisi_semhas', 'revisi_sidang'];
     const DOSPEM_STATUSES = ['pra_sempro', 'bimbingan_lanjut', 'bimbingan_akhir'];
 
+    if (['persiapan_wisuda', 'selesai'].includes(studentStatus)) {
+        if (file) fs.unlinkSync(file.path);
+        throw ApiError.badRequest(
+            'Seluruh rangkaian bimbingan Anda telah selesai. Anda tidak dapat mengirim bimbingan baru.'
+        );
+    }
+
     if (REVISION_STATUSES.includes(studentStatus)) {
         // During revision phases, student can ONLY submit to penguji
         if (dosenType === 'dospem_1' || dosenType === 'dospem_2') {
@@ -228,7 +235,7 @@ const create = asyncHandler(async (req, res) => {
 
     if (!dosenId) {
         fs.unlinkSync(file.path);
-        const dosenLabel = dosenType.startsWith('penguji') 
+        const dosenLabel = dosenType.startsWith('penguji')
             ? `Dosen penguji ${dosenType === 'penguji_1' ? '1' : '2'}`
             : `Dosen pembimbing ${dosenType === 'dospem_1' ? '1' : '2'}`;
         throw ApiError.badRequest(
@@ -382,7 +389,7 @@ const giveFeedback = asyncHandler(async (req, res) => {
         if (mahasiswa) {
             const currentIndex = PROGRESS_OPTIONS.indexOf(mahasiswa.currentProgress);
             // Block BAB III -> BAB IV if student hasn't passed sempro
-            if (mahasiswa.currentProgress === 'BAB III' && 
+            if (mahasiswa.currentProgress === 'BAB III' &&
                 (!mahasiswa.statusMahasiswa || mahasiswa.statusMahasiswa === 'pra_sempro' || mahasiswa.statusMahasiswa === 'menunggu_sempro')) {
                 console.log(`⚠️ Progress blocked: ${mahasiswa.name} must pass Sempro before BAB IV`);
             } else if (currentIndex < PROGRESS_OPTIONS.length - 1) {
@@ -412,16 +419,89 @@ const giveFeedback = asyncHandler(async (req, res) => {
                 const statusTransitions = {
                     'revisi_sempro': 'bimbingan_lanjut',
                     'revisi_semhas': 'bimbingan_akhir',
-                    'revisi_sidang': 'selesai'
+                    'revisi_sidang': 'persiapan_wisuda'
                 };
                 const nextStatus = statusTransitions[mahasiswa.statusMahasiswa];
                 if (nextStatus) {
                     mahasiswa.statusMahasiswa = nextStatus;
+
+                    // Automatically update progress bab
+                    if (nextStatus === 'bimbingan_lanjut') {
+                        mahasiswa.currentProgress = 'BAB IV';
+                    } else if (nextStatus === 'bimbingan_akhir') {
+                        mahasiswa.currentProgress = 'BAB VI';
+                    } else if (nextStatus === 'persiapan_wisuda') {
+                        mahasiswa.currentProgress = 'Selesai';
+                    }
+
                     await mahasiswa.save();
                     console.log(`🎓 Status transitioned: ${mahasiswa.name} -> ${nextStatus} (both penguji ACC)`);
                 }
             } else {
                 console.log(`⏳ Waiting for ${otherPengujiType} ACC for ${mahasiswa.name}`);
+            }
+        }
+    }
+
+    // ===== Supervisor ACC Resolution Logic =====
+    // When a dospem gives 'acc_sempro' on a bimbingan, check if BOTH dospem have given 'acc_sempro'
+    if (status === 'acc_sempro' && (bimbingan.dosenType === 'dospem_1' || bimbingan.dosenType === 'dospem_2')) {
+        const mahasiswa = await User.findById(bimbingan.mahasiswa);
+        if (mahasiswa && ['pra_sempro', 'bimbingan_lanjut', 'bimbingan_akhir'].includes(mahasiswa.statusMahasiswa)) {
+            // Find the latest bimbingan for the OTHER dospem
+            const otherDospemType = bimbingan.dosenType === 'dospem_1' ? 'dospem_2' : 'dospem_1';
+            const otherDospemLatest = await Bimbingan.findOne({
+                mahasiswa: bimbingan.mahasiswa,
+                dosenType: otherDospemType
+            }).sort({ createdAt: -1 });
+
+            if (otherDospemLatest && otherDospemLatest.status === 'acc_sempro') {
+                let isValid = true;
+
+                // For bimbingan_lanjut, check if the other dospem's ACC is after the proposal exam was completed
+                if (mahasiswa.statusMahasiswa === 'bimbingan_lanjut') {
+                    const Jadwal = require('../models/Jadwal');
+                    const lastSempro = await Jadwal.findOne({
+                        mahasiswa: bimbingan.mahasiswa,
+                        jenisJadwal: 'sidang_proposal',
+                        status: 'selesai'
+                    }).sort({ updatedAt: -1 });
+
+                    if (lastSempro && otherDospemLatest.createdAt <= lastSempro.updatedAt) {
+                        isValid = false;
+                    }
+                }
+                // For bimbingan_akhir, check if the other dospem's ACC is after the semhas exam was completed
+                else if (mahasiswa.statusMahasiswa === 'bimbingan_akhir') {
+                    const Jadwal = require('../models/Jadwal');
+                    const lastSemhas = await Jadwal.findOne({
+                        mahasiswa: bimbingan.mahasiswa,
+                        jenisJadwal: 'sidang_semhas',
+                        status: 'selesai'
+                    }).sort({ updatedAt: -1 });
+
+                    if (lastSemhas && otherDospemLatest.createdAt <= lastSemhas.updatedAt) {
+                        isValid = false;
+                    }
+                }
+
+                if (isValid) {
+                    const statusTransitions = {
+                        'pra_sempro': 'menunggu_sempro',
+                        'bimbingan_lanjut': 'menunggu_semhas',
+                        'bimbingan_akhir': 'menunggu_sidang'
+                    };
+                    const nextStatus = statusTransitions[mahasiswa.statusMahasiswa];
+                    if (nextStatus) {
+                        mahasiswa.statusMahasiswa = nextStatus;
+                        await mahasiswa.save();
+                        console.log(`🎓 Status transitioned (Dospem ACC): ${mahasiswa.name} -> ${nextStatus}`);
+                    }
+                } else {
+                    console.log(`⏳ The other dospem's (${otherDospemType}) ACC was from a previous phase for ${mahasiswa.name}`);
+                }
+            } else {
+                console.log(`⏳ Waiting for ${otherDospemType} ACC Sempro/Sidang for ${mahasiswa.name}`);
             }
         }
     }
@@ -618,7 +698,7 @@ const getPendingCount = asyncHandler(async (req, res) => {
  * @desc    Get sempro readiness status for mahasiswa
  * @route   GET /api/bimbingan/sempro-status/:mahasiswaId
  * @access  Private (mahasiswa can only check own, admin/dosen can check all)
- * 
+ *
  * Requirements for Sempro (SI prodi):
  * - Minimum 5 bimbingan from dospem_1 and dospem_2
  * - Each dospem must give final acc_sempro approval
@@ -739,7 +819,7 @@ const generateSuratSempro = asyncHandler(async (req, res) => {
     }
 
     // Restrict to students who haven't passed sempro yet
-    const postSemproStatuses = ['revisi_sempro', 'bimbingan_lanjut', 'menunggu_semhas', 'revisi_semhas', 'bimbingan_akhir', 'menunggu_sidang', 'revisi_sidang', 'selesai'];
+    const postSemproStatuses = ['revisi_sempro', 'bimbingan_lanjut', 'menunggu_semhas', 'revisi_semhas', 'bimbingan_akhir', 'menunggu_sidang', 'revisi_sidang', 'persiapan_wisuda', 'selesai'];
     if (postSemproStatuses.includes(mahasiswa.statusMahasiswa)) {
         throw ApiError.badRequest(
             'Surat persetujuan sempro tidak dapat diunduh karena mahasiswa sudah melewati tahap seminar proposal.'
@@ -824,7 +904,9 @@ const getAdminBimbinganSummary = asyncHandler(async (req, res) => {
     // Get mahasiswa data
     const mahasiswa = await User.findById(mahasiswaId)
         .populate('dospem_1', 'name nim_nip')
-        .populate('dospem_2', 'name nim_nip');
+        .populate('dospem_2', 'name nim_nip')
+        .populate('penguji_1', 'name nim_nip')
+        .populate('penguji_2', 'name nim_nip');
 
     if (!mahasiswa || mahasiswa.role !== 'mahasiswa') {
         throw ApiError.notFound('Mahasiswa tidak ditemukan');
@@ -859,6 +941,8 @@ const getAdminBimbinganSummary = asyncHandler(async (req, res) => {
             currentProgress: mahasiswa.currentProgress,
             dospem_1: mahasiswa.dospem_1,
             dospem_2: mahasiswa.dospem_2,
+            penguji_1: mahasiswa.penguji_1,
+            penguji_2: mahasiswa.penguji_2,
         },
         dospem1: {
             stats: countByStatus(bimbinganDospem1),
@@ -1227,23 +1311,23 @@ const getProgressReport = asyncHandler(async (req, res) => {
             prodi: mhs.prodi,
             judulTA: mhs.judulTA,
             currentProgress: mhs.currentProgress,
-            dospem_1: mhs.dospem_1 ? { 
-                name: mhs.dospem_1.name, 
+            dospem_1: mhs.dospem_1 ? {
+                name: mhs.dospem_1.name,
                 nim_nip: mhs.dospem_1.nim_nip,
                 workload: pembimbingCounts[mhs.dospem_1._id.toString()] || 0
             } : null,
-            dospem_2: mhs.dospem_2 ? { 
-                name: mhs.dospem_2.name, 
+            dospem_2: mhs.dospem_2 ? {
+                name: mhs.dospem_2.name,
                 nim_nip: mhs.dospem_2.nim_nip,
                 workload: pembimbingCounts[mhs.dospem_2._id.toString()] || 0
             } : null,
-            penguji_1: mhs.penguji_1 ? { 
-                name: mhs.penguji_1.name, 
+            penguji_1: mhs.penguji_1 ? {
+                name: mhs.penguji_1.name,
                 nim_nip: mhs.penguji_1.nim_nip,
                 workload: pengujiCounts[mhs.penguji_1._id.toString()] || 0
             } : null,
-            penguji_2: mhs.penguji_2 ? { 
-                name: mhs.penguji_2.name, 
+            penguji_2: mhs.penguji_2 ? {
+                name: mhs.penguji_2.name,
                 nim_nip: mhs.penguji_2.nim_nip,
                 workload: pengujiCounts[mhs.penguji_2._id.toString()] || 0
             } : null,

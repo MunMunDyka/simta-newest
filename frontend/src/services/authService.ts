@@ -8,6 +8,24 @@
 import api, { type ApiResponse } from '../lib/api';
 
 // ===== Types =====
+export interface FileWisuda {
+    fileName: string;
+    filePath: string;
+    fileSize: string;
+    fileOriginalName: string;
+    uploadedAt: string;
+}
+
+export interface DokumenWisuda {
+    skripsiFull?: FileWisuda;
+    pptSkripsi?: FileWisuda;
+    halamanPengesahan?: FileWisuda;
+    formBimbingan?: FileWisuda;
+    statusVerifikasi: 'belum_upload' | 'menunggu_verifikasi' | 'disetujui' | 'ditolak';
+    catatanAdmin?: string;
+    verifiedAt?: string;
+}
+
 export interface User {
     _id: string;
     id: string;
@@ -19,7 +37,8 @@ export interface User {
     semester?: string;
     judulTA?: string;
     currentProgress?: string;
-    statusMahasiswa?: 'pra_sempro' | 'menunggu_sempro' | 'revisi_sempro' | 'bimbingan_lanjut' | 'menunggu_semhas' | 'revisi_semhas' | 'bimbingan_akhir' | 'menunggu_sidang' | 'revisi_sidang' | 'selesai';
+    statusMahasiswa?: 'pra_sempro' | 'menunggu_sempro' | 'revisi_sempro' | 'bimbingan_lanjut' | 'menunggu_semhas' | 'revisi_semhas' | 'bimbingan_akhir' | 'menunggu_sidang' | 'revisi_sidang' | 'persiapan_wisuda' | 'selesai';
+    dokumenWisuda?: DokumenWisuda;
     dospem_1?: string | { _id: string; name: string; nim_nip: string };
     dospem_2?: string | { _id: string; name: string; nim_nip: string };
     penguji_1?: string | { _id: string; name: string; nim_nip: string };

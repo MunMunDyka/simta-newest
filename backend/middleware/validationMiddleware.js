@@ -262,7 +262,7 @@ const createJadwalValidation = [
 
     body('jenisJadwal')
         .notEmpty().withMessage('Jenis jadwal wajib diisi')
-        .isIn(['sidang_proposal', 'sidang_skripsi']).withMessage('Jenis jadwal harus: sidang_proposal atau sidang_skripsi'),
+        .isIn(['sidang_proposal', 'sidang_semhas', 'sidang_skripsi']).withMessage('Jenis jadwal harus: sidang_proposal, sidang_semhas, atau sidang_skripsi'),
 
     body('tanggal')
         .notEmpty().withMessage('Tanggal wajib diisi')

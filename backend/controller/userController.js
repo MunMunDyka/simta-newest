@@ -23,7 +23,7 @@ const { sendSuccess, sendPaginated, sendCreated } = require('../utils/responseHe
  * @access  Admin
  */
 const getAll = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 10, role, status, search } = req.query;
+    const { page = 1, limit = 10, role, status, search, statusMahasiswa, statusVerifikasi } = req.query;
 
     // Build query
     const query = {};
@@ -34,6 +34,14 @@ const getAll = asyncHandler(async (req, res) => {
 
     if (status) {
         query.status = status;
+    }
+
+    if (statusMahasiswa) {
+        query.statusMahasiswa = statusMahasiswa;
+    }
+
+    if (statusVerifikasi) {
+        query['dokumenWisuda.statusVerifikasi'] = statusVerifikasi;
     }
 
     if (search) {
@@ -634,6 +642,93 @@ const getDosenWorkloads = asyncHandler(async (req, res) => {
     sendSuccess(res, 200, 'Workload dosen berhasil diambil', lecturersWithWorkloads);
 });
 
+/**
+ * @desc    Upload graduation documents for mahasiswa
+ * @route   POST /api/users/upload-wisuda
+ * @access  Private (Mahasiswa only)
+ */
+const uploadWisuda = asyncHandler(async (req, res) => {
+    const student = await User.findById(req.user._id);
+    if (!student) {
+        throw ApiError.notFound('Mahasiswa tidak ditemukan');
+    }
+    if (student.statusMahasiswa !== 'persiapan_wisuda') {
+        throw ApiError.badRequest('Anda tidak berada dalam tahap persiapan wisuda');
+    }
+    if (student.dokumenWisuda && student.dokumenWisuda.statusVerifikasi === 'disetujui') {
+        throw ApiError.badRequest('Dokumen wisuda Anda telah disetujui, tidak dapat diunggah ulang');
+    }
+
+    const fields = ['skripsiFull', 'pptSkripsi', 'halamanPengesahan', 'formBimbingan'];
+    let hasUpdated = false;
+
+    fields.forEach(field => {
+        if (req.files && req.files[field] && req.files[field][0]) {
+            const file = req.files[field][0];
+            student.dokumenWisuda[field] = {
+                fileName: file.filename,
+                filePath: file.path.replace(/\\/g, '/'),
+                fileSize: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
+                fileOriginalName: file.originalname,
+                uploadedAt: new Date()
+            };
+            hasUpdated = true;
+        }
+    });
+
+    if (!hasUpdated) {
+        throw ApiError.badRequest('Tidak ada berkas yang diunggah');
+    }
+
+    // Check if all 4 files are now uploaded
+    const doc = student.dokumenWisuda;
+    if (doc.skripsiFull.fileName && doc.pptSkripsi.fileName && doc.halamanPengesahan.fileName && doc.formBimbingan.fileName) {
+        doc.statusVerifikasi = 'menunggu_verifikasi';
+    } else {
+        doc.statusVerifikasi = 'belum_upload';
+    }
+
+    await student.save();
+    console.log(`🎓 Wisuda documents uploaded for ${student.name}`);
+    sendSuccess(res, 200, 'Dokumen wisuda berhasil diunggah', student.toPublicJSON());
+});
+
+/**
+ * @desc    Verify graduation documents for admin
+ * @route   PUT /api/users/:id/verifikasi-wisuda
+ * @access  Private (Admin only)
+ */
+const verifikasiWisuda = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { statusVerifikasi, catatanAdmin } = req.body;
+
+    if (!['disetujui', 'ditolak'].includes(statusVerifikasi)) {
+        throw ApiError.badRequest('Status verifikasi harus: disetujui atau ditolak');
+    }
+
+    const student = await User.findById(id);
+    if (!student || student.role !== 'mahasiswa') {
+        throw ApiError.notFound('Mahasiswa tidak ditemukan');
+    }
+
+    if (student.statusMahasiswa !== 'persiapan_wisuda') {
+        throw ApiError.badRequest('Mahasiswa tidak berada dalam tahap persiapan wisuda');
+    }
+
+    student.dokumenWisuda.statusVerifikasi = statusVerifikasi;
+    student.dokumenWisuda.catatanAdmin = catatanAdmin || null;
+    student.dokumenWisuda.verifiedAt = new Date();
+
+    if (statusVerifikasi === 'disetujui') {
+        student.statusMahasiswa = 'selesai';
+        student.currentProgress = 'Selesai';
+    }
+
+    await student.save();
+    console.log(`🎓 Wisuda documents verified for ${student.name}: ${statusVerifikasi}`);
+    sendSuccess(res, 200, `Dokumen wisuda berhasil ${statusVerifikasi === 'disetujui' ? 'disetujui' : 'ditolak'}`, student.toPublicJSON());
+});
+
 module.exports = {
     getAll,
     getById,
@@ -648,5 +743,7 @@ module.exports = {
     uploadAvatar,
     updateProfile,
     resetPassword,
-    getDosenWorkloads
+    getDosenWorkloads,
+    uploadWisuda,
+    verifikasiWisuda
 };
