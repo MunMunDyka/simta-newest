@@ -137,13 +137,26 @@ async function seed() {
             const date = new Date();
             date.setDate(date.getDate() + dateOffsetDays);
 
+            const validRooms = [
+                'A301', 'A302', 'A303', 'A304', 'A305', 'A306', 'A307', 'A308', 'A309', 'A310', 'A311', 'A312', 'A313', 'A314', 'A315',
+                'B301', 'B302', 'B303', 'B304', 'B305', 'B306', 'B307', 'B308', 'B309'
+            ];
+            let finalRoom = room;
+            if (!validRooms.includes(room)) {
+                let charCodeSum = 0;
+                for (let idx = 0; idx < room.length; idx++) {
+                    charCodeSum += room.charCodeAt(idx);
+                }
+                finalRoom = validRooms[charCodeSum % validRooms.length];
+            }
+
             return Jadwal.create({
                 mahasiswa: student._id,
                 jenisJadwal: jenis,
                 tanggal: date,
                 waktuMulai: time,
                 waktuSelesai: time.replace(/(\d+):/, (m, p) => String(parseInt(p) + 2) + ':'), // +2 hours
-                ruangan: room,
+                ruangan: finalRoom,
                 penguji: examiners.map(e => e._id),
                 status: status,
                 hasil: result,

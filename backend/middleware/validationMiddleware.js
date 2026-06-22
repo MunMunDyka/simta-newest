@@ -172,7 +172,7 @@ const createBimbinganValidation = [
 
     body('dosenType')
         .notEmpty().withMessage('Jenis dosen pembimbing wajib diisi')
-        .isIn(['dospem_1', 'dospem_2']).withMessage('Jenis dosen harus: dospem_1 atau dospem_2'),
+        .isIn(['dospem_1', 'dospem_2', 'penguji_1', 'penguji_2']).withMessage('Jenis dosen harus: dospem_1, dospem_2, penguji_1, atau penguji_2'),
 
     body('catatan')
         .optional()

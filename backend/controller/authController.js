@@ -52,9 +52,9 @@ const login = asyncHandler(async (req, res) => {
     // 4. Generate tokens
     const tokens = generateTokenPair(user);
 
-    // 5. Populate dosen pembimbing if mahasiswa (BEFORE toPublicJSON)
+    // 5. Populate dosen pembimbing and penguji if mahasiswa (BEFORE toPublicJSON)
     if (user.role === 'mahasiswa') {
-        await user.populate('dospem_1 dospem_2', 'name nim_nip email');
+        await user.populate('dospem_1 dospem_2 penguji_1 penguji_2', 'name nim_nip email');
     }
 
     // 6. Prepare user data (without password)
