@@ -1043,18 +1043,36 @@ Gunakan urutan alur panah berikut untuk menggambar diagram alir sistem informasi
 6. **`Mahasiswa`** $\rightarrow$ **`Sistem SIMTA`** : Upload berkas PDF bimbingan, pilih target dospem, isi judul & catatan
 7. **`Sistem SIMTA`** $\rightarrow$ **`Sistem SIMTA`** : Memvalidasi validitas berkas (PDF, <10MB) & membuat auto-increment versi dokumen (V1, V2, dst)
 8. **`Sistem SIMTA`** $\rightarrow$ **`Dosen Pembimbing`** : Mengirim notifikasi bimbingan masuk (email/WhatsApp) & memperbarui daftar ulasan dosen
-9. **`Dosen Pembimbing`** $\rightarrow$ **`Sistem SIMTA`** : Unduh draf PDF, periksa draf, input catatan feedback, dan tentukan status dokumen (revisi/acc/lanjut_bab/acc_sempro)
-10. **`Sistem SIMTA`** $\rightarrow$ **`Sistem SIMTA`** : Memperbarui status bimbingan, menyimpan catatan umpan balik, dan melampirkan berkas review
-11. **`Sistem SIMTA`** $\rightarrow$ **`Mahasiswa`** : Mengirim notifikasi feedback (email/WhatsApp) & menampilkan riwayat feedback di dashboard mahasiswa
-12. **`Mahasiswa`** $\leftrightarrow$ **`Dosen Pembimbing`** (melalui **`Sistem SIMTA`**) : Melakukan tanya jawab/diskusi revisi di kolom balasan (reply)
-13. **`Mahasiswa`** $\rightarrow$ **`Sistem SIMTA`** : Mengakses kelayakan sidang & klik tombol "Generate Surat Persetujuan"
-14. **`Sistem SIMTA`** $\rightarrow$ **`Sistem SIMTA`** : Memvalidasi syarat sidang (jumlah bimbingan $\ge$ target dan status ACC disetujui kedua dospem)
-15. **`Sistem SIMTA`** $\rightarrow$ **`Mahasiswa`** : Mengunduh otomatis file surat persetujuan (.docx) dengan data terisi dan tanda tangan sampel
-16. **`Admin / Koordinator TA`** $\rightarrow$ **`Sistem SIMTA`** : Input data penjadwalan sidang (mahasiswa eligible, jenis sidang, tanggal/waktu, ruang, penguji)
-17. **`Sistem SIMTA`** $\rightarrow$ **`Sistem SIMTA`** : Memeriksa bentrokan slot ruangan dan waktu pelaksanaan sidang
-18. **`Sistem SIMTA`** $\rightarrow$ **`Mahasiswa`** : Menampilkan rincian tanggal, ruang, dan penguji di halaman Jadwal Sidang mahasiswa
-19. **`Sistem SIMTA`** $\rightarrow$ **`Dosen Pembimbing`** : Menampilkan jadwal penugasan menguji di halaman Jadwal Sidang dosen
-20. **`Admin / Koordinator TA`** $\rightarrow$ **`Sistem SIMTA`** : Memasukkan keputusan kelulusan sidang (lulus/revisi/tidak) dan nilai angka sidang (0-100)
-21. **`Sistem SIMTA`** $\rightarrow$ **`Sistem SIMTA`** : Menyimpan nilai, menutup status jadwal sidang, dan memperbarui status akademik mahasiswa (`statusMahasiswa`)
-22. **`Sistem SIMTA`** $\rightarrow$ **`Mahasiswa`** : Menampilkan pengumuman kelulusan sidang dan nilai akhir di dashboard mahasiswa
+10. **`Dosen Pembimbing`** $\rightarrow$ **`Sistem SIMTA`** : Unduh draf PDF, periksa draf, input catatan feedback, dan tentukan status dokumen (revisi/acc/lanjut_bab/acc_sempro)
+11. **`Sistem SIMTA`** $\rightarrow$ **`Sistem SIMTA`** : Memperbarui status bimbingan, menyimpan catatan umpan balik, dan melampirkan berkas review
+12. **`Sistem SIMTA`** $\rightarrow$ **`Mahasiswa`** : Mengirim notifikasi feedback (email/WhatsApp) & menampilkan riwayat feedback di dashboard mahasiswa
+13. **`Mahasiswa`** $\leftrightarrow$ **`Dosen Pembimbing`** (melalui **`Sistem SIMTA`**) : Melakukan tanya jawab/diskusi revisi di kolom balasan (reply)
+14. **`Mahasiswa`** $\rightarrow$ **`Sistem SIMTA`** : Mengakses kelayakan sidang & klik tombol "Generate Surat Persetujuan"
+15. **`Sistem SIMTA`** $\rightarrow$ **`Sistem SIMTA`** : Memvalidasi syarat sidang (jumlah bimbingan $\ge$ target dan status ACC disetujui kedua dospem)
+16. **`Sistem SIMTA`** $\rightarrow$ **`Mahasiswa`** : Mengunduh otomatis file surat persetujuan (.docx) dengan data terisi dan tanda tangan sampel
+17. **`Admin / Koordinator TA`** $\rightarrow$ **`Sistem SIMTA`** : Input data penjadwalan sidang (mahasiswa eligible, jenis sidang, tanggal/waktu, ruang, penguji)
+18. **`Sistem SIMTA`** $\rightarrow$ **`Sistem SIMTA`** : Memeriksa bentrokan slot ruangan dan waktu pelaksanaan sidang
+19. **`Sistem SIMTA`** $\rightarrow$ **`Mahasiswa`** : Menampilkan rincian tanggal, ruang, dan penguji di halaman Jadwal Sidang mahasiswa
+20. **`Sistem SIMTA`** $\rightarrow$ **`Dosen Pembimbing`** : Menampilkan jadwal penugasan menguji di halaman Jadwal Sidang dosen
+21. **`Admin / Koordinator TA`** $\rightarrow$ **`Sistem SIMTA`** : Memasukkan keputusan kelulusan sidang (lulus/revisi/tidak) dan nilai angka sidang (0-100)
+22. **`Sistem SIMTA`** $\rightarrow$ **`Sistem SIMTA`** : Menyimpan nilai, menutup status jadwal sidang, dan memperbarui status akademik mahasiswa (`statusMahasiswa`)
+23. **`Sistem SIMTA`** $\rightarrow$ **`Mahasiswa`** : Menampilkan pengumuman kelulusan sidang dan nilai akhir di dashboard mahasiswa
+
+---
+
+## 14. REKOMENDASI PENGUJIAN BLACK BOX (KASUS UJI BARU UNTUK BAB 5)
+
+Berikut adalah daftar rekomendasi skenario pengujian Black Box yang dapat ditambahkan pada laporan Bab 5 skripsi Anda, khusus untuk memvalidasi fitur-fitur baru dan perubahan alur akademik yang telah dikembangkan di sistem SIMTA:
+
+| ID Uji | Modul / Skenario Uji | Langkah Pengujian | Hasil Aktual / Yang Diharapkan |
+|---|---|---|---|
+| **BB-WIS-001** | Upload Dokumen Wisuda (Fase Valid) | 1. Login sebagai Mahasiswa dengan `statusMahasiswa === 'persiapan_wisuda'`. <br>2. Unggah 4 berkas PDF wisuda wajib (Skripsi Full, PPT, Halaman Pengesahan, Logbook). <br>3. Klik "Kirim". | Dokumen tersimpan di folder `/uploads/wisuda/` server, status verifikasi di sistem berubah menjadi `menunggu_verifikasi`, dan progress bar mahasiswa terkunci. |
+| **BB-WIS-002** | Proteksi Upload Wisuda (Akses Tidak Sah) | 1. Login sebagai Mahasiswa dengan status selain `persiapan_wisuda` (misal: `pra_sempro`). <br>2. Coba akses menu upload wisuda secara paksa di frontend atau kirim payload upload wisuda ke backend. | Sistem di frontend menyembunyikan widget upload, dan backend menolak pengiriman file dengan respon error `400 Bad Request`. |
+| **BB-WIS-003** | Verifikasi Berkas Wisuda (Disetujui Admin) | 1. Login sebagai Admin. <br>2. Buka menu "Verifikasi Wisuda". <br>3. Klik berkas mahasiswa yang berstatus `menunggu_verifikasi`. <br>4. Klik "Setujui" dan masukkan catatan konfirmasi. | Status mahasiswa di database otomatis berubah menjadi `selesai`, progres bab diset ke `Selesai`, dan mahasiswa melihat pesan ucapan selamat lulus di dashboard. |
+| **BB-WIS-004** | Verifikasi Berkas Wisuda (Ditolak Admin) | 1. Login sebagai Admin. <br>2. Pilih berkas wisuda mahasiswa di daftar verifikasi. <br>3. Klik "Tolak" dan masukkan catatan catatan koreksi dokumen. | Status verifikasi berkas menjadi `ditolak`, catatan admin tampil di dashboard mahasiswa, dan mahasiswa dapat mengunggah ulang dokumen revisi. |
+| **BB-JDW-001** | Penguncian Dosen Penguji Ujian Lintas Tahap | 1. Admin membuat jadwal Semhas atau Sidang Skripsi untuk mahasiswa yang sudah menyelesaikan ujian Proposal. | Form modal input penguji di halaman Admin berada dalam keadaan nonaktif (disabled) dan otomatis menampilkan nama tim penguji Proposal. Backend otomatis melakukan override penguji demi konsistensi lintas ujian. |
+| **BB-JDW-002** | Filter Dinamis Jadwal Sidang Global | 1. Mahasiswa atau Dosen mengakses halaman `/jadwal-sidang`. <br>2. Mengatur filter Jenis Sidang ke "Seminar Hasil" dan Status ke "Selesai". | Judul tabel berubah secara dinamis menjadi "Jadwal Seminar Hasil Tugas Akhir", dan hanya menampilkan data jadwal yang selesai pada kategori tersebut. |
+| **BB-BIM-001** | Antarmuka Kelola Bimbingan Admin | 1. Admin masuk ke menu "Kelola Bimbingan". <br>2. Melakukan pencarian berdasarkan nama mahasiswa dan memfilter status akademik "Sudah Semhas". | Tabel admin menyajikan list mahasiswa secara real-time berdasarkan query filter dengan paginasi responsif (maksimal 500 baris). |
+| **BB-BIM-002** | Detil Riwayat Dosen Lengkap | 1. Admin mengklik tombol "Detail" pada salah satu mahasiswa di tabel Kelola Bimbingan. | Halaman otomatis melakukan scroll ke bagian bawah tabel dan menampilkan visualisasi panel detail mahasiswa lengkap dengan nama Dospem 1, Dospem 2, Penguji 1, dan Penguji 2. |
+
 
