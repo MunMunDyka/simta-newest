@@ -981,3 +981,80 @@ Tambahan UML bukan prioritas. Jika user minta tambah diagram, yang paling masuk 
 3. State Machine Diagram Status Akademik Mahasiswa.
 
 Jangan menyarankan ERD sebagai tambahan utama karena struktur Bab 4 user memakai tabel database, bukan ERD.
+
+---
+
+## 13. ALIRAN SISTEM INFORMASI (ASI) & NARASI SISTEM YANG DIUSULKAN
+
+### 13.1 Narasi Akademik Subbab 4.1.2 Sistem yang Diusulkan
+
+Sistem yang diusulkan adalah Sistem Informasi Manajemen Tugas Akhir (SIMTA) berbasis web yang dirancang untuk mengintegrasikan seluruh proses administrasi dan bimbingan tugas akhir secara digital. Sistem ini hadir sebagai solusi atas keterbatasan sistem berjalan yang masih konvensional, seperti risiko kehilangan data fisik, komunikasi bimbingan yang terfragmentasi pada aplikasi pesan WhatsApp, serta tidak terdokumentasinya progres bimbingan secara sistematis. Melalui SIMTA, interaksi antara Mahasiswa, Dosen Pembimbing, dan Koordinator Tugas Akhir (yang bertindak sebagai Admin) dapat dilakukan dalam satu platform terintegrasi. Hal ini memungkinkan pencatatan riwayat bimbingan secara real-time, penyimpanan dokumen digital yang aman di dalam server, monitoring progres tugas akhir secara transparan, serta otomasi verifikasi persyaratan sidang dan pembuatan surat persetujuan tugas akhir.
+
+Dari sudut pandang Mahasiswa, alur penggunaan sistem yang diusulkan diawali dengan proses login menggunakan kredensial berupa NIM dan password yang telah didaftarkan oleh admin. Setelah berhasil masuk ke Dashboard Mahasiswa, sistem menyajikan informasi profil akademik, nama dosen pembimbing yang ditugaskan, visualisasi progres penulisan tugas akhir (dari BAB I hingga Selesai), serta status kesiapan sidang. Mahasiswa dapat mengajukan bimbingan dengan mengunggah dokumen draf dalam format PDF, memilih dosen tujuan (Dosen Pembimbing 1 atau Dosen Pembimbing 2), menulis judul bimbingan, dan menyertakan catatan penjelasan. Setelah diunggah, mahasiswa dapat memantau riwayat bimbingan yang terorganisasi berdasarkan penomoran versi dokumen (V1, V2, dst.), membaca umpan balik (feedback) dari dosen pembimbing, serta berdiskusi langsung dengan dosen melalui fitur balas komentar (reply). Apabila persyaratan minimal kuota bimbingan terpenuhi dan kedua dosen pembimbing telah memberikan persetujuan akhir (ACC), mahasiswa dapat mengunduh surat persetujuan pelaksanaan seminar proposal atau sidang tugas akhir yang digenerate otomatis oleh sistem dalam format Word (.docx). Selain itu, mahasiswa juga dapat mengakses menu jadwal sidang untuk melihat waktu, tempat, serta susunan tim penguji yang ditugaskan.
+
+Bagi Dosen Pembimbing, alur sistem dimulai dengan melakukan login menggunakan NIP/NIDN dan password. Pada Dashboard Dosen, sistem menampilkan statistik berkas bimbingan mahasiswa yang menunggu ulasan (pending reviews), daftar mahasiswa bimbingan aktif, serta status progres pengerjaan tugas akhir mereka. Dosen dapat membuka halaman ulasan bimbingan mahasiswa untuk mengunduh dokumen draf PDF yang diajukan, menelaah konten tulisan, dan memberikan penilaian. Formulir feedback bimbingan memungkinkan dosen memberikan umpan balik tertulis, melampirkan file dokumen koreksi (opsional), serta menetapkan status bimbingan berupa "revisi", "acc", "lanjut_bab", atau "acc_sempro" untuk merekomendasikan kelayakan maju sidang. Dosen juga dapat berinteraksi secara interaktif dengan mahasiswa di kolom komentar guna memperjelas catatan perbaikan. Selain memproses bimbingan, dosen dapat melihat jadwal sidang yang menetapkan mereka sebagai anggota tim penguji (Dosen Penguji 1 atau Dosen Penguji 2) secara langsung melalui sistem.
+
+Alur sistem bagi Admin atau Koordinator Tugas Akhir berpusat pada manajemen data master, plotting dosen, konfigurasi aturan akademik, dan administrasi ujian. Setelah melakukan login, Admin diarahkan ke Dashboard Admin yang memuat ringkasan aktivitas sistem. Melalui menu manajemen user, admin bertugas mengelola akun pengguna (menambah, mengedit, menonaktifkan, atau menghapus data mahasiswa, dosen, dan admin) serta memetakan pasangan Dosen Pembimbing 1 dan Dosen Pembimbing 2 untuk mahasiswa. Admin juga memiliki wewenang untuk menyesuaikan batas minimal bimbingan per mahasiswa sebagai prasyarat sidang secara dinamis. Ketika mahasiswa telah dinyatakan layak maju sidang, admin mengelola modul penjadwalan sidang dengan menentukan jenis sidang (Sidang Proposal, Seminar Hasil, atau Sidang Skripsi), menetapkan tanggal, waktu, ruangan, serta menugaskan tim dosen penguji. Setelah sidang selesai digelar, admin menginput hasil kelulusan (lulus, lulus revisi, tidak lulus) dan nilai sidang (0-100) ke dalam sistem, yang secara otomatis akan memperbarui status akademik mahasiswa. Admin juga dapat mengakses laporan rekapitulasi progres tugas akhir seluruh mahasiswa untuk kebutuhan monitoring institusi.
+
+### 13.2 Tabel ASI (Aliran Sistem Informasi) Sistem yang Diusulkan
+
+Berikut adalah representasi Diagram ASI sistem SIMTA yang diusulkan dalam format tabel swimlane:
+
+| Mahasiswa | Sistem SIMTA | Dosen Pembimbing | Admin / Koordinator TA |
+| :--- | :--- | :--- | :--- |
+| 1. Memasukkan NIM dan password pada halaman Login. | | | |
+| | 2. Memvalidasi akun dan role pengguna.<br>- *Jika tidak valid*: Menampilkan pesan error.<br>- *Jika valid*: Mengarahkan ke Dashboard Mahasiswa. | | |
+| | 3. Menyimpan data master pengguna dan data bimbingan awal. | | 4. Melakukan plotting/assign Dospem 1 & Dospem 2 untuk Mahasiswa, serta mengonfigurasi batas minimal bimbingan (System Setting). |
+| 5. Membuka halaman Bimbingan Mahasiswa. | | | |
+| 6. Mengunggah draf bimbingan PDF, memilih target dosen (`dospem_1` / `dospem_2`), mengisi judul & catatan bimbingan. | | | |
+| | 7. Melakukan validasi pengunggahan dokumen (tipe berkas PDF, ukuran < 10MB, slot bimbingan kosong).<br>- *Jika tidak valid*: Menolak unggahan dan tampilkan error.<br>- *Jika valid*: Menyimpan data bimbingan, auto-increment nomor versi dokumen (`V1`, `V2`, dst.), mengubah status bimbingan menjadi **"menunggu"**, dan mengirimkan notifikasi. | | |
+| | 8. Mengirimkan notifikasi (email/WhatsApp) bimbingan baru ke Dosen Pembimbing terkait. | | |
+| | | 9. Menerima notifikasi, login ke sistem, dan membuka daftar mahasiswa bimbingan pada Dashboard Dosen. | |
+| | | 10. Membuka detail bimbingan mahasiswa, mengunduh file draf PDF, memeriksa dokumen, dan mengisi formulir review. | |
+| | 11. Memproses review dosen:<br>- Menyimpan catatan feedback tertulis & file lampiran feedback (opsional).<br>- Memperbarui status bimbingan (**"revisi"**, **"acc"**, **"lanjut_bab"**, atau **"acc_sempro"**). | 12. Menentukan status ulasan bimbingan mahasiswa. | |
+| | 13. Mengirimkan notifikasi umpan balik (email/WhatsApp) ke mahasiswa. | | |
+| 14. Menerima notifikasi feedback, membuka riwayat bimbingan, dan membaca tanggapan dosen. | | | |
+| 15. (*Kondisional - Diskusi*) Mengirimkan pesan balasan (reply) di kolom diskusi draf bimbingan jika ada pertanyaan revisi. | | 16. (*Kondisional - Diskusi*) Membuka diskusi dan mengirimkan balasan jawaban ke mahasiswa. | |
+| | 17. Menyimpan dan menampilkan alur pesan reply secara real-time di halaman detail bimbingan. | | |
+| 18. Mengakses halaman Dashboard Mahasiswa untuk mengecek kesiapan sidang. | | | |
+| | 19. Memeriksa kelayakan sidang mahasiswa secara otomatis:<br>- Jumlah bimbingan Dospem 1 & 2 $\ge$ batas minimal.<br>- Status bimbingan terakhir ke Dospem 1 & 2 adalah **"acc_sempro"**.<br>- *Jika belum terpenuhi*: Tombol generate dinonaktifkan.<br>- *Jika terpenuhi*: Mengaktifkan tombol generate surat persetujuan. | | |
+| 20. Klik tombol "Generate Surat Persetujuan" untuk mendaftar sidang. | | | |
+| | 21. Memproses pembuatan berkas surat persetujuan (.docx) dengan menggabungkan data mahasiswa, judul TA, dosen pembimbing, dan menempelkan aset tanda tangan sampel (sample-ttd.png) dosen. | | |
+| 22. Mengunduh berkas surat persetujuan (.docx) dari browser. | | | |
+| | | | 23. Membuka menu kelola jadwal sidang, memeriksa data mahasiswa yang eligible untuk dijadwalkan sidang. |
+| | | | 24. Membuat jadwal sidang dengan menginput data: Mahasiswa, Jenis Sidang (Sempro/Semhas/Skripsi), Tanggal, Waktu Mulai/Selesai, Ruangan, dan Tim Dosen Penguji (Penguji 1 & 2). |
+| | 25. Memvalidasi ketersediaan slot (slot check bentrokan ruangan, tanggal, dan waktu).<br>- *Jika bentrok*: Tampilkan pesan ruangan/waktu telah terpakai.<br>- *Jika aman*: Simpan jadwal sidang (status **"dijadwalkan"**), ubah status akademik mahasiswa (misal: menjadi **"menunggu_sempro"** / **"menunggu_sidang"**), dan rilis jadwal. | | |
+| | 26. Mengirimkan notifikasi jadwal sidang kepada mahasiswa dan dosen penguji terkait. | | |
+| 27. Melihat rincian pelaksanaan sidang di menu Jadwal Sidang mahasiswa. | | 28. Melihat daftar jadwal menguji di menu Jadwal Sidang dosen. | |
+| 29. Menjalani proses ujian sidang di hadapan tim penguji (aktivitas offline/di luar sistem). | | 30. Melaksanakan penilaian ujian sidang mahasiswa (aktivitas offline/di luar sistem). | |
+| | | | 31. Mengakses menu kelola jadwal sidang, memilih jadwal yang selesai, lalu menginput nilai sidang (0-100) dan hasil kelulusan sidang (**"lulus"**, **"lulus_revisi"**, atau **"tidak_lulus"**). |
+| | 32. Memproses hasil sidang:<br>- Menyimpan nilai & catatan sidang.<br>- Mengubah status jadwal menjadi **"selesai"**.<br>- Memperbarui status akademik mahasiswa secara otomatis (misal: **"revisi_sempro"** jika lulus revisi sempro, atau **"selesai"** jika lulus sidang akhir). | | |
+| 33. Membuka dashboard untuk melihat hasil kelulusan dan nilai sidang yang diumumkan. | | | |
+
+### 13.3 Alur Panah Diagram ASI untuk Draw.io
+
+Gunakan urutan alur panah berikut untuk menggambar diagram alir sistem informasi (flowchart/swimlane) di draw.io. Alur disusun secara sekuensial dan logis:
+
+1. **`Mahasiswa`** $\rightarrow$ **`Sistem SIMTA`** : Input NIM & Password (Mengirim data login)
+2. **`Sistem SIMTA`** $\rightarrow$ **`Sistem SIMTA`** : Validasi akun & role database (Pengecekan kecocokan data)
+3. **`Sistem SIMTA`** $\rightarrow$ **`Mahasiswa`** : Mengarahkan ke Dashboard Mahasiswa (Jika login valid)
+4. **`Admin / Koordinator TA`** $\rightarrow$ **`Sistem SIMTA`** : Input data pengguna baru & Plotting pasangan Dospem 1 & 2
+5. **`Sistem SIMTA`** $\rightarrow$ **`Sistem SIMTA`** : Menyimpan relasi plotting dosen & batas target bimbingan mahasiswa
+6. **`Mahasiswa`** $\rightarrow$ **`Sistem SIMTA`** : Upload berkas PDF bimbingan, pilih target dospem, isi judul & catatan
+7. **`Sistem SIMTA`** $\rightarrow$ **`Sistem SIMTA`** : Memvalidasi validitas berkas (PDF, <10MB) & membuat auto-increment versi dokumen (V1, V2, dst)
+8. **`Sistem SIMTA`** $\rightarrow$ **`Dosen Pembimbing`** : Mengirim notifikasi bimbingan masuk (email/WhatsApp) & memperbarui daftar ulasan dosen
+9. **`Dosen Pembimbing`** $\rightarrow$ **`Sistem SIMTA`** : Unduh draf PDF, periksa draf, input catatan feedback, dan tentukan status dokumen (revisi/acc/lanjut_bab/acc_sempro)
+10. **`Sistem SIMTA`** $\rightarrow$ **`Sistem SIMTA`** : Memperbarui status bimbingan, menyimpan catatan umpan balik, dan melampirkan berkas review
+11. **`Sistem SIMTA`** $\rightarrow$ **`Mahasiswa`** : Mengirim notifikasi feedback (email/WhatsApp) & menampilkan riwayat feedback di dashboard mahasiswa
+12. **`Mahasiswa`** $\leftrightarrow$ **`Dosen Pembimbing`** (melalui **`Sistem SIMTA`**) : Melakukan tanya jawab/diskusi revisi di kolom balasan (reply)
+13. **`Mahasiswa`** $\rightarrow$ **`Sistem SIMTA`** : Mengakses kelayakan sidang & klik tombol "Generate Surat Persetujuan"
+14. **`Sistem SIMTA`** $\rightarrow$ **`Sistem SIMTA`** : Memvalidasi syarat sidang (jumlah bimbingan $\ge$ target dan status ACC disetujui kedua dospem)
+15. **`Sistem SIMTA`** $\rightarrow$ **`Mahasiswa`** : Mengunduh otomatis file surat persetujuan (.docx) dengan data terisi dan tanda tangan sampel
+16. **`Admin / Koordinator TA`** $\rightarrow$ **`Sistem SIMTA`** : Input data penjadwalan sidang (mahasiswa eligible, jenis sidang, tanggal/waktu, ruang, penguji)
+17. **`Sistem SIMTA`** $\rightarrow$ **`Sistem SIMTA`** : Memeriksa bentrokan slot ruangan dan waktu pelaksanaan sidang
+18. **`Sistem SIMTA`** $\rightarrow$ **`Mahasiswa`** : Menampilkan rincian tanggal, ruang, dan penguji di halaman Jadwal Sidang mahasiswa
+19. **`Sistem SIMTA`** $\rightarrow$ **`Dosen Pembimbing`** : Menampilkan jadwal penugasan menguji di halaman Jadwal Sidang dosen
+20. **`Admin / Koordinator TA`** $\rightarrow$ **`Sistem SIMTA`** : Memasukkan keputusan kelulusan sidang (lulus/revisi/tidak) dan nilai angka sidang (0-100)
+21. **`Sistem SIMTA`** $\rightarrow$ **`Sistem SIMTA`** : Menyimpan nilai, menutup status jadwal sidang, dan memperbarui status akademik mahasiswa (`statusMahasiswa`)
+22. **`Sistem SIMTA`** $\rightarrow$ **`Mahasiswa`** : Menampilkan pengumuman kelulusan sidang dan nilai akhir di dashboard mahasiswa
+
