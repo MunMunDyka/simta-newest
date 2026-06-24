@@ -14,7 +14,10 @@ Wireframe dibuat untuk membantu dokumentasi analisis dan perancangan sistem pada
 - Dashboard Dosen.
 - Review bimbingan oleh Dosen.
 - Manajemen user oleh Admin.
-- Assign dosen pembimbing.
+- Manajemen dosen dan monitoring beban kerja.
+- Edit mahasiswa, status akademik, dosen pembimbing, dan dosen penguji.
+- Kelola riwayat bimbingan oleh Admin.
+- Laporan progress bimbingan.
 - Kelola dan lihat jadwal sidang.
 
 ## Catatan Penting
@@ -112,8 +115,11 @@ Folder `dist/` tidak ikut di-commit karena hanya hasil build.
 | `/dosen/review` | Wireframe Review Bimbingan Dosen |
 | `/admin/dashboard` | Wireframe Dashboard Admin |
 | `/admin/manajemen-user` | Wireframe Manajemen User Admin |
-| `/admin/assign-dospem` | Wireframe Assign Dospem Admin |
+| `/admin/manajemen-dosen` | Wireframe Manajemen Dosen Admin |
+| `/admin/assign-dospem` | Wireframe Edit Mahasiswa & Plotting Dosen |
+| `/admin/kelola-bimbingan` | Wireframe Kelola Bimbingan Admin |
 | `/admin/kelola-jadwal` | Wireframe Kelola Jadwal Admin |
+| `/admin/laporan` | Wireframe Laporan Progress Bimbingan |
 | `/jadwal` | Wireframe Jadwal Sidang |
 
 ## Halaman yang Direkomendasikan untuk Screenshot Bab 4
@@ -126,9 +132,12 @@ Halaman utama yang paling relevan untuk dilampirkan:
 4. `/dosen/dashboard`
 5. `/dosen/review`
 6. `/admin/manajemen-user`
-7. `/admin/assign-dospem`
-8. `/admin/kelola-jadwal`
-9. `/jadwal`
+7. `/admin/manajemen-dosen`
+8. `/admin/assign-dospem`
+9. `/admin/kelola-bimbingan`
+10. `/admin/kelola-jadwal`
+11. `/admin/laporan`
+12. `/jadwal`
 
 ## Penjelasan Singkat Per Halaman
 
@@ -168,13 +177,25 @@ Menampilkan ringkasan data utama seperti total mahasiswa, total dosen, data bimb
 
 Menampilkan struktur manajemen user: filter role, search, tombol tambah user, tabel user, dan ringkasan modal tambah/edit dospem.
 
-### Assign Dospem Admin
+### Manajemen Dosen Admin
 
-Menampilkan ringkasan struktur assign dosen pembimbing berdasarkan halaman Edit User, khususnya bagian Dospem 1 dan Dospem 2.
+Menampilkan monitoring beban kerja dosen sebagai pembimbing dan penguji.
+
+### Edit Mahasiswa & Plotting Dosen
+
+Menampilkan form edit mahasiswa: informasi umum, WhatsApp, informasi akademik, progress, status akademik, dosen pembimbing, dan dosen penguji.
+
+### Kelola Bimbingan Admin
+
+Menampilkan pencarian mahasiswa, pengaturan target minimal bimbingan per dospem, ringkasan riwayat bimbingan, tab Dospem 1 dan Dospem 2, serta modal clear riwayat.
 
 ### Kelola Jadwal Admin
 
-Menampilkan card statistik jadwal, filter/search, tabel jadwal, dan form/modal pembuatan jadwal.
+Menampilkan card statistik jadwal, filter/search, tabel jadwal, tombol hapus seluruh jadwal, form/modal pembuatan jadwal, dan modal selesai/batal/hapus jadwal.
+
+### Laporan Progress Bimbingan
+
+Menampilkan laporan seluruh mahasiswa berdasarkan kecukupan bimbingan per dospem, status syarat sidang, dan tombol unduh surat jika syarat terpenuhi.
 
 ### Jadwal Sidang
 

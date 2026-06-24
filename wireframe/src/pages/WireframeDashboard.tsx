@@ -11,11 +11,12 @@ const groups = [
     ],
   },
   {
-    title: 'Dosen Pembimbing',
+    title: 'Dosen Pembimbing / Penguji',
     links: [
       { href: '/dosen/dashboard', title: 'Dashboard Dosen', description: 'Ringkasan mahasiswa bimbingan dan status review.' },
       { href: '/dosen/list-mahasiswa', title: 'List Mahasiswa Bimbingan', description: 'Tabel mahasiswa bimbingan dosen.' },
       { href: '/dosen/review', title: 'Review Bimbingan', description: 'Download dokumen dan form feedback dosen.' },
+      { href: '/dosen/jadwal-penguji', title: 'Jadwal Penguji', description: 'Tabel jadwal sidang di mana dosen menjadi penguji.' },
     ],
   },
   {
@@ -23,8 +24,11 @@ const groups = [
     links: [
       { href: '/admin/dashboard', title: 'Dashboard Admin', description: 'Statistik user, bimbingan, dan jadwal.' },
       { href: '/admin/manajemen-user', title: 'Manajemen User', description: 'Kelola mahasiswa, dosen, dan admin.' },
-      { href: '/admin/assign-dospem', title: 'Assign Dospem', description: 'Plotting dosen pembimbing 1 dan 2.' },
+      { href: '/admin/manajemen-dosen', title: 'Manajemen Dosen', description: 'Monitoring beban pembimbing dan penguji.' },
+      { href: '/admin/assign-dospem', title: 'Edit Mahasiswa & Plotting', description: 'Atur profil, status akademik, pembimbing, dan penguji.' },
+      { href: '/admin/kelola-bimbingan', title: 'Kelola Bimbingan', description: 'Pantau riwayat, target syarat sidang, dan clear data bimbingan.' },
       { href: '/admin/kelola-jadwal', title: 'Kelola Jadwal', description: 'Form dan tabel jadwal sidang.' },
+      { href: '/admin/laporan', title: 'Laporan Progress', description: 'Monitoring syarat bimbingan per dospem.' },
     ],
   },
   {

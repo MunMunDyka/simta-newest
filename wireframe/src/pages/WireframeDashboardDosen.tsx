@@ -18,17 +18,17 @@ export function WireframeDashboardDosen() {
       </section>
 
       <section className="section grid grid-3">
-        <WireframeCard title="Total Mahasiswa">
+        <WireframeCard title="Mahasiswa">
           <h2>3</h2>
-          <p className="small">Mahasiswa bimbingan</p>
+          <p className="small">Bimbingan aktif</p>
         </WireframeCard>
-        <WireframeCard title="Menunggu Review">
+        <WireframeCard title="Syarat">
           <h2>1</h2>
-          <p className="small">Dokumen perlu ditinjau</p>
+          <p className="small">Terpenuhi</p>
         </WireframeCard>
-        <WireframeCard title="Status Revisi/ACC">
+        <WireframeCard title="Review">
           <h2>2</h2>
-          <p className="small">Sudah diberikan feedback</p>
+          <p className="small">Menunggu</p>
         </WireframeCard>
       </section>
 
@@ -43,15 +43,21 @@ export function WireframeDashboardDosen() {
               </select>
               <span className="small">entries</span>
               <input className="input" style={{ width: 260 }} placeholder="Search..." />
+              <span className="small">Peran:</span>
+              <select className="select" style={{ width: 160 }}>
+                <option>Pembimbing</option>
+                <option>Pengujian</option>
+                <option>Semua</option>
+              </select>
             </div>
             <button className="button secondary">Recent History</button>
           </div>
         <WireframeTable
-          columns={['NIM', 'Nama', 'Progress', 'Tanggal Update', 'Status', 'Aksi']}
+          columns={['NIM', 'Nama', 'Progress', 'Peran', 'Tanggal Update', 'Status', 'Aksi']}
           rows={[
-            ['2321053', 'Andhika Laksmana Putra Alka', 'BAB IV', '26/05/2026', <span className="status">Menunggu Review</span>, <a href="/dosen/review">Review</a>],
-            ['2221015', 'Dinda Putri', 'BAB I', '21/12/2025', <span className="status">Belum Ada Bimbingan</span>, 'Detail'],
-            ['22012139', 'Pincen', 'BAB I', '30/12/2025', <span className="status">Belum Ada Bimbingan</span>, 'Detail'],
+            ['2321053', 'Andhika Laksmana Putra Alka', 'BAB IV', <span className="status">Pembimbing</span>, '26/05/2026', <span className="status">Menunggu Review</span>, <a href="/dosen/review">Detail</a>],
+            ['2221015', 'Dinda Putri', 'BAB I', <span className="status">Penguji</span>, '21/12/2025', <span className="status">Belum Ada Bimbingan</span>, 'Detail'],
+            ['22012139', 'Pincen', 'BAB I', <span className="status">Pembimbing</span>, '30/12/2025', <span className="status">Belum Ada Bimbingan</span>, 'Detail'],
           ]}
         />
         </div>

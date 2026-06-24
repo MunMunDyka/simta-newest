@@ -22,13 +22,17 @@ export function WireframeLogin() {
           </div>
 
           <div className="form-grid">
+            <div className="warning-box small">
+              Area pesan error login: username/password wajib diisi atau kredensial salah.
+            </div>
             <label>
-              <span className="label">Username / NIM / NIP</span>
+              <span className="label">Username</span>
               <input className="input" placeholder="Masukkan username" />
             </label>
             <label>
               <span className="label">Password</span>
               <input className="input" placeholder="Masukkan password" type="password" />
+              <span className="small muted">Toggle ikon mata untuk tampil/sembunyikan password</span>
             </label>
             <div className="toolbar">
               <label className="row small">

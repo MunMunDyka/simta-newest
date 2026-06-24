@@ -1,4 +1,3 @@
-import { PlaceholderBox } from '../components/PlaceholderBox'
 import { WireframeLayout } from '../components/WireframeLayout'
 
 export function WireframeBimbinganMahasiswa() {
@@ -9,97 +8,78 @@ export function WireframeBimbinganMahasiswa() {
       title="Bimbingan Skripsi"
       subtitle="Kirim progres dan lihat feedback dosen"
     >
-      <div className="stack" style={{ maxWidth: 900, margin: '0 auto' }}>
-        <div className="tab-list">
-          <div className="tab active">
-            Dosen Pembimbing 1
-            <p className="small">Alvendo Wahyu Aranski M.Kom</p>
-          </div>
-          <div className="tab">
-            Dosen Pembimbing 2
-            <p className="small">Rifa'atul Mahmudah Burhan, S.Kom.</p>
-          </div>
-        </div>
-
-        <section>
-          <h2 className="section-title">Riwayat Bimbingan</h2>
-          <div className="outline-list">
-            <article className="list-item">
-              <div className="document-card">
-                <PlaceholderBox width={44} height={44} label="Versi dokumen" />
-                <div>
-                  <h3 className="card-title">V2 - TEST BIMBINGAN BAB 4</h3>
-                  <p className="small">DraftSelesaiRevisi.pdf - 1936225</p>
-                  <p className="small muted">Dikirim: 26/05/2026</p>
-                </div>
-                <span className="status">Revisi</span>
+      <div className="bimbingan-clean">
+        <section className="progress-card">
+          <h2 className="progress-title">Timeline Progress Tugas Akhir</h2>
+          <div className="progress-steps">
+            <div className="progress-step active">
+              <span className="step-circle">1</span>
+              <div>
+                <strong>Seminar Proposal</strong>
+                <p>Bimbingan Dospem</p>
               </div>
-              <div className="section feedback-box">
-                <p className="small"><strong>Catatan Anda:</strong></p>
-                <p>Mohon review revisi BAB IV yang sudah saya perbaiki.</p>
+            </div>
+            <div className="step-line" />
+            <div className="progress-step">
+              <span className="step-circle">2</span>
+              <div>
+                <strong>Seminar Hasil</strong>
+                <p>Bimbingan Dospem</p>
               </div>
-              <div className="feedback-box">
-                <p className="small"><strong>Feedback Dosen (26/05/2026):</strong></p>
-                <p>Perbaiki bagian pembahasan dan tambahkan hasil pengujian sistem.</p>
+            </div>
+            <div className="step-line" />
+            <div className="progress-step">
+              <span className="step-circle">3</span>
+              <div>
+                <strong>Sidang Akhir</strong>
+                <p>Bimbingan Dospem</p>
               </div>
-              <div className="feedback-box">
-                <p className="small"><strong>Dosen:</strong> Mohon revisi bagian tabel hasil pengujian.</p>
-                <p className="small"><strong>Anda:</strong> Baik Pak, saya upload revisi terbaru.</p>
-                <div className="row">
-                  <input className="input" placeholder="Tulis balasan..." />
-                  <button className="button">Kirim</button>
-                </div>
-              </div>
-              <button className="button secondary full">Download DraftSelesaiRevisi.pdf</button>
-            </article>
-
-            <article className="list-item">
-              <div className="document-card">
-                <PlaceholderBox width={44} height={44} label="Versi dokumen" />
-                <div>
-                  <h3 className="card-title">V1 - BAB IV</h3>
-                  <p className="small">BAB4.pdf - 734243</p>
-                  <p className="small muted">Dikirim: 24/05/2026</p>
-                </div>
-                <span className="status">ACC</span>
-              </div>
-            </article>
-          </div>
-
-          <div className="section" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <button className="button">Kirim Bimbingan Baru</button>
+            </div>
           </div>
         </section>
 
-        <section className="card">
-          <div className="row" style={{ marginBottom: 14 }}>
-            <PlaceholderBox width={42} height={42} label="Upload icon" />
-            <div>
-              <h2 className="section-title" style={{ marginBottom: 2 }}>Kirim Bimbingan Baru</h2>
-              <p className="subtitle">Upload file revisi atau progres terbaru</p>
-            </div>
-          </div>
+        <div className="segment-control">
+          <button className="segment-option active">Bimbingan Pembimbing</button>
+          <button className="segment-option">Bimbingan Penguji</button>
+        </div>
 
-          <div className="form-grid">
-            <label>
-              <span className="label">Judul Bimbingan</span>
-              <input className="input" placeholder="Contoh: Revisi BAB III - Metodologi Penelitian" />
-            </label>
-            <label>
-              <span className="label">Upload File (PDF)</span>
-              <div className="upload-zone">
-                <div>
-                  <PlaceholderBox width={72} height={54} label="Area upload PDF" />
-                  <p>Klik atau drag file PDF ke sini</p>
-                  <p className="small">Maksimal 10MB</p>
-                </div>
+        <section className="advisor-grid">
+          <button className="advisor-card active">
+            <span className="advisor-icon">U</span>
+            <strong>Dosen Pembimbing 1</strong>
+            <p>Alvendo Wahyu Aranski M.Kom</p>
+          </button>
+          <button className="advisor-card">
+            <span className="advisor-icon">U</span>
+            <strong>Dosen Pembimbing 2</strong>
+            <p>Rifa'atul Mahmudah Burhan, S.Kom.</p>
+          </button>
+        </section>
+
+        <section>
+          <h2 className="section-title">Riwayat Bimbingan</h2>
+          <div className="history-stack">
+            <article className="history-entry">
+              <div className="history-version">V2</div>
+              <div className="history-body">
+                <h3>BAB I Pendahuluan (Revisi)</h3>
+                <p>bimbingan_2321053_v2.pdf - 1543200</p>
+                <span className="small muted">Dikirim:</span>
               </div>
-            </label>
-            <label>
-              <span className="label">Catatan Tambahan (Opsional)</span>
-              <textarea className="textarea" placeholder="Jelaskan apa saja yang sudah diperbaiki atau ditambahkan..." />
-            </label>
-            <button className="button full">Kirim Bimbingan</button>
+              <span className="status yellow">Menunggu Review</span>
+              <span className="history-chevron">›</span>
+            </article>
+
+            <article className="history-entry">
+              <div className="history-version">V1</div>
+              <div className="history-body">
+                <h3>BAB I Pendahuluan</h3>
+                <p>bimbingan_2321053_v1.pdf - 1543200</p>
+                <span className="small muted">Dikirim:</span>
+              </div>
+              <span className="status red">Revisi</span>
+              <span className="history-chevron">›</span>
+            </article>
           </div>
         </section>
       </div>

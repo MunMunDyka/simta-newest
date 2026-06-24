@@ -10,6 +10,10 @@ import { WireframeListMahasiswaBimbingan } from './pages/WireframeListMahasiswaB
 import { WireframeLogin } from './pages/WireframeLogin'
 import { WireframeManajemenUserAdmin } from './pages/WireframeManajemenUserAdmin'
 import { WireframeReviewBimbinganDosen } from './pages/WireframeReviewBimbinganDosen'
+import { WireframeJadwalPenguji } from './pages/WireframeJadwalPenguji'
+import { WireframeKelolaBimbinganAdmin } from './pages/WireframeKelolaBimbinganAdmin'
+import { WireframeLaporanAdmin } from './pages/WireframeLaporanAdmin'
+import { WireframeManajemenDosenAdmin } from './pages/WireframeManajemenDosenAdmin'
 
 const routes: Record<string, JSX.Element> = {
   '/': <WireframeDashboard />,
@@ -19,10 +23,14 @@ const routes: Record<string, JSX.Element> = {
   '/dosen/dashboard': <WireframeDashboardDosen />,
   '/dosen/list-mahasiswa': <WireframeListMahasiswaBimbingan />,
   '/dosen/review': <WireframeReviewBimbinganDosen />,
+  '/dosen/jadwal-penguji': <WireframeJadwalPenguji />,
   '/admin/dashboard': <WireframeDashboardAdmin />,
   '/admin/manajemen-user': <WireframeManajemenUserAdmin />,
+  '/admin/manajemen-dosen': <WireframeManajemenDosenAdmin />,
+  '/admin/kelola-bimbingan': <WireframeKelolaBimbinganAdmin />,
   '/admin/assign-dospem': <WireframeAssignDospemAdmin />,
   '/admin/kelola-jadwal': <WireframeKelolaJadwalAdmin />,
+  '/admin/laporan': <WireframeLaporanAdmin />,
   '/jadwal': <WireframeJadwalSidang />,
 }
 

@@ -185,6 +185,10 @@ textarea {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.grid-5 {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
 .section {
   margin-top: 20px;
 }
@@ -263,6 +267,11 @@ textarea {
   background: #ededed;
 }
 
+.button.danger {
+  background: #f1f1f1;
+  border-style: dashed;
+}
+
 .tab-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -293,6 +302,20 @@ textarea {
   font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
+}
+
+.status.yellow {
+  border-color: #e2b739;
+  background: #fff7db;
+  color: #956900;
+  border-radius: 999px;
+}
+
+.status.red {
+  border-color: #f1b8b8;
+  background: #fff0f0;
+  color: #c03939;
+  border-radius: 999px;
 }
 
 .progress {
@@ -377,6 +400,19 @@ textarea {
   padding: 14px;
 }
 
+.warning-box {
+  border: 1px dashed #555;
+  background: #f2f2f2;
+  padding: 14px;
+}
+
+.compact-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 18px;
+}
+
 .dashboard-links {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -441,4 +477,199 @@ textarea {
   grid-template-columns: 72px minmax(0, 1fr) auto;
   gap: 14px;
   align-items: center;
+}
+
+.bimbingan-clean {
+  max-width: 880px;
+  margin: 0 auto;
+  display: grid;
+  gap: 24px;
+}
+
+.progress-card {
+  border: 1px solid #e2e5ea;
+  background: #fff;
+  border-radius: 18px;
+  padding: 28px 24px 24px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+.progress-title {
+  margin: 0 0 18px;
+  color: #637083;
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.progress-steps {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) 1fr minmax(150px, 1fr) 1fr minmax(150px, 1fr);
+  align-items: start;
+  gap: 14px;
+}
+
+.progress-step {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #67738a;
+}
+
+.progress-step strong {
+  display: block;
+  margin-top: 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.progress-step p {
+  margin: 4px 0 0;
+  color: #7b8aa2;
+  font-size: 12px;
+}
+
+.progress-step.active {
+  color: #2563eb;
+}
+
+.progress-step.active strong,
+.progress-step.active p {
+  color: #2563eb;
+  font-weight: 700;
+}
+
+.step-circle {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #eef0f4;
+  color: #7b8190;
+  font-weight: 700;
+}
+
+.progress-step.active .step-circle {
+  background: #2f7df6;
+  color: #fff;
+}
+
+.step-line {
+  height: 2px;
+  align-self: start;
+  margin-top: 20px;
+  background: #eef0f4;
+}
+
+.segment-control {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  padding: 5px;
+  border-radius: 16px;
+  background: #f0f2f6;
+}
+
+.segment-option {
+  min-height: 42px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: #687386;
+  font-weight: 700;
+}
+
+.segment-option.active {
+  border: 1px solid #dce1e8;
+  background: #fff;
+  color: #111827;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.1);
+}
+
+.advisor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.advisor-card {
+  min-height: 68px;
+  border: 1px solid #dce1e8;
+  border-radius: 12px;
+  background: #fff;
+  color: #334155;
+  text-align: center;
+  padding: 14px 24px;
+}
+
+.advisor-card.active {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.25);
+}
+
+.advisor-card strong {
+  display: block;
+  font-size: 16px;
+}
+
+.advisor-card p {
+  margin: 6px 0 0;
+  font-size: 12px;
+}
+
+.advisor-icon {
+  display: inline-block;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+
+.history-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.history-entry {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto 20px;
+  gap: 12px;
+  align-items: center;
+  min-height: 96px;
+  border: 1px solid #e3e7ec;
+  border-radius: 16px;
+  background: #fff;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+.history-version {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: #eef0f4;
+  color: #334155;
+  font-weight: 700;
+}
+
+.history-body h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+
+.history-body p {
+  margin: 0 0 10px;
+  color: #475569;
+  font-size: 12px;
+}
+
+.history-chevron {
+  color: #94a3b8;
+  font-size: 28px;
+  line-height: 1;
 }

@@ -34,10 +34,12 @@ export function WireframeDashboardMahasiswa() {
         <WireframeCard title="Status Dospem 1">
           <span className="status">Revisi</span>
           <p className="small">Alvendo Wahyu Aranski M.Kom</p>
+          <p className="small muted">Pada fase revisi, kartu ini menjadi Status Penguji 1.</p>
         </WireframeCard>
         <WireframeCard title="Status Dospem 2">
           <span className="status">Belum Ada</span>
           <p className="small">Rifa'atul Mahmudah Burhan, S.Kom.</p>
+          <p className="small muted">Pada fase revisi, kartu ini menjadi Status Penguji 2.</p>
         </WireframeCard>
         <WireframeCard title="Total Bimbingan">
           <h2>2 Sesi</h2>
@@ -70,6 +72,7 @@ export function WireframeDashboardMahasiswa() {
         <div className="note-box section">
           Syarat Sempro: minimal 5 kali bimbingan dan ACC Sempro dari masing-masing dosen pembimbing.
         </div>
+        <button className="button secondary full section">Download Surat Persetujuan Sempro</button>
       </section>
 
       <section className="section card">

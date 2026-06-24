@@ -8,6 +8,8 @@ const students = [
     progress: 'BAB IV',
     update: '26/05/2026',
     status: '2 Menunggu Review',
+    relation: 'Pembimbing',
+    semproReady: true,
     title: 'Pengembangan Sistem Manajemen Tugas Akhir Terintegrasi Berbasis Web',
   },
   {
@@ -16,6 +18,8 @@ const students = [
     progress: 'BAB I',
     update: '21/12/2025',
     status: 'Belum Ada Bimbingan',
+    relation: 'Penguji',
+    semproReady: false,
     title: 'Analisis Sistem Informasi Akademik',
   },
   {
@@ -24,6 +28,8 @@ const students = [
     progress: 'BAB I',
     update: '30/12/2025',
     status: 'Belum Ada Bimbingan',
+    relation: 'Pembimbing',
+    semproReady: false,
     title: 'Perancangan Aplikasi Bimbingan',
   },
 ]
@@ -39,6 +45,11 @@ export function WireframeListMahasiswaBimbingan() {
       <div className="stack" style={{ maxWidth: 980, margin: '0 auto' }}>
         <section className="toolbar">
           <input className="input" style={{ width: 360 }} placeholder="Cari nama atau NIM mahasiswa..." />
+          <select className="select" style={{ width: 210 }}>
+            <option>Filter Peran: Mahasiswa Bimbingan</option>
+            <option>Mahasiswa Pengujian</option>
+            <option>Semua</option>
+          </select>
           <div className="row">
             <div className="card" style={{ minWidth: 150 }}>
               <h2 style={{ margin: 0 }}>3</h2>
@@ -58,7 +69,10 @@ export function WireframeListMahasiswaBimbingan() {
                 <div className="row">
                   <PlaceholderBox width={54} height={54} label="Avatar mahasiswa" />
                   <div>
-                    <h3 className="card-title">{student.name}</h3>
+                    <div className="row">
+                      <h3 className="card-title" style={{ margin: 0 }}>{student.name}</h3>
+                      <span className="status">{student.relation}</span>
+                    </div>
                     <p className="small muted">{student.nim}</p>
                   </div>
                 </div>
@@ -68,6 +82,7 @@ export function WireframeListMahasiswaBimbingan() {
                     <p className="small muted">Update: {student.update}</p>
                   </div>
                   <span className="status">{student.status}</span>
+                  {student.semproReady && <button className="button secondary">Surat</button>}
                   <a className="button secondary" href="/dosen/review">Lihat</a>
                 </div>
               </div>

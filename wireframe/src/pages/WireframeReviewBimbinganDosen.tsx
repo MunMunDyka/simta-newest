@@ -34,7 +34,10 @@ export function WireframeReviewBimbinganDosen() {
             <PlaceholderBox width={44} height={44} label="Status dokumen" />
             <div>
               <h2 className="section-title" style={{ marginBottom: 2 }}>Menunggu Review</h2>
-              <p className="subtitle">V3 - TEST STATUS BIMBINGAN</p>
+              <div className="row">
+                <p className="subtitle" style={{ margin: 0 }}>V3 - TEST STATUS BIMBINGAN</p>
+                <span className="status">Kategori: Pembimbing</span>
+              </div>
             </div>
           </div>
 
@@ -73,11 +76,14 @@ export function WireframeReviewBimbinganDosen() {
               </select>
             </label>
 
-            <div className="note-box">Mahasiswa akan diminta untuk merevisi.</div>
+            <div className="note-box">
+              Mahasiswa akan diminta untuk merevisi. Opsi ACC Maju Sempro terkunci jika riwayat bimbingan belum mencapai batas minimal.
+            </div>
 
             <label>
               <span className="label">Komentar / Feedback *</span>
               <textarea className="textarea" placeholder="Tuliskan feedback, masukan, atau catatan revisi untuk mahasiswa..." />
+              <span className="small muted">0/2000 karakter</span>
             </label>
 
             <label>
@@ -90,7 +96,10 @@ export function WireframeReviewBimbinganDosen() {
               </div>
             </label>
 
-            <button className="button full">Kirim Feedback</button>
+            <div className="grid grid-2">
+              <button className="button secondary full">Simpan Draft</button>
+              <button className="button full">Kirim Feedback</button>
+            </div>
             <p className="small muted" style={{ textAlign: 'center' }}>
               Setelah mengirim feedback, mahasiswa akan menerima notifikasi email jika alamat email tersedia.
             </p>
@@ -117,13 +126,23 @@ export function WireframeReviewBimbinganDosen() {
           </div>
 
           <WireframeTable
-            columns={['Versi', 'Judul', 'Tanggal', 'File', 'Status', 'Feedback']}
+            columns={['Versi', 'Judul', 'Kategori', 'Tanggal', 'File', 'Status', 'Feedback']}
             rows={[
-              ['V3', 'TEST STATUS BIMBINGAN', '26/05/2026', 'UTS_Kelompok_LaporanBusiness.pdf', <span className="status">Menunggu</span>, '-'],
-              ['V2', 'TEST BIMBINGAN BAB 4', '25/05/2026', 'DraftSelesaiRevisi.pdf', <span className="status">Revisi</span>, 'Perbaiki pembahasan'],
-              ['V1', 'BAB IV', '24/05/2026', 'BAB4.pdf', <span className="status">ACC</span>, 'Sudah sesuai'],
+              ['V3', 'TEST STATUS BIMBINGAN', <span className="status">Pembimbing</span>, '26/05/2026', 'UTS_Kelompok_LaporanBusiness.pdf', <span className="status">Menunggu</span>, '-'],
+              ['V2', 'TEST BIMBINGAN BAB 4', <span className="status">Pembimbing</span>, '25/05/2026', 'DraftSelesaiRevisi.pdf', <span className="status">Revisi</span>, 'Perbaiki pembahasan'],
+              ['V1', 'BAB IV', <span className="status">Penguji</span>, '24/05/2026', 'BAB4.pdf', <span className="status">ACC</span>, 'Sudah sesuai'],
             ]}
           />
+        </section>
+
+        <section className="card">
+          <div className="row">
+            <PlaceholderBox width={48} height={48} label="Kosong" />
+            <div>
+              <h2 className="section-title" style={{ marginBottom: 2 }}>Belum Ada Bimbingan</h2>
+              <p className="subtitle">Jika mahasiswa belum mengirim file, dosen melihat pesan kosong dan tombol kembali ke daftar mahasiswa.</p>
+            </div>
+          </div>
         </section>
       </div>
     </WireframeLayout>

@@ -27,9 +27,9 @@ export function WireframeDashboardAdmin() {
       <section className="section grid grid-2">
         <WireframeCard title="Aksi Cepat">
           <div className="stack">
-            <a className="button secondary" href="/admin/manajemen-user">Kelola User</a>
-            <a className="button secondary" href="/admin/assign-dospem">Assign Dospem</a>
-            <a className="button secondary" href="/admin/kelola-jadwal">Kelola Jadwal</a>
+            <a className="button secondary" href="/admin/manajemen-user">Tambah Mahasiswa</a>
+            <a className="button secondary" href="/admin/manajemen-user">Tambah Dosen</a>
+            <a className="button secondary" href="/admin/kelola-jadwal">Buat Jadwal Sidang</a>
           </div>
         </WireframeCard>
         <WireframeCard title="Ringkasan Aktivitas">
@@ -42,6 +42,19 @@ export function WireframeDashboardAdmin() {
             ]}
           />
         </WireframeCard>
+      </section>
+
+      <section className="section card">
+        <div className="toolbar">
+          <div>
+            <h2 className="section-title">Sistem Berjalan Normal</h2>
+            <p className="subtitle">Semua layanan aktif dan berfungsi dengan baik</p>
+          </div>
+          <div className="row">
+            <span className="status">Online</span>
+            <button className="button secondary">Lihat Detail</button>
+          </div>
+        </div>
       </section>
     </WireframeLayout>
   )

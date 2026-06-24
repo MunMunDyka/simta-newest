@@ -11,14 +11,16 @@ const menuByRole: Record<SidebarRole, Array<{ label: string; href: string }>> = 
   dosen: [
     { label: 'Dashboard', href: '/dosen/dashboard' },
     { label: 'Mahasiswa Bimbingan', href: '/dosen/list-mahasiswa' },
-    { label: 'Review Bimbingan', href: '/dosen/review' },
+    { label: 'Jadwal Penguji', href: '/dosen/jadwal-penguji' },
     { label: 'Jadwal Sidang', href: '/jadwal' },
   ],
   admin: [
     { label: 'Dashboard', href: '/admin/dashboard' },
     { label: 'Manajemen User', href: '/admin/manajemen-user' },
-    { label: 'Assign Dospem', href: '/admin/assign-dospem' },
+    { label: 'Manajemen Dosen', href: '/admin/manajemen-dosen' },
+    { label: 'Kelola Bimbingan', href: '/admin/kelola-bimbingan' },
     { label: 'Kelola Jadwal', href: '/admin/kelola-jadwal' },
+    { label: 'Laporan', href: '/admin/laporan' },
   ],
   jadwal: [
     { label: 'Dashboard Mahasiswa', href: '/mahasiswa/dashboard' },
