@@ -36,6 +36,7 @@ import {
     ChevronRight,
     MessageSquare,
     Download,
+    Eye,
     Paperclip,
     ArrowLeft,
     GraduationCap,
@@ -47,6 +48,8 @@ import { logout } from '@/store/slices/authSlice'
 import api from '@/lib/api'
 import { FeedbackAlert } from '@/components/FeedbackAlert'
 import { getApiErrorMessage } from '@/lib/errorMessage'
+import { downloadWisudaFile, previewWisudaFile } from '@/services/wisudaService'
+import { type DokumenWisuda, type FileWisuda, type User as AuthUser } from '@/services/authService'
 
 // Menu items
 const menuItems = [
@@ -63,6 +66,41 @@ type FeedbackFieldErrors = {
     status?: string
     feedback?: string
     feedbackFile?: string
+}
+
+type MahasiswaDetail = Pick<AuthUser, '_id' | 'name' | 'nim_nip' | 'prodi' | 'currentProgress' | 'judulTA' | 'statusMahasiswa' | 'dokumenWisuda'>
+type WisudaFileLike = Partial<FileWisuda> | null | undefined
+
+const finalStageStatuses = ['persiapan_wisuda', 'selesai']
+
+const isFinalStage = (status?: string) => finalStageStatuses.includes(status || '')
+
+const getDisplayedProgress = (mahasiswa?: MahasiswaDetail | null) => {
+    if (!mahasiswa) return '-'
+    if (isFinalStage(mahasiswa.statusMahasiswa)) return 'Selesai'
+    return mahasiswa.currentProgress || 'BAB I'
+}
+
+const hasWisudaFile = (file?: WisudaFileLike) => Boolean(file?.filePath || file?.fileName)
+
+const hasAnyWisudaFile = (dokumenWisuda?: DokumenWisuda) => Boolean(dokumenWisuda && [
+    dokumenWisuda.skripsiFull,
+    dokumenWisuda.pptSkripsi,
+    dokumenWisuda.halamanPengesahan,
+    dokumenWisuda.formBimbingan,
+].some(hasWisudaFile))
+
+const getWisudaStatusBadge = (status?: DokumenWisuda['statusVerifikasi']) => {
+    switch (status) {
+        case 'disetujui':
+            return <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-0">Disetujui</Badge>
+        case 'menunggu_verifikasi':
+            return <Badge className="bg-yellow-100 text-yellow-700 hover:bg-yellow-100 border-0">Menunggu Verifikasi</Badge>
+        case 'ditolak':
+            return <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border-0">Ditolak</Badge>
+        default:
+            return <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 border-0">Belum Upload</Badge>
+    }
 }
 
 export const BimbinganDosen = () => {
@@ -82,9 +120,11 @@ export const BimbinganDosen = () => {
     const [formSuccess, setFormSuccess] = useState<string | null>(null)
     const [fieldErrors, setFieldErrors] = useState<FeedbackFieldErrors>({})
     const [minBimbinganSempro, setMinBimbinganSempro] = useState(5)
+    const [mahasiswaDetail, setMahasiswaDetail] = useState<MahasiswaDetail | null>(null)
+    const [wisudaError, setWisudaError] = useState<string | null>(null)
     const [bimbinganData, setBimbinganData] = useState<{
         id: string
-        mahasiswa: { name: string; nim_nip: string; prodi: string; currentProgress: string; judulTA: string }
+        mahasiswa: MahasiswaDetail
         version: string
         judul: string
         fileName: string
@@ -111,6 +151,14 @@ export const BimbinganDosen = () => {
     const [expandedHistory, setExpandedHistory] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null)
 
+    const displayMahasiswa = mahasiswaDetail || bimbinganData?.mahasiswa || null
+    const showWisudaCard = Boolean(displayMahasiswa && (isFinalStage(displayMahasiswa.statusMahasiswa) || hasAnyWisudaFile(displayMahasiswa.dokumenWisuda)))
+    const wisudaDocuments = displayMahasiswa?.dokumenWisuda ? [
+        { key: 'skripsiFull', label: 'Skripsi Lengkap', file: displayMahasiswa.dokumenWisuda.skripsiFull },
+        { key: 'pptSkripsi', label: 'PPT Presentasi Skripsi', file: displayMahasiswa.dokumenWisuda.pptSkripsi },
+        { key: 'halamanPengesahan', label: 'Halaman Pengesahan', file: displayMahasiswa.dokumenWisuda.halamanPengesahan },
+        { key: 'formBimbingan', label: 'Form/Logbook Bimbingan', file: displayMahasiswa.dokumenWisuda.formBimbingan },
+    ] : []
 
     // Fetch bimbingan data
     useEffect(() => {
@@ -120,14 +168,20 @@ export const BimbinganDosen = () => {
             try {
                 setIsLoading(true)
                 setLoadError(null)
+                setWisudaError(null)
                 // Fetch ALL bimbingan for this mahasiswa (no limit - for history)
-                const response = await api.get(`/bimbingan`, {
-                    params: {
-                        mahasiswaId: mahasiswaId
-                    }
-                })
+                const [response, mahasiswaResponse] = await Promise.all([
+                    api.get(`/bimbingan`, {
+                        params: {
+                            mahasiswaId: mahasiswaId
+                        }
+                    }),
+                    api.get(`/users/${mahasiswaId}`)
+                ])
 
                 const bimbinganList = response.data.data
+                const mahasiswaFromApi = mahasiswaResponse.data.data as MahasiswaDetail
+                setMahasiswaDetail(mahasiswaFromApi)
                 console.log('Bimbingan API Response:', bimbinganList)
 
                 try {
@@ -150,7 +204,7 @@ export const BimbinganDosen = () => {
                     console.log('Bimbingan STATUS:', data.status)
                     setBimbinganData({
                         id: data._id,
-                        mahasiswa: data.mahasiswa,
+                        mahasiswa: mahasiswaFromApi || data.mahasiswa,
                         version: `V${data.version}`,
                         judul: data.judul,
                         fileName: data.fileOriginalName || data.fileName,
@@ -189,6 +243,7 @@ export const BimbinganDosen = () => {
                     setBimbinganHistory(history);
                 } else {
                     console.log('No bimbingan found for this mahasiswa')
+                    setBimbinganData(null)
                     setBimbinganHistory([]);
                 }
             } catch (error) {
@@ -273,6 +328,34 @@ export const BimbinganDosen = () => {
             console.error('Download failed:', error)
             setFormSuccess(null)
             setFormError('Gagal mendownload file')
+        }
+    }
+
+    const getWisudaFilePath = (file?: WisudaFileLike) => file?.filePath || file?.fileName || ''
+
+    const handlePreviewWisudaFile = async (file?: WisudaFileLike) => {
+        const filePath = getWisudaFilePath(file)
+        if (!filePath) return
+
+        try {
+            setWisudaError(null)
+            await previewWisudaFile(filePath)
+        } catch (error) {
+            console.error('Preview wisuda file failed:', error)
+            setWisudaError(getApiErrorMessage(error, 'Gagal membuka berkas wisuda. Silakan coba lagi.'))
+        }
+    }
+
+    const handleDownloadWisudaFile = async (file?: WisudaFileLike) => {
+        const filePath = getWisudaFilePath(file)
+        if (!filePath) return
+
+        try {
+            setWisudaError(null)
+            await downloadWisudaFile(filePath, file?.fileOriginalName || file?.fileName || 'dokumen-wisuda.pdf')
+        } catch (error) {
+            console.error('Download wisuda file failed:', error)
+            setWisudaError(getApiErrorMessage(error, 'Gagal mengunduh berkas wisuda. Silakan coba lagi.'))
         }
     }
 
@@ -541,22 +624,22 @@ export const BimbinganDosen = () => {
                     </div>
 
                     {/* Detail Mahasiswa - Only on this page */}
-                    {bimbinganData?.mahasiswa && (
+                    {displayMahasiswa && (
                         <div>
                             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 px-3">Detail Mahasiswa</p>
                             <div className="px-3 py-2 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl mx-2">
                                 <div className="flex items-center gap-2 mb-2">
                                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-xs font-bold">
-                                        {bimbinganData.mahasiswa.name?.split(' ').map(n => n[0]).slice(0, 2).join('') || 'MH'}
+                                        {displayMahasiswa.name?.split(' ').map(n => n[0]).slice(0, 2).join('') || 'MH'}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-semibold text-gray-800 truncate">{bimbinganData.mahasiswa.name}</p>
-                                        <p className="text-xs text-gray-500">{bimbinganData.mahasiswa.nim_nip}</p>
+                                        <p className="text-sm font-semibold text-gray-800 truncate">{displayMahasiswa.name}</p>
+                                        <p className="text-xs text-gray-500">{displayMahasiswa.nim_nip}</p>
                                     </div>
                                 </div>
                                 <div className="text-xs space-y-1">
-                                    <p className="text-gray-600"><span className="font-medium">Prodi:</span> {bimbinganData.mahasiswa.prodi}</p>
-                                    <p className="text-gray-600"><span className="font-medium">Progress:</span> {bimbinganData.mahasiswa.currentProgress}</p>
+                                    <p className="text-gray-600"><span className="font-medium">Prodi:</span> {displayMahasiswa.prodi || '-'}</p>
+                                    <p className="text-gray-600"><span className="font-medium">Progress:</span> {getDisplayedProgress(displayMahasiswa)}</p>
                                 </div>
                             </div>
                         </div>
@@ -642,21 +725,21 @@ export const BimbinganDosen = () => {
                                 <Avatar className="w-16 h-16 border-2 border-blue-100">
                                     <AvatarImage src={undefined} />
                                     <AvatarFallback className="bg-gradient-to-br from-blue-500 to-blue-600 text-white text-lg">
-                                        {bimbinganData?.mahasiswa?.name?.split(' ').map(n => n[0]).slice(0, 2).join('') || 'MH'}
+                                        {displayMahasiswa?.name?.split(' ').map(n => n[0]).slice(0, 2).join('') || 'MH'}
                                     </AvatarFallback>
                                 </Avatar>
                                 <div className="flex-1">
-                                    <h2 className="text-xl font-bold text-gray-800">{bimbinganData?.mahasiswa?.name || 'Loading...'}</h2>
+                                    <h2 className="text-xl font-bold text-gray-800">{displayMahasiswa?.name || 'Loading...'}</h2>
                                     <div className="flex flex-wrap items-center gap-3 mt-1">
                                         <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-0">
                                             <GraduationCap className="w-3 h-3 mr-1" />
-                                            {bimbinganData?.mahasiswa?.nim_nip || '-'}
+                                            {displayMahasiswa?.nim_nip || '-'}
                                         </Badge>
                                         <Badge className="bg-gray-100 text-gray-700 hover:bg-gray-100 border-0">
-                                            {bimbinganData?.mahasiswa?.prodi || '-'}
+                                            {displayMahasiswa?.prodi || '-'}
                                         </Badge>
                                         <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-0">
-                                            {bimbinganData?.mahasiswa?.currentProgress || '-'}
+                                            {getDisplayedProgress(displayMahasiswa)}
                                         </Badge>
                                     </div>
                                 </div>
@@ -664,10 +747,90 @@ export const BimbinganDosen = () => {
 
                             <div className="mt-4 p-4 bg-gray-50 rounded-xl">
                                 <p className="text-xs font-medium text-gray-500 mb-1">Judul Tugas Akhir:</p>
-                                <p className="text-sm text-gray-800 font-medium leading-relaxed">{bimbinganData?.mahasiswa?.judulTA || '-'}</p>
+                                <p className="text-sm text-gray-800 font-medium leading-relaxed">{displayMahasiswa?.judulTA || '-'}</p>
                             </div>
                         </motion.div>
 
+                        {showWisudaCard && (
+                            <motion.div variants={itemVariants} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-5">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center">
+                                            <GraduationCap className="w-5 h-5 text-white" />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-lg font-bold text-gray-800">Berkas Wisuda Mahasiswa</h3>
+                                            <p className="text-sm text-gray-500">Dokumen administrasi kelulusan akhir yang diunggah mahasiswa.</p>
+                                        </div>
+                                    </div>
+                                    {getWisudaStatusBadge(displayMahasiswa?.dokumenWisuda?.statusVerifikasi)}
+                                </div>
+
+                                <FeedbackAlert message={wisudaError} onClose={() => setWisudaError(null)} className="mb-4" />
+
+                                {displayMahasiswa?.dokumenWisuda?.catatanAdmin && (
+                                    <div className="mb-4 rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">
+                                        <p className="font-semibold mb-1">Catatan Admin</p>
+                                        <p>{displayMahasiswa.dokumenWisuda.catatanAdmin}</p>
+                                    </div>
+                                )}
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {wisudaDocuments.map((item) => {
+                                        const hasFile = hasWisudaFile(item.file)
+
+                                        return (
+                                            <div key={item.key} className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                                                <div className="flex items-start gap-3">
+                                                    <FileText className={`w-8 h-8 flex-shrink-0 ${hasFile ? 'text-red-500' : 'text-gray-300'}`} />
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="text-sm font-bold text-gray-800">{item.label}</p>
+                                                        {hasFile ? (
+                                                            <>
+                                                                <p className="mt-1 truncate text-sm font-medium text-gray-700" title={item.file?.fileOriginalName || item.file?.fileName}>
+                                                                    {item.file?.fileOriginalName || item.file?.fileName}
+                                                                </p>
+                                                                <p className="text-xs text-gray-400">{item.file?.fileSize || '-'}</p>
+                                                            </>
+                                                        ) : (
+                                                            <p className="mt-1 text-sm text-gray-400">Belum ada file diunggah</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {hasFile && (
+                                                    <div className="mt-4 flex flex-wrap gap-2">
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => handlePreviewWisudaFile(item.file)}
+                                                            className="rounded-lg border-blue-100 text-blue-600 hover:bg-blue-50"
+                                                        >
+                                                            <Eye className="w-4 h-4 mr-1.5" />
+                                                            Preview
+                                                        </Button>
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => handleDownloadWisudaFile(item.file)}
+                                                            className="rounded-lg border-green-100 text-green-600 hover:bg-green-50"
+                                                        >
+                                                            <Download className="w-4 h-4 mr-1.5" />
+                                                            Download
+                                                        </Button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            </motion.div>
+                        )}
+
+                        {bimbinganData && (
+                            <>
                         {/* Submission Detail - Read Only */}
                         <motion.div variants={itemVariants} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                             <div className="flex items-center gap-3 mb-4">
@@ -730,6 +893,8 @@ export const BimbinganDosen = () => {
                                 </div>
                             </div>
                         </motion.div>
+                            </>
+                        )}
 
                         {/* Action Form - Only show if status is 'menunggu' */}
                         {bimbinganData && bimbinganData.status === 'menunggu' && (
@@ -948,7 +1113,7 @@ export const BimbinganDosen = () => {
                         )}
 
                         {/* No Bimbingan Submitted Yet */}
-                        {!bimbinganData && (
+                        {!bimbinganData && !showWisudaCard && (
                             <motion.div variants={itemVariants} className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
                                 <div className="flex flex-col items-center justify-center text-center">
                                     <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">

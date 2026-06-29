@@ -61,7 +61,7 @@ interface Student {
     progress: string
     currentProgress?: string
     tanggalUpdate: string
-    status: 'revisi' | 'baik' | 'menunggu' | 'acc' | 'lanjut_bab' | 'acc_sempro' | 'belum_ada'
+    status: 'revisi' | 'baik' | 'menunggu' | 'acc' | 'lanjut_bab' | 'acc_sempro' | 'selesai' | 'belum_ada'
     revisiDetail?: string
     lastBimbinganStatus?: string
     lastBimbinganVersion?: string | number
@@ -152,9 +152,12 @@ export const DashboardDosen = () => {
                     dosenRelation?: Student['dosenRelation'];
                 }) => {
                     const pendingReviewCount = mhs.pendingReviewCount || 0;
+                    const isFinishedStage = ['persiapan_wisuda', 'selesai'].includes(mhs.statusMahasiswa || '');
                     const status = pendingReviewCount > 0
                         ? 'menunggu'
-                        : (mhs.lastBimbinganStatus || 'belum_ada');
+                        : isFinishedStage
+                            ? 'selesai'
+                            : (mhs.lastBimbinganStatus || 'belum_ada');
                     const displayDate = mhs.lastBimbinganAt || mhs.updatedAt;
 
                     return {
@@ -162,7 +165,9 @@ export const DashboardDosen = () => {
                         _id: mhs._id,
                         nim: mhs.nim_nip,
                         nama: mhs.name,
-                        progress: mhs.dosenRelation === 'penguji'
+                        progress: isFinishedStage
+                            ? 'Selesai'
+                            : mhs.dosenRelation === 'penguji'
                             ? (mhs.statusMahasiswa === 'revisi_sempro'
                                 ? 'BAB I - III (Revisi)'
                                 : mhs.statusMahasiswa === 'revisi_semhas'
@@ -192,8 +197,8 @@ export const DashboardDosen = () => {
 
                 // Calculate stats
                 const pendingReviewCount = transformedData.filter((s: Student) => (s.pendingReviewCount || 0) > 0).length
-                const mengerjakanCount = transformedData.filter((s: Student) => s.status !== 'acc' && s.status !== 'acc_sempro').length
-                const terpenuhi = transformedData.filter((s: Student) => s.status === 'acc' || s.status === 'acc_sempro').length
+                const mengerjakanCount = transformedData.filter((s: Student) => s.status !== 'acc' && s.status !== 'acc_sempro' && s.status !== 'selesai').length
+                const terpenuhi = transformedData.filter((s: Student) => s.status === 'acc' || s.status === 'acc_sempro' || s.status === 'selesai').length
 
                 setStats({
                     totalMahasiswa: transformedData.length,
@@ -289,6 +294,10 @@ export const DashboardDosen = () => {
             acc_sempro: {
                 label: 'Sudah Direview - ACC Sidang',
                 className: 'bg-purple-100 text-purple-600 hover:bg-purple-100'
+            },
+            selesai: {
+                label: 'Selesai',
+                className: 'bg-green-100 text-green-700 hover:bg-green-100'
             },
             belum_ada: {
                 label: 'Belum Ada Bimbingan',

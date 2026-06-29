@@ -55,7 +55,7 @@ interface MahasiswaWithBimbingan {
     progress: string
     lastUpdate: string
     pendingCount: number
-    status: 'menunggu' | 'revisi' | 'baik' | 'acc' | 'lanjut_bab' | 'acc_sempro' | 'belum_ada'
+    status: 'menunggu' | 'revisi' | 'baik' | 'acc' | 'lanjut_bab' | 'acc_sempro' | 'selesai' | 'belum_ada'
     isSemproReady: boolean
     dosenRelation?: 'pembimbing' | 'penguji'
 }
@@ -124,9 +124,12 @@ export const ListMahasiswaBimbingan = () => {
 
                 const mahasiswaArray: MahasiswaWithBimbingan[] = mahasiswaListFromApi.map((mhs: any) => {
                     const pendingCount = mhs.pendingReviewCount || 0
+                    const isFinishedStage = ['persiapan_wisuda', 'selesai'].includes(mhs.statusMahasiswa || '')
                     const status = pendingCount > 0
                         ? 'menunggu'
-                        : (mhs.lastBimbinganStatus || 'belum_ada')
+                        : isFinishedStage
+                            ? 'selesai'
+                            : (mhs.lastBimbinganStatus || 'belum_ada')
                     const displayDate = mhs.lastBimbinganAt || mhs.updatedAt
                     
                     return {
@@ -135,7 +138,9 @@ export const ListMahasiswaBimbingan = () => {
                         nama: mhs.name || '',
                         avatar: mhs.avatar,
                         judulTA: mhs.judulTA || 'Judul TA belum diset',
-                        progress: mhs.dosenRelation === 'penguji'
+                        progress: isFinishedStage
+                            ? 'Selesai'
+                            : mhs.dosenRelation === 'penguji'
                             ? (mhs.statusMahasiswa === 'revisi_sempro'
                                 ? 'BAB I - III (Revisi)'
                                 : mhs.statusMahasiswa === 'revisi_semhas'
@@ -204,6 +209,8 @@ export const ListMahasiswaBimbingan = () => {
                 return <Badge className="bg-blue-100 text-blue-600 hover:bg-blue-100 border-0">Lanjut BAB</Badge>
             case 'acc_sempro':
                 return <Badge className="bg-purple-100 text-purple-600 hover:bg-purple-100 border-0">ACC Sempro</Badge>
+            case 'selesai':
+                return <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-0">Selesai</Badge>
             case 'belum_ada':
                 return <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 border-0">Belum Ada Bimbingan</Badge>
             default:

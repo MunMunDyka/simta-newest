@@ -19,6 +19,40 @@ const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess, sendPaginated, sendCreated } = require('../utils/responseHelper');
 
+const wisudaFileFields = ['skripsiFull', 'pptSkripsi', 'halamanPengesahan', 'formBimbingan'];
+
+const getRefId = (value) => {
+    if (!value) return null;
+    return value._id || value;
+};
+
+const isSameId = (left, right) => {
+    const leftId = getRefId(left);
+    const rightId = getRefId(right);
+    return Boolean(leftId && rightId && leftId.toString() === rightId.toString());
+};
+
+const isDosenRelatedToMahasiswa = (mahasiswa, dosenId) => {
+    if (!mahasiswa || mahasiswa.role !== 'mahasiswa') return false;
+
+    return ['dospem_1', 'dospem_2', 'penguji_1', 'penguji_2']
+        .some((field) => isSameId(mahasiswa[field], dosenId));
+};
+
+const findMahasiswaByWisudaFileName = async (fileName) => {
+    const filePath = `uploads/wisuda/${fileName}`;
+    const query = {
+        role: 'mahasiswa',
+        $or: wisudaFileFields.flatMap((field) => [
+            { [`dokumenWisuda.${field}.fileName`]: fileName },
+            { [`dokumenWisuda.${field}.filePath`]: filePath },
+            { [`dokumenWisuda.${field}.filePath`]: fileName }
+        ])
+    };
+
+    return User.findOne(query).select('role name dospem_1 dospem_2 penguji_1 penguji_2');
+};
+
 /**
  * @desc    Get all users with pagination & filtering
  * @route   GET /api/users
@@ -98,15 +132,14 @@ const getById = asyncHandler(async (req, res) => {
 
     // Check authorization (admin can view anyone, others can only view themselves)
     if (req.user.role !== 'admin' && !req.user.canAccessAdmin && req.user._id.toString() !== user._id.toString()) {
-        // Dosen can view their bimbingan students
-        if (req.user.role === 'dosen') {
-            const isBimbinganStudent =
-                (user.dospem_1 && user.dospem_1.toString() === req.user._id.toString()) ||
-                (user.dospem_2 && user.dospem_2.toString() === req.user._id.toString());
+        // Dosen can view mahasiswa where they are pembimbing or penguji
+        if (req.user.role === 'dosen' && isDosenRelatedToMahasiswa(user, req.user._id)) {
+            sendSuccess(res, 200, 'Data user berhasil diambil', user);
+            return;
+        }
 
-            if (!isBimbinganStudent) {
-                throw ApiError.forbidden('Anda hanya dapat melihat data mahasiswa bimbingan Anda');
-            }
+        if (req.user.role === 'dosen') {
+            throw ApiError.forbidden('Anda hanya dapat melihat data mahasiswa bimbingan atau pengujian Anda');
         } else {
             throw ApiError.forbidden('Anda hanya dapat melihat data diri sendiri');
         }
@@ -746,9 +779,16 @@ const downloadWisudaFile = asyncHandler(async (req, res) => {
     }
 
     // Authorization check
-    if (req.user.role === 'mahasiswa') {
+    const isAdminAccess = req.user.role === 'admin' || req.user.canAccessAdmin === true;
+    if (!isAdminAccess) {
+        const fileOwner = await findMahasiswaByWisudaFileName(safeFileName);
+
         const expectedPrefix = `wisuda_${req.user._id}_`;
-        if (!safeFileName.startsWith(expectedPrefix)) {
+        const isOwnMahasiswaFile = req.user.role === 'mahasiswa' &&
+            (isSameId(fileOwner?._id, req.user._id) || (!fileOwner && safeFileName.startsWith(expectedPrefix)));
+        const isRelatedDosenFile = req.user.role === 'dosen' && isDosenRelatedToMahasiswa(fileOwner, req.user._id);
+
+        if (!isOwnMahasiswaFile && !isRelatedDosenFile) {
             throw ApiError.forbidden('Anda tidak memiliki akses untuk mendownload file ini');
         }
     }
