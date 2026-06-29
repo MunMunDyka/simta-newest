@@ -25,6 +25,16 @@ const routes = require('./router');
 // ===== 2. Initialize Express App =====
 const app = express();
 
+// Custom Request Logger for debugging (logs all requests in CMD, including static files)
+app.use((req, res, next) => {
+    const start = Date.now();
+    res.on('finish', () => {
+        const duration = Date.now() - start;
+        console.log(`[REQ] ${new Date().toISOString()} | ${req.method} ${req.originalUrl} -> ${res.statusCode} (${duration}ms)`);
+    });
+    next();
+});
+
 // ===== 3. Environment Variables =====
 const PORT = process.env.PORT || 7860;
 const NODE_ENV = process.env.NODE_ENV || 'development';
@@ -72,14 +82,8 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Serve static files (uploads folder)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// ===== 5. Request Logging (Development) =====
-if (NODE_ENV === 'development') {
-    app.use((req, res, next) => {
-        const timestamp = new Date().toISOString();
-        console.log(`[${timestamp}] ${req.method} ${req.path}`);
-        next();
-    });
-}
+// ===== 5. Request Logging (Legacy) =====
+// Custom logger at the top handles all request logging now.
 
 // ===== 6. Health Check Endpoint =====
 app.get('/', (req, res) => {
