@@ -24,6 +24,7 @@ const {
     paginationQuery,
     handleValidationErrors
 } = require('../middleware/validationMiddleware');
+const ApiError = require('../utils/ApiError');
 
 // All routes require authentication
 router.use(authMiddleware);
@@ -150,6 +151,21 @@ const uploadWisudaFiles = wisudaUpload.fields([
     { name: 'formBimbingan', maxCount: 1 }
 ]);
 
+const handleWisudaUpload = (req, res, next) => {
+    uploadWisudaFiles(req, res, (err) => {
+        if (!err) {
+            next();
+            return;
+        }
+
+        const message = err.code === 'LIMIT_FILE_SIZE'
+            ? 'Ukuran file dokumen wisuda maksimal 25MB'
+            : err.message || 'Gagal mengunggah dokumen wisuda';
+
+        next(ApiError.badRequest(message));
+    });
+};
+
 /**
  * @route   POST /api/users/upload-wisuda
  * @desc    Upload graduation documents
@@ -158,7 +174,7 @@ const uploadWisudaFiles = wisudaUpload.fields([
 router.post(
     '/upload-wisuda',
     roleMiddleware(['mahasiswa']),
-    uploadWisudaFiles,
+    handleWisudaUpload,
     userController.uploadWisuda
 );
 

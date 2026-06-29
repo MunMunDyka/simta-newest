@@ -121,6 +121,11 @@ const aktivitasItems = [
 ]
 
 const studentMascotUrl = '/maskot_siakad.png'
+const wisudaPdfErrorMessage = 'Hanya file PDF yang diperbolehkan untuk dokumen wisuda'
+
+const isPdfFile = (file: File) => {
+    return file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+}
 
 export const DashboardMhs = () => {
     const navigate = useNavigate()
@@ -223,6 +228,12 @@ export const DashboardMhs = () => {
             return
         }
 
+        const selectedFiles = [skripsiFullFile, pptFile, halamanFile, formFile].filter(Boolean) as File[]
+        if (selectedFiles.some((file) => !isPdfFile(file))) {
+            setUploadWisudaError(wisudaPdfErrorMessage)
+            return
+        }
+
         setIsUploadingWisuda(true)
         setUploadWisudaError(null)
         setUploadWisudaSuccess(null)
@@ -249,6 +260,30 @@ export const DashboardMhs = () => {
         } finally {
             setIsUploadingWisuda(false)
         }
+    }
+
+    const handleWisudaFileChange = (
+        event: React.ChangeEvent<HTMLInputElement>,
+        setFile: React.Dispatch<React.SetStateAction<File | null>>
+    ) => {
+        const file = event.target.files?.[0] || null
+
+        if (!file) {
+            setFile(null)
+            return
+        }
+
+        setUploadWisudaSuccess(null)
+
+        if (!isPdfFile(file)) {
+            setFile(null)
+            event.target.value = ''
+            setUploadWisudaError(wisudaPdfErrorMessage)
+            return
+        }
+
+        setUploadWisudaError(null)
+        setFile(file)
     }
 
     const handleDownloadWisudaFile = async (file?: FileWisuda) => {
@@ -757,7 +792,7 @@ export const DashboardMhs = () => {
                                                         accept=".pdf"
                                                         id="skripsiFullInput"
                                                         className="hidden"
-                                                        onChange={(e) => setSkripsiFullFile(e.target.files?.[0] || null)}
+                                                        onChange={(e) => handleWisudaFileChange(e, setSkripsiFullFile)}
                                                     />
                                                     <Button
                                                         type="button"
@@ -798,7 +833,7 @@ export const DashboardMhs = () => {
                                                         accept=".pdf"
                                                         id="pptInput"
                                                         className="hidden"
-                                                        onChange={(e) => setPptFile(e.target.files?.[0] || null)}
+                                                        onChange={(e) => handleWisudaFileChange(e, setPptFile)}
                                                     />
                                                     <Button
                                                         type="button"
@@ -839,7 +874,7 @@ export const DashboardMhs = () => {
                                                         accept=".pdf"
                                                         id="halamanInput"
                                                         className="hidden"
-                                                        onChange={(e) => setHalamanFile(e.target.files?.[0] || null)}
+                                                        onChange={(e) => handleWisudaFileChange(e, setHalamanFile)}
                                                     />
                                                     <Button
                                                         type="button"
@@ -880,7 +915,7 @@ export const DashboardMhs = () => {
                                                         accept=".pdf"
                                                         id="formInput"
                                                         className="hidden"
-                                                        onChange={(e) => setFormFile(e.target.files?.[0] || null)}
+                                                        onChange={(e) => handleWisudaFileChange(e, setFormFile)}
                                                     />
                                                     <Button
                                                         type="button"
