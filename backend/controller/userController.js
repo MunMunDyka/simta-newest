@@ -534,7 +534,7 @@ const uploadAvatar = asyncHandler(async (req, res) => {
     }
 
     // Save avatar path
-    user.avatar = req.file.path;
+    user.avatar = 'uploads/avatars/' + req.file.filename;
     await user.save();
 
     console.log(`📸 Avatar uploaded for ${user.name}`);
@@ -667,7 +667,7 @@ const uploadWisuda = asyncHandler(async (req, res) => {
             const file = req.files[field][0];
             student.dokumenWisuda[field] = {
                 fileName: file.filename,
-                filePath: file.path.replace(/\\/g, '/'),
+                filePath: 'uploads/wisuda/' + file.filename,
                 fileSize: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
                 fileOriginalName: file.originalname,
                 uploadedAt: new Date()

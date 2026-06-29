@@ -28,41 +28,62 @@ SIMTA Batam operates under a Role-Based Access Control (RBAC) model with three m
 ### 1.2 Use Case Diagram
 
 ```mermaid
-usecaseDiagram
-    actor Mahasiswa as "Mahasiswa"
-    actor Dosen as "Dosen (Pembimbing / Penguji)"
-    actor Admin as "Admin"
+graph LR
+  ActorAdmin["Admin (Koordinator TA)"]
+  ActorMhs["Mahasiswa"]
+  ActorDsn["Dosen (Pembimbing / Penguji)"]
 
-    package "SIMTA Core System" {
-        usecase UC_Login as "Login & Refresh Token"
-        usecase UC_Bimbingan as "Mengajukan Bimbingan Dospem"
-        usecase UC_Revisi as "Mengajukan Revisi Penguji"
-        usecase UC_Feedback as "Memberikan Feedback / ACC"
-        usecase UC_ViewJadwal as "Melihat Jadwal Sidang"
-        usecase UC_ManageUser as "Kelola Akun Pengguna"
-        usecase UC_PlotDospem as "Plotting Dosen Pembimbing"
-        usecase UC_PlotJadwal as "Plotting Jadwal & Penguji"
-        usecase UC_UploadWisuda as "Unggah Berkas Wisuda"
-        usecase UC_VerifyWisuda as "Verifikasi Berkas Wisuda"
-        usecase UC_GenSurat as "Cetak Surat Kelayakan Sempro"
-    }
+  subgraph Batasan Sistem SIMTA
+    UC_Login(((Login & Proteksi Sesi)))
+    UC_Dash(((Melihat Dashboard)))
+    UC_Users(((Kelola Data Pengguna)))
+    UC_Plot(((Assign Dosen Pembimbing)))
+    UC_Jadwal(((Kelola Jadwal Sidang)))
+    UC_Hasil(((Input Hasil & Nilai Sidang)))
+    UC_UploadWisuda(((Verifikasi Berkas Wisuda)))
+    
+    UC_Upload(((Kirim PDF Bimbingan Dospem)))
+    UC_History(((Lihat Riwayat & Feedback)))
+    UC_Reply(((Diskusi / Reply Komentar)))
+    UC_Surat(((Unduh Surat Kelayakan DOCX)))
+    UC_Revisi(((Kirim PDF Revisi ke Penguji)))
+    UC_ViewJadwal(((Lihat Jadwal Sidang Global)))
+    UC_UploadWsd(((Unggah Berkas Wisuda PDF)))
+    
+    UC_ReviewDospem(((Review Bimbingan Dospem)))
+    UC_ReviewPenguji(((Review Revisi Penguji)))
+    UC_AccSempro(((ACC Kesiapan Sidang)))
+    UC_AccRevisi(((ACC Kelulusan Revisi)))
+  end
 
-    Mahasiswa --> UC_Login
-    Mahasiswa --> UC_Bimbingan
-    Mahasiswa --> UC_Revisi
-    Mahasiswa --> UC_ViewJadwal
-    Mahasiswa --> UC_UploadWisuda
+  ActorAdmin --- UC_Login
+  ActorAdmin --- UC_Dash
+  ActorAdmin --- UC_Users
+  ActorAdmin --- UC_Plot
+  ActorAdmin --- UC_Jadwal
+  ActorAdmin --- UC_Hasil
+  ActorAdmin --- UC_UploadWisuda
+  ActorAdmin --- UC_ViewJadwal
 
-    Dosen --> UC_Login
-    Dosen --> UC_Feedback
-    Dosen --> UC_ViewJadwal
+  ActorMhs --- UC_Login
+  ActorMhs --- UC_Dash
+  ActorMhs --- UC_Upload
+  ActorMhs --- UC_History
+  ActorMhs --- UC_Reply
+  ActorMhs --- UC_Surat
+  ActorMhs --- UC_Revisi
+  ActorMhs --- UC_ViewJadwal
+  ActorMhs --- UC_UploadWsd
 
-    Admin --> UC_Login
-    Admin --> UC_ManageUser
-    Admin --> UC_PlotDospem
-    Admin --> UC_PlotJadwal
-    Admin --> UC_VerifyWisuda
-    Admin --> UC_GenSurat
+  ActorDsn --- UC_Login
+  ActorDsn --- UC_Dash
+  ActorDsn --- UC_History
+  ActorDsn --- UC_Reply
+  ActorDsn --- UC_ReviewDospem
+  ActorDsn --- UC_ReviewPenguji
+  ActorDsn --- UC_AccSempro
+  ActorDsn --- UC_AccRevisi
+  ActorDsn --- UC_ViewJadwal
 ```
 
 ---
@@ -214,151 +235,386 @@ stateDiagram-v2
 
 ## 4. SEQUENCE DIAGRAMS (CORE WORKFLOWS)
 
-### 4.1 Bimbingan Submission & Auto-Promotion to Exam Waiting-List
-This workflow shows a student submitting a guidance log and transitioning to `menunggu_sempro` when both supervisors issue an ACC.
+Semua sequence diagram di bawah dirancang mengikuti visualisasi kating Chrystalio yang menonjolkan objek GUI (Halaman/View, Form, Dialog Konfirmasi) berpasangan dengan sistem validasi dan database.
+
+### 4.1 Sequence Diagram Autentikasi Pengguna (Login)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor M as Mahasiswa
-    actor D as Dosen Pembimbing (1 / 2)
-    participant API as Express Server
-    participant DB as MongoDB
+    actor U as User
+    participant SV as Sistem
+    participant LV as Halaman Login
+    participant DV as DashboardView
+    participant DB as Database
 
-    M->>API: POST /api/bimbingan (Upload PDF, dosenType, judul)
-    activate API
-    API->>DB: User.findById(mahasiswaId)
-    API->>DB: Bimbingan.findOne({ status: 'menunggu', dosen })
-    Note over API,DB: Check sequential pending locks (No overlapping drafts)
-    API->>DB: Save new Bimbingan (Version calculated V1->V2)
-    API-->>M: HTTP 201: Dokumen Bimbingan Terkirim
-    deactivate API
-
-    D->>API: PUT /api/bimbingan/:id/feedback (status: 'acc_sempro', feedbackText)
-    activate API
-    API->>DB: Update Bimbingan status to 'acc_sempro'
+    U->>LV: Mengisi NIM/NIP & password
+    activate LV
+    LV->>SV: Kirim data login
+    activate SV
+    SV->>DB: Cari data pengguna
+    activate DB
+    DB-->>SV: Kembalikan data pengguna
+    deactivate DB
+    SV->>SV: Validasi keaktifan akun
+    SV->>SV: Verifikasi password
     
-    Note over API,DB: Auto-Promotion Trigger Evaluation
-    API->>DB: Fetch last completed exam Jadwal date threshold
-    API->>DB: Count valid ACC logs from Dospem 1 (>= 5 logs)
-    API->>DB: Count valid ACC logs from Dospem 2 (>= 5 logs)
-    
-    alt Both Dospem have given 'acc_sempro' after last exam threshold
-        API->>DB: User.findByIdAndUpdate(studentId, { statusMahasiswa: 'menunggu_sempro' })
-        Note over API,DB: Student promoted to 'menunggu_sempro'
+    alt Akun Tidak Valid
+        SV-->>LV: Kirim pesan kegagalan
+        deactivate SV
+        LV-->>U: Tampilkan notifikasi gagal
+    else Akun Valid
+        SV-->>LV: Kirim respon sukses
+        deactivate SV
+        LV->>DV: Akses dashboard sesuai peran
+        activate DV
+        DV-->>U: Tampilkan halaman dashboard
+        deactivate DV
     end
-    
-    API-->>D: HTTP 200: Ulasan Disimpan
-    deactivate API
+    deactivate LV
 ```
 
 ---
 
-### 4.2 Exam Scheduling & Examiner Immutability
-This sequence demonstrates the Admin creating an exam schedule and enforcing that once plotted, examiners are locked for subsequent stages.
+### 4.2 Sequence Diagram Admin Kelola Data User
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor A as Admin
-    participant API as Express Server
-    participant DB as MongoDB
+    participant SV as Sistem
+    participant UV as Halaman User
+    participant FA as FormTambahUser
+    participant DB as Database
 
-    A->>API: POST /api/jadwal (mahasiswa, jenisJadwal, tanggal, waktu, ruangan, penguji)
-    activate API
-    API->>DB: User.findById(mahasiswaId)
+    A->>UV: Membuka Halaman Kelola User
+    activate UV
+    A->>FA: Mengisi form data user & klik "Simpan"
+    activate FA
+    FA->>SV: Kirim data pengguna baru
+    activate SV
+    SV->>DB: Cek duplikasi NIM/NIP
+    activate DB
+    DB-->>SV: Kembalikan hasil pencarian
+    deactivate DB
     
-    alt Student already has assigned examiners (penguji_1 / penguji_2)
-        Note over API: backend/controller/jadwalController.js overrides req.body.penguji
-        API->>API: Force penguji = [student.penguji_1, student.penguji_2]
-        Note over API: Immutability enforced automatically
+    alt NIM/NIP Sudah Terdaftar
+        SV-->>FA: Kirim pesan error
+        deactivate SV
+        FA-->>A: Tampilkan notifikasi duplikasi
+    else NIM/NIP Baru
+        SV->>SV: Enkripsi password default
+        SV->>DB: Simpan data pengguna baru
+        activate DB
+        DB-->>SV: Konfirmasi sukses simpan
+        deactivate DB
+        SV-->>FA: Kirim respon sukses
+        deactivate SV
+        FA-->>UV: Tutup form tambah
+        deactivate FA
+        UV-->>A: Tampilkan data pengguna terbaru
     end
-
-    API->>DB: Jadwal.isSlotAvailable(tanggal, waktu, ruangan)
-    Note over API,DB: Room collision check
-
-    API->>DB: Save Jadwal record (status: 'dijadwalkan')
-    
-    alt If this is the first scheduling (Seminar Proposal)
-        API->>DB: Update student User record { penguji_1: penguji[0], penguji_2: penguji[1] }
-        Note over API,DB: Plotted examiners persisted on student document
-    end
-
-    API-->>A: HTTP 201: Jadwal Berhasil Dibuat
-    deactivate API
+    deactivate UV
 ```
 
 ---
 
-### 4.3 Examiner Double ACC Revision & Guidance Unlocking
-This workflow visualizes how a student in the `revisi_sempro` phase gets promoted to `bimbingan_lanjut` and unlocks their supervisors once both examiners approve the revisions.
+### 4.3 Sequence Diagram Admin Plotting Dosen Pembimbing
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor A as Admin
+    participant SV as Sistem
+    participant PV as Halaman Plotting
+    participant FP as FormPlottingDospem
+    participant DB as Database
+
+    A->>PV: Membuka Halaman Plotting Dospem
+    activate PV
+    A->>FP: Memilih Mahasiswa & Dospem 1 & 2
+    activate FP
+    FP->>SV: Kirim data plotting dosen
+    activate SV
+    
+    alt Dosen Sama
+        SV-->>FP: Kirim pesan error
+        deactivate SV
+        FP-->>A: Tampilkan notifikasi kesalahan
+    else Dosen Berbeda
+        SV->>DB: Simpan relasi dosen pembimbing
+        activate DB
+        DB-->>SV: Konfirmasi sukses simpan
+        deactivate DB
+        SV-->>FP: Kirim respon sukses
+        deactivate SV
+        FP-->>PV: Tutup form plotting
+        deactivate FP
+        PV-->>A: Tampilkan data plotting terbaru
+    end
+    deactivate PV
+```
+
+---
+
+### 4.4 Sequence Diagram Admin Kelola Jadwal Ujian
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor A as Admin
+    participant SV as Sistem
+    participant JV as Halaman Jadwal
+    participant FJ as FormTambahJadwal
+    participant DB as Database
+
+    A->>JV: Membuka Halaman Kelola Jadwal
+    activate JV
+    A->>FJ: Mengisi form jadwal sidang & klik "Simpan"
+    activate FJ
+    FJ->>SV: Kirim data jadwal baru
+    activate SV
+    SV->>DB: Cek ketersediaan ruangan
+    activate DB
+    DB-->>SV: Kembalikan status ruangan
+    deactivate DB
+    
+    alt Ruangan Bentrok
+        SV-->>FJ: Kirim pesan error
+        deactivate SV
+        FJ-->>A: Tampilkan notifikasi bentrok
+    else Ruangan Tersedia
+        SV->>SV: Validasi peran dosen penguji
+        SV->>DB: Simpan data jadwal sidang
+        activate DB
+        DB-->>SV: Konfirmasi sukses simpan jadwal
+        deactivate DB
+        SV->>DB: Update data penguji & status mahasiswa
+        activate DB
+        DB-->>SV: Konfirmasi sukses update user
+        deactivate DB
+        SV-->>FJ: Kirim respon sukses
+        deactivate SV
+        FJ-->>JV: Tutup form jadwal
+        deactivate FJ
+        JV-->>A: Tampilkan jadwal terbaru & kirim email pemberitahuan
+    end
+    deactivate JV
+```
+
+---
+
+### 4.5 Sequence Diagram Mahasiswa Upload Bimbingan / Revisi
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor M as Mahasiswa
-    actor P1 as Dosen Penguji 1
-    actor P2 as Dosen Penguji 2
-    participant API as Express Server
-    participant DB as MongoDB
+    participant SV as Sistem
+    participant BV as Halaman Bimbingan
+    participant FU as FormUploadBimbingan
+    participant DB as Database
 
-    M->>API: POST /api/bimbingan (Upload revisi, dosenType: 'penguji_1')
-    activate API
-    Note over API: Supervisor tabs are locked; Examiner tab is open
-    API->>DB: Save revision Bimbingan log
-    API-->>M: HTTP 201: Revisi Terkirim
-    deactivate API
-
-    P1->>API: PUT /api/bimbingan/:id/feedback (status: 'acc')
-    activate API
-    API->>DB: Save feedback and mark status: 'acc'
+    M->>BV: Membuka Menu Bimbingan
+    activate BV
+    M->>FU: Klik "Pengajuan Baru", pilih Dosen & file PDF
+    activate FU
+    FU->>SV: Kirim berkas bimbingan PDF
+    activate SV
+    SV->>DB: Cek status bimbingan aktif
+    activate DB
+    DB-->>SV: Kembalikan data bimbingan
+    deactivate DB
     
-    Note over API,DB: Check Double ACC Verification
-    API->>DB: Search latest revision status of other examiner ('penguji_2')
-    
-    alt Other examiner has not given 'acc'
-        Note over API: Stay in revision phase
-        API-->>P1: HTTP 200: ACC Ulasan Disimpan
-    else Other examiner has already given 'acc'
-        API->>DB: User.findByIdAndUpdate(studentId, { statusMahasiswa: 'bimbingan_lanjut', currentProgress: 'BAB IV' })
-        Note over API: Student promoted; Supervisor tabs unlocked; progress set to BAB IV
-        API-->>P1: HTTP 200: ACC Ulasan Disimpan & Status Mahasiswa Naik
+    alt Ada Bimbingan Menunggu
+        SV-->>FU: Kirim pesan penolakan
+        deactivate SV
+        FU-->>M: Tampilkan notifikasi antrean penuh
+    else Antrean Kosong
+        SV->>DB: Simpan berkas & generate versi otomatis
+        activate DB
+        DB-->>SV: Konfirmasi sukses simpan
+        deactivate DB
+        SV-->>FU: Kirim respon sukses
+        deactivate SV
+        FU-->>BV: Tutup form upload
+        deactivate FU
+        BV-->>M: Tampilkan riwayat bimbingan & kirim email pemberitahuan
     end
-    deactivate API
+    deactivate BV
 ```
 
 ---
 
-### 4.4 Wisuda Document Upload & Graduation Approval (Stage 7)
-This workflow handles the upload of the 4 required dossiers, Admin verification, and graduation graduation.
+### 4.6 Sequence Diagram Dosen Review Bimbingan / Revisi
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor D as Dosen
+    participant SV as Sistem
+    participant RV as Halaman Review
+    participant FF as FormFeedbackUlasan
+    participant DB as Database
+
+    D->>RV: Memilih Dokumen Mahasiswa
+    activate RV
+    RV-->>D: Tampilkan berkas PDF & form review
+    D->>FF: Mengisi feedback, pilih status & klik "Kirim"
+    activate FF
+    FF->>SV: Kirim feedback & keputusan review
+    activate SV
+    
+    alt ACC Sidang & Sesi Kurang
+        SV-->>FF: Kirim pesan penolakan
+        deactivate SV
+        FF-->>D: Tampilkan notifikasi syarat kurang
+    else Syarat Terpenuhi
+        SV->>DB: Simpan catatan ulasan & status
+        activate DB
+        DB-->>SV: Konfirmasi sukses update bimbingan
+        deactivate DB
+        
+        alt Keputusan: Lanjut Bab
+            SV->>DB: Update progres bab mahasiswa
+            activate DB
+            DB-->>SV: Konfirmasi sukses update user
+            deactivate DB
+        end
+        
+        SV-->>FF: Kirim respon sukses
+        deactivate SV
+        FF-->>RV: Tutup form ulasan
+        deactivate FF
+        RV-->>D: Tampilkan data ulasan & kirim notifikasi email
+    end
+    deactivate RV
+```
+
+---
+
+### 4.7 Sequence Diagram Diskusi Reply Komentar
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant SV as Sistem
+    participant DV as Halaman Detail Bimbingan
+    participant FC as FormKomentarBalasan
+    participant DB as Database
+
+    U->>DV: Membuka Detail Riwayat Bimbingan
+    activate DV
+    U->>FC: Menulis pesan & menekan tombol "Kirim"
+    activate FC
+    FC->>SV: Kirim pesan balasan
+    activate SV
+    SV->>SV: Validasi otorisasi pengirim
+    
+    alt Pengirim Tidak Sah
+        SV-->>FC: Kirim pesan kesalahan
+        deactivate SV
+        FC-->>U: Tampilkan notifikasi akses ditolak
+    else Pengirim Sah
+        SV->>DB: Simpan pesan diskusi
+        activate DB
+        DB-->>SV: Konfirmasi sukses simpan
+        deactivate DB
+        SV-->>FC: Kirim respon sukses
+        deactivate SV
+        FC-->>DV: Tampilkan balasan baru di layar
+        deactivate FC
+    end
+    deactivate DV
+```
+
+---
+
+### 4.8 Sequence Diagram Lihat Jadwal Ujian
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant SV as Sistem
+    participant JV as Halaman Jadwal
+    participant DB as Database
+
+    U->>JV: Membuka Menu Jadwal Ujian
+    activate JV
+    JV->>SV: Minta data jadwal ujian
+    activate SV
+    SV->>SV: Validasi peran pengguna
+    
+    alt Role = Admin
+        SV->>DB: Cari data seluruh jadwal
+    else Role = Dosen
+        SV->>DB: Cari data jadwal menguji dosen
+    else Role = Mahasiswa
+        SV->>DB: Cari data jadwal mahasiswa terkait
+    end
+    activate DB
+    DB-->>SV: Kembalikan daftar data jadwal
+    deactivate DB
+    SV-->>JV: Kirim data jadwal sidang
+    deactivate SV
+    JV-->>U: Tampilkan tabel jadwal di layar
+    deactivate JV
+```
+
+---
+
+### 4.9 Sequence Diagram Upload dan Verifikasi Berkas Wisuda (Stage 7)
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor M as Mahasiswa
     actor A as Admin
-    participant API as Express Server
-    participant DB as MongoDB
+    participant SV as Sistem
+    participant MV as Halaman Bimbingan
+    participant AV as Halaman Verifikasi Wisuda
+    participant DB as Database
 
-    M->>API: POST /api/users/upload-wisuda (Files: skripsiFull, pptSkripsi, halamanPengesahan, formBimbingan)
-    activate API
-    Note over M,API: Status must be 'persiapan_wisuda' (final exam revisions cleared)
-    API->>API: Multer parses files & limits to PDF format
-    API->>DB: Update student's dokumenWisuda fields & set statusVerifikasi: 'menunggu_verifikasi'
-    API-->>M: HTTP 200: Berkas Wisuda Berhasil Diunggah
-    deactivate API
-
-    A->>API: PUT /api/users/:id/verifikasi-wisuda (status: 'disetujui' / 'ditolak', catatan)
-    activate API
+    M->>MV: Membuka Widget Wisuda (Status persiapan_wisuda)
+    activate MV
+    M->>MV: Mengunggah 4 berkas PDF wisuda wajib & klik "Kirim"
+    MV->>SV: Kirim berkas PDF kelulusan
+    activate SV
+    SV->>SV: Validasi kelengkapan berkas
+    SV->>DB: Simpan data & status verifikasi
+    activate DB
+    DB-->>SV: Konfirmasi sukses update user
+    deactivate DB
+    SV-->>MV: Kirim respon sukses
+    deactivate SV
+    MV-->>M: Tampilkan status peninjauan
+    deactivate MV
     
-    alt Admin Approves Dossier
-        API->>DB: Update student { statusMahasiswa: 'selesai', currentProgress: 'Selesai', statusVerifikasi: 'disetujui' }
-        API-->>A: HTTP 200: Wisuda Disetujui (Mahasiswa Lulus)
-    else Admin Rejects Dossier
-        API->>DB: Update student { statusVerifikasi: 'ditolak', catatanAdmin: 'Perbaiki halaman pengesahan' }
-        API-->>A: HTTP 200: Wisuda Ditolak (Mahasiswa harus mengunggah ulang)
-    end
-    deactivate API
+    A->>AV: Membuka Menu Verifikasi Wisuda
+    activate AV
+    AV->>SV: Minta daftar mahasiswa wisuda
+    activate SV
+    SV->>DB: Cari data verifikasi menunggu
+    activate DB
+    DB-->>SV: Kembalikan daftar mahasiswa
+    deactivate DB
+    SV-->>AV: Kirim daftar data verifikasi
+    deactivate SV
+    AV-->>A: Tampilkan tabel daftar mahasiswa
+    
+    A->>AV: Klik "Setujui" & Konfirmasi
+    AV->>SV: Kirim status persetujuan
+    activate SV
+    SV->>DB: Update status wisuda & kelulusan
+    activate DB
+    DB-->>SV: Konfirmasi sukses simpan kelulusan
+    deactivate DB
+    SV-->>AV: Kirim respon sukses
+    deactivate SV
+    AV-->>A: Tampilkan data ulasan sukses
+    deactivate AV
 ```
 
 ---
@@ -586,37 +842,61 @@ flowchart TD
 sequenceDiagram
     autonumber
     actor M as Mahasiswa
-    participant DM as DashboardMahasiswa
-    participant UC as userController
-    participant U as User(Model)
     actor A as Admin
+    participant SV as Sistem
+    participant DM as DashboardMahasiswa
     participant VW as VerifikasiWisudaView
+    participant DB as Database
 
     M->>DM: Upload 4 dokumen wisuda PDF
-    DM->>UC: POST /api/users/upload-wisuda
-    UC->>U: Find mahasiswa by token user
-    U-->>UC: Data mahasiswa
-    UC->>UC: Validasi statusMahasiswa == persiapan_wisuda
-    UC->>UC: Validasi file PDF dan dokumen wajib
-    UC->>U: Update dokumenWisuda + statusVerifikasi menunggu_verifikasi
-    U-->>UC: Data mahasiswa terbaru
-    UC-->>DM: Response sukses upload
+    activate DM
+    DM->>SV: Kirim berkas PDF kelulusan
+    activate SV
+    SV->>DB: Cari data mahasiswa
+    activate DB
+    DB-->>SV: Kembalikan data mahasiswa
+    deactivate DB
+    SV->>SV: Validasi status akademik
+    SV->>SV: Validasi kelengkapan berkas
+    SV->>DB: Simpan data & status verifikasi
+    activate DB
+    DB-->>SV: Kembalikan data terupdate
+    deactivate DB
+    SV-->>DM: Kirim respon sukses
+    deactivate SV
+    DM-->>M: Tampilkan status peninjauan
+    deactivate DM
 
     A->>VW: Membuka menu Verifikasi Wisuda
-    VW->>UC: GET /api/users?role=mahasiswa&statusVerifikasi=menunggu_verifikasi
-    UC->>U: Query mahasiswa berdasarkan status dokumen
-    U-->>UC: Daftar mahasiswa
-    UC-->>VW: Daftar verifikasi
+    activate VW
+    VW->>SV: Minta daftar mahasiswa wisuda
+    activate SV
+    SV->>DB: Cari data verifikasi menunggu
+    activate DB
+    DB-->>SV: Kembalikan daftar mahasiswa
+    deactivate DB
+    SV-->>VW: Kirim daftar data verifikasi
+    deactivate SV
+    VW-->>A: Tampilkan tabel daftar mahasiswa
+    deactivate VW
+
     A->>VW: Setujui atau tolak dokumen
-    VW->>UC: PUT /api/users/:id/verifikasi-wisuda
-    UC->>U: Update statusVerifikasi
+    activate VW
+    VW->>SV: Kirim status persetujuan
+    activate SV
+    SV->>DB: Update status wisuda & kelulusan
+    activate DB
     alt Disetujui
-        UC->>U: Set statusMahasiswa selesai dan currentProgress Selesai
+        SV->>DB: Update status wisuda & kelulusan
     else Ditolak
-        UC->>U: Simpan catatanAdmin untuk perbaikan
+        SV->>DB: Simpan catatan koreksi
     end
-    U-->>UC: Data terbaru
-    UC-->>VW: Response hasil verifikasi
+    DB-->>SV: Konfirmasi sukses simpan
+    deactivate DB
+    SV-->>VW: Kirim respon sukses
+    deactivate SV
+    VW-->>A: Tampilkan data ulasan sukses
+    deactivate VW
 ```
 
 ---
@@ -1075,4 +1355,764 @@ Berikut adalah daftar rekomendasi skenario pengujian Black Box yang dapat ditamb
 | **BB-BIM-001** | Antarmuka Kelola Bimbingan Admin | 1. Admin masuk ke menu "Kelola Bimbingan". <br>2. Melakukan pencarian berdasarkan nama mahasiswa dan memfilter status akademik "Sudah Semhas". | Tabel admin menyajikan list mahasiswa secara real-time berdasarkan query filter dengan paginasi responsif (maksimal 500 baris). |
 | **BB-BIM-002** | Detil Riwayat Dosen Lengkap | 1. Admin mengklik tombol "Detail" pada salah satu mahasiswa di tabel Kelola Bimbingan. | Halaman otomatis melakukan scroll ke bagian bawah tabel dan menampilkan visualisasi panel detail mahasiswa lengkap dengan nama Dospem 1, Dospem 2, Penguji 1, dan Penguji 2. |
 
+---
 
+## 15. DAFTAR SCREENSHOTS KEBUTUHAN IMPLEMENTASI BAB 5
+Untuk melengkapi pembahasan hasil pada Bab V, pastikan tangkapan layar antarmuka halaman baru berikut dimasukkan:
+
+1. **Gambar 5.14 Halaman Jadwal Ujian Global Terfilter:** Memperlihatkan antarmuka tabel jadwal global dengan widget kueri filter (Jenis Sidang, Ruangan, Status, dan Dosen).
+2. **Gambar 5.15 Halaman Unggah Dokumen Wisuda Mahasiswa:** Menampilkan form widget upload 4 berkas PDF wisuda wajib beserta indikator status peninjauan berkas.
+3. **Gambar 5.16 Modul Verifikasi Berkas Wisuda Admin:** Menampilkan dashboard peninjauan berkas admin, modal preview PDF, tombol setujui/tolak, serta input catatan revisi.
+
+---
+
+## 16. PERHITUNGAN RUMUS KELAYAKAN UAT & USI (BAB 5)
+Metodologi evaluasi ITEBA menuntut pencantuman rumus matematika berikut pada subbab pengujian Bab V:
+
+### A. UAT (User Acceptance Testing)
+Skor akhir tingkat penerimaan dihitung berdasarkan persentase rata-rata skor aspek UAT:
+
+$$\text{Tingkat Penerimaan} = \frac{\bar{v}_{UAT}}{5.0} \times 100\%$$
+
+Di mana $\bar{v}_{UAT}$ adalah rata-rata skor yang diperoleh dari seluruh aspek pengujian UAT.
+
+### B. USI (User Satisfaction Index)
+1. **Skor Rata-Rata per Aspek (\(\bar{v}\)):**
+   $$\bar{v} = \frac{1}{m \cdot n} \sum_{j=1}^{m} \sum_{i=1}^{n} x_{ij}$$
+   * $m$ = Jumlah pernyataan dalam aspek.
+   * $n$ = Jumlah responden penguji.
+   * $x_{ij}$ = Bobot skor jawaban responden ke-$i$ untuk pernyataan ke-$j$.
+
+2. **Skor USI Akhir:**
+   $$USI = \bar{v}_{total} = \frac{1}{k} \sum_{i=1}^{k} \bar{v}_i$$
+   * $k$ = Jumlah total aspek (Fungsi Utama, Usability, Performa, Security).
+   * $\bar{v}_i$ = Rata-rata skor aspek ke-$i$.
+
+### C. Tabel Interpretasi Kategori USI
+Skor akhir USI dicocokkan dengan kriteria kepuasan berikut:
+
+| Rentang Skor | Kategori Kepuasan |
+| :--- | :--- |
+| $\ge 4,5$ | Sangat Memuaskan |
+| $3,5 - 4,4$ | Memuaskan |
+| $2,5 - 3,4$ | Cukup |
+| $1,5 - 2,4$ | Kurang |
+| $< 1,5$ | Sangat Buruk |
+
+---
+
+## 17. TABEL BUKTI PENGUJIAN BLACKBOX BARU (BAB 5)
+
+Sebagai pelengkap bukti pengujian, gunakan format tabel kating berikut untuk mendokumentasikan bukti kasus uji wisuda, jadwal, dan kelola bimbingan:
+
+### Tabel 5.22 Bukti Hasil Pengujian Validasi Alur Ujian dan Kelulusan Wisuda (Tambahan)
+
+| ID Uji | Fitur / Skenario Uji | Hasil yang Diharapkan | Bukti (Gambar Pendukung) | Keterangan |
+|---|---|---|---|---|
+| **BB-WIS-001** | Upload Dokumen Wisuda (Fase Valid) | Dokumen tersimpan dengan status `menunggu_verifikasi`. | Tampilan dashboard mahasiswa dengan indikator berkas terkirim. | **Valid** |
+| **BB-WIS-002** | Proteksi Upload Wisuda (Akses Tidak Sah) | Sistem menolak pengiriman payload upload wisuda. | Respon server HTTP 400 Bad Request di Network Tab. | **Valid** |
+| **BB-WIS-003** | Verifikasi Berkas Wisuda (Disetujui Admin) | Mahasiswa berubah status menjadi `selesai` (Lulus). | Pesan selamat lulus pada halaman dashboard mahasiswa. | **Valid** |
+| **BB-WIS-004** | Verifikasi Berkas Wisuda (Ditolak Admin) | Mahasiswa menerima catatan koreksi di dashboard. | Kotak notifikasi warna merah berisi catatan admin di dashboard. | **Valid** |
+| **BB-JDW-001** | Penguncian Penguji Lintas Tahap | Pilihan penguji di-disabled dan otomatis memakai penguji proposal. | Screenshot modal buat jadwal admin dengan dospem penguji terkunci. | **Valid** |
+| **BB-JDW-002** | Filter Dinamis Jadwal Sidang Global | Hanya memuat jenis sidang dan status jadwal yang dipilih. | Tampilan tabel jadwal sidang global terfilter. | **Valid** |
+| **BB-BIM-001** | Antarmuka Kelola Bimbingan Admin | Data terfilter real-time sesuai status pencarian. | Tampilan tabel kelola bimbingan dengan paginasi. | **Valid** |
+| **BB-BIM-002** | Detail Riwayat Dosen Lengkap | Menampilkan nama Dospem 1, 2 dan Penguji 1, 2. | Screenshot panel detail bimbingan mahasiswa di sisi admin. | **Valid** |
+
+---
+
+## 18. CHECKLIST PERBAIKAN MANDIRI (TODO LIST)
+
+Gunakan daftar TODO di bawah ini sebagai panduan langkah-demi-langkah saat melakukan perbaikan pada file Draw.io (`ASI_Sistem_Diusulkan_SIMTA_Rapi.drawio`) dan naskah skripsi Word Anda.
+
+### A. TODO DIAGRAM DRAW.IO (`ASI_Sistem_Diusulkan_SIMTA_Rapi.drawio`)
+- [x] **Konsolidasi Lajur Dosen:**
+  - Satukan lajur horizontal `Dosen Pembimbing` dan `Dosen Penguji` menjadi satu lajur bernama **`Dosen (Pembimbing / Penguji)`**.
+  - Untuk setiap kotak proses di dalamnya, tambahkan keterangan label peran. Contoh:
+    - `[Peran: Pembimbing] Review dokumen bimbingan`
+    - `[Peran: Penguji] Review draf revisi Seminar Proposal`
+- [x] **Otomatisasi Alur Penjadwalan (Hapus Langkah Manual Offline):**
+  - Hapus kotak proses `Menyerahkan berkas sempro ke Koordinator TA` (tahap manual offline).
+  - Hubungkan langsung dari proses `Download Surat Persetujuan (DOCX)` ke lajur **Sistem** untuk mendeteksi kelayakan secara otomatis $\rightarrow$ Ubah status akademik mahasiswa menjadi `menunggu_sempro`/`menunggu_semhas`/`menunggu_sidang`.
+  - Pada lajur **Admin**, hubungkan langsung ke proses `Input jadwal sidang (Tanggal, Ruangan, Penguji)`.
+- [x] **Tambahkan Alur Seminar Hasil (Semhas):**
+  - Setelah alur revisi Sempro selesai (mahasiswa masuk status `bimbingan_lanjut`), tambahkan blok pengulangan:
+    - Bimbingan Bab IV-V dengan Dospem $\rightarrow$ ACC Semhas (min 5 bimbingan) $\rightarrow$ Admin jadwalkan Semhas (Penguji tetap/locked dari Sempro) $\rightarrow$ Ujian Semhas $\rightarrow$ Revisi penguji $\rightarrow$ Double ACC penguji $\rightarrow$ Lanjut Bab Akhir (`bimbingan_akhir`).
+- [x] **Tambahkan Tahap Persiapan Wisuda (Stage 7):**
+  - Di akhir alur (setelah kelulusan revisi Sidang Akhir):
+    - **Sistem:** Ubah status mahasiswa menjadi `persiapan_wisuda`.
+    - **Mahasiswa:** Mengunggah 4 berkas PDF wisuda wajib (Skripsi Full, PPT, Halaman Pengesahan, Logbook).
+    - **Admin:** Membuka modul verifikasi wisuda $\rightarrow$ Menolak (minta mahasiswa upload ulang) atau Menyetujui berkas.
+    - **Sistem:** Mengubah status mahasiswa menjadi `selesai` (Lulus & Alumni).
+
+### B. TODO NASKAH SKRIPSI (CHAPTER 4)
+- [ ] **Subbab 4.1.2 (Narasi Aktor Dosen):**
+  - Ubah definisi aktor Dosen Pembimbing dan Dosen Penguji menjadi satu aktor bernama **Dosen** dengan peran dinamis (lihat draf teks di bagian 20.2 / laporan audit).
+- [ ] **Subbab 4.1.2 (Narasi Siklus 7 Tahap Akademik):**
+  - Masukkan penjelasan mengenai 7 status akademik mahasiswa (dari *pra_sempro* hingga *selesai*) di bawah Use Case diagram agar dosen penguji memahami otomatisasi status (lihat draf teks di laporan audit).
+- [ ] **Penjelasan UML (Gaya Bahasa Kating):**
+  - Selaraskan paragraf penjelasan pembuka Use Case, Activity, dan Sequence diagram dengan pola kalimat kating Chrystalio (lihat draf kalimat di bagian 12).
+- [ ] **Subbab 4.3.2 (Spesifikasi Tabel Database):**
+  - Tambahkan baris field-field baru (seperti `statusMahasiswa`, `penguji_1/2`, `dokumenWisuda`, `kategoriBimbingan`, `hasil`, `nilaiSidang`) ke **Tabel 4.5, Tabel 4.6, dan Tabel 4.8** naskah Word Anda agar datanya sinkron dengan schema backend SIMTA (lihat tabel spesifikasi lengkap di bagian 8).
+
+### C. TODO NASKAH SKRIPSI (CHAPTER 5)
+- [ ] **Tangkapan Layar Halaman Baru (Subbab 5.1.5 s.d. 5.1.7):**
+  - Sisipkan tangkapan layar antarmuka baru berikut sebagai bukti implementasi:
+    - *Gambar 5.14 Halaman Jadwal Sidang Global terfilter.*
+    - *Gambar 5.15 Widget Upload Berkas Wisuda Mahasiswa.*
+    - *Gambar 5.16 Modul Verifikasi Berkas Wisuda Admin.*
+- [ ] **Tambahkan Tabel Kasus Uji Black Box (Subbab 5.2):**
+  - Tambahkan **Tabel 5.21 Kasus Uji Validasi Alur Ujian dan Kelulusan Wisuda (Tambahan)** ke dalam daftar tabel pengujian fungsionalitas (lihat rancangan kasus uji di bagian 14).
+- [ ] **Tambahkan Tabel Bukti Pengujian Black Box (Subbab 5.2):**
+  - Tambahkan **Tabel 5.22 Bukti Hasil Pengujian Validasi Alur Ujian dan Kelulusan Wisuda (Tambahan)** sebagai bukti tangkapan layar (lihat rancangan bukti di bagian 17).
+- [ ] **Tulis Bagian Perhitungan UAT & USI (Subbab 5.3 & 5.4):**
+  - Tuliskan penjabaran rumus matematika UAT dan USI serta tabel kriteria USI di naskah Word Anda dengan merujuk pada standar perhitungan kating Chrystalio (lihat rumusnya di bagian 16).
+
+---
+
+## 19. DETAIL PERANCANGAN AKTIVITAS (ACTIVITY DIAGRAM AUDIT & REVISIONS)
+
+Berikut adalah daftar revisi spesifik yang perlu Anda terapkan pada gambar diagram aktivitas Anda:
+
+### Gambar 4.3: Activity Diagram Login User
+*   **Revisi:** Tambahkan *decision node* keaktifan akun. Setelah sistem memeriksa kecocokan NIM/NIP dan password, tambahkan kondisi: `"Apakah status akun == aktif?"`. Jika `Tidak`, arahkan kembali ke Halaman Login dengan notifikasi "Akun dinonaktifkan". Jika `Ya`, barulah diarahkan ke dashboard.
+
+### Gambar 4.4: Activity Diagram Pengelolaan Data Pengguna (Admin)
+*   **Revisi:** Sesuaikan alur aksi admin. Admin tidak hanya melakukan "Tambah Data", tetapi memiliki percabangan aksi: `"Tambah User"`, `"Edit User"`, atau `"Nonaktifkan User (Soft Delete)"`.
+*   **Logika Sistem:** Jika memilih "Nonaktifkan", sistem mengubah status menjadi `'nonaktif'` tanpa menghapus data secara fisik dari basis data.
+
+### Gambar 4.5: Activity Diagram Penentuan Dosen Pembimbing (Admin)
+*   **Revisi:** Tambahkan *decision node* duplikasi. Sebelum data plotting disimpan ke basis data, sistem harus memvalidasi: `"Apakah Dosen Pembimbing 1 == Dosen Pembimbing 2?"`. Jika `Ya`, sistem membatalkan proses dan menampilkan pesan error duplikasi.
+
+### Gambar 4.6: Activity Diagram Pengelolaan Jadwal Sidang (Admin)
+*   **Revisi:** Tambahkan pengecekan konflik bertingkat sebelum jadwal disimpan:
+    1.  `"Apakah slot ruangan & waktu bentrok?"` (menggunakan query `isSlotAvailable`).
+    2.  `"Apakah dosen penguji merangkap sebagai dospem mahasiswa?"` (dospem dilarang menguji mahasiswa bimbingannya sendiri).
+    *   Jika salah satu konflik terjadi, sistem akan menolak dan kembali ke form pengisian.
+
+### Gambar 4.7: Activity Diagram Pengajuan Bimbingan Mahasiswa
+*   **Revisi:** Tambahkan percabangan fase akademik mahasiswa di awal:
+    *   Jika `statusMahasiswa` berada dalam fase revisi ujian (`revisi_sempro`, `revisi_semhas`, atau `revisi_sidang`), mahasiswa **wajib** mengunggah draf revisi PDF yang ditujukan ke **Dosen Penguji**.
+    *   Jika berada dalam fase bimbingan normal (`pra_sempro`, `bimbingan_lanjut`, `bimbingan_akhir`), pengajuan ditujukan ke **Dosen Pembimbing**.
+    *   Tambahkan pengecekan antrean: Jika masih ada berkas berstatus "Menunggu" pada dosen tujuan, tombol unggah dinonaktifkan.
+
+### Gambar 4.8: Activity Diagram Dosen Review Bimbingan
+*   **Revisi:** Tambahkan validasi kelayakan maju sidang saat dosen memilih status `'acc_sempro'`. Sistem menghitung total sesi bimbingan: `"Apakah jumlah bimbingan >= 5?"`. Jika kurang, review ditolak. Tambahkan juga proses otomatisasi: jika dosen memilih `'lanjut_bab'`, sistem secara otomatis menaikkan progress bab mahasiswa (`currentProgress` berubah dari BAB I -> BAB II, dst).
+
+### Gambar 4.9: Activity Diagram Diskusi Bimbingan (Reply Komentar)
+*   **Revisi:** Tambahkan validasi otorisasi pengirim. Sebelum komentar disimpan, sistem memverifikasi: `"Apakah pengirim merupakan pemilik dokumen atau dosen terkait?"`. Jika bukan, akses ditolak.
+
+### Gambar 4.10: Activity Diagram Lihat Jadwal Sidang
+*   **Revisi:** Tunjukkan penyaringan data berdasarkan hak akses (*role-based filter*). Mahasiswa hanya bisa melihat jadwal miliknya; Dosen melihat jadwal menguji; Admin melihat seluruh jadwal.
+
+### Gambar 4.10b (NEW): Activity Diagram Upload dan Verifikasi Berkas Wisuda (Mahasiswa & Admin)
+*   **Alur:** Mahasiswa berada di fase `persiapan_wisuda` $\rightarrow$ Mahasiswa unggah 4 berkas PDF wisuda $\rightarrow$ Sistem menyimpan dengan status `menunggu_verifikasi` $\rightarrow$ Admin memeriksa dokumen $\rightarrow$ Percabangan: jika ditolak, admin memberi catatan dan mahasiswa upload ulang; jika disetujui, sistem mengubah status mahasiswa menjadi `selesai` (Lulus).
+
+---
+
+## 20. REFERENSI METODOLOGI & PERHITUNGAN KATING CHRYSTALIO (2121004)
+
+### 20.1 Metodologi Pengembangan Sistem (Agile Scrum)
+Chrystalio menggunakan metodologi **Agile Scrum** untuk pengembangan sistemnya. Jika Anda ingin menyamakan struktur pengerjaan, gunakan pembagian sprint berikut:
+*   **Sprint 1 (Fondasi & Autentikasi):** Perancangan database MongoDB, setup backend server (Express.js), model User, modul registrasi/login user, serta Dashboard utama.
+*   **Sprint 2 (Modul Inti Bimbingan & Sidang):** Modul bimbingan mahasiswa (upload PDF), review dosen (feedback & status ACC), monitoring admin, plotting dospem, serta penjadwalan sidang (Sempro, Semhas, Sidang Skripsi).
+*   **Sprint 3 (Modul Verifikasi & Kelulusan):** Modul persiapan wisuda (upload 4 berkas PDF), verifikasi berkas wisuda oleh admin, kelulusan akhir, serta monitoring laporan progres global.
+
+### 20.2 Pilihan Arsitektur Basis Data: MySQL vs MongoDB
+Meskipun Chrystalio menggunakan MySQL (RDBMS relational), SIMTA dikembangkan menggunakan MongoDB (NoSQL document-oriented). Narasi berikut dapat disalin ke Subbab 4.3.2 naskah skripsi Anda untuk menjelaskan perbedaan arsitektur ini secara akademis:
+> "Berbeda dengan basis data relasional seperti MySQL yang menggunakan tabel kaku dan constraint foreign key fisik, SIMTA menggunakan basis data NoSQL MongoDB berorientasi dokumen. Data disimpan dalam bentuk format JSON-like (BSON) dengan skema yang dinamis dan fleksibel. Relasi antar-koleksi dimodelkan menggunakan tipe referensi ObjectId yang dihubungkan di tingkat aplikasi melalui pustaka Object Data Modeling (ODM) Mongoose. Hal ini mempercepat query data bimbingan terstruktur tanpa perlu melakukan operasi JOIN yang berat."
+
+### 20.3 Standar Hasil Evaluasi Kating Chrystalio (Sebagai Referensi Target)
+Sebagai pembanding hasil pengujian di Bab 5 skripsi Anda, berikut adalah capaian hasil pengujian akhir dari tesis Chrystalio:
+*   **Tingkat Penerimaan UAT:** Rata-rata skor UAT mencapai **4.67** dari skala 5.00, atau setara dengan tingkat penerimaan sebesar **93.4%** (Sangat Layak/Diterima).
+*   **User Satisfaction Index (USI):** Skor akhir USI bernilai **4.19** dari skala 5.00, yang dikategorikan dalam tingkat kepuasan **"Memuaskan"**.
+
+---
+
+## 21. KUNCI REALITAS CODEBASE (BUSINESS RULES & SUB-VIEWS)
+
+### 21.1 Aturan Penguncian Bab: Blocker BAB III ke BAB IV
+Sistem memiliki aturan bisnis tersembunyi pada `bimbinganController.js` (baris 392–394):
+*   **Aturan:** Dosen Pembimbing tidak dapat memberikan status `lanjut_bab` kepada mahasiswa jika posisi `currentProgress` mahasiswa berada di `'BAB III'` dan mahasiswa belum lulus Seminar Proposal (status akademik masih `pra_sempro` atau `menunggu_sempro`).
+*   **Tujuan:** Mencegah mahasiswa menulis Bab IV (Hasil dan Pembahasan) sebelum rancangan penelitiannya disetujui dalam forum Seminar Proposal resmi.
+*   **Narasi Bab 4:** Masukkan aturan ini sebagai bagian penjelasan Gambar 4.8 (Activity Diagram Review Dosen) dan Gambar 4.16 (Sequence Diagram Review Dosen).
+
+### 21.2 Pemisahan Halaman Manajemen Pengguna di Admin
+Modul manajemen pengguna di sisi admin tidak diimplementasikan dalam satu tampilan tunggal, melainkan dipecah menjadi tiga view React terpisah untuk menjaga kebersihan antarmuka:
+1.  **`ManajemenUser.tsx`:** Dashboard utama manajemen user yang memuat ringkasan statistik akun dan kontrol navigasi.
+2.  **`ManajemenUserDosen.tsx`:** Tampilan khusus untuk mengelola akun Dosen, mencakup data NIP, email, nama lengkap, status keaktifan, dan toggle admin access (`canAccessAdmin`).
+3.  **`ManajemenUserMahasiswa.tsx`:** Tampilan khusus untuk mengelola akun Mahasiswa, mencakup NIM, nama, prodi, semester aktif, judul tugas akhir, progres bab (`currentProgress`), serta status akademik (`statusMahasiswa`).
+*   **Narasi Bab 4/5:** Pastikan dokumentasi desain wireframe (Bab 4) dan hasil implementasi (Bab 5) mendokumentasikan ketiga view ini secara spesifik, bukan satu modul user generik.
+
+
+
+
+---
+
+## 22. REVISED ACTIVITY DIAGRAMS (VISUAL SWIMLANES, TABLES & NARRATIVES)
+
+Bagian ini menyajikan rancangan diagram aktivitas (*Activity Diagram*) sistem SIMTA yang telah disederhanakan dan diselaraskan dengan naskah asli Anda serta format acuan Chrystalio. 
+
+Setiap diagram disajikan dalam tiga format lengkap:
+1.  **Visual Diagram (Gambar PNG):** Menampilkan visualisasi swimlane 3-kolom vertikal murni (Aktor di kiri, Sistem di tengah, Basis Data di kanan) dengan tata letak yang bersih dan panah orthogonal tanpa tabrakan.
+2.  **Panduan Tabel Draw.io:** Panduan langkah-demi-langkah bagi Anda jika ingin menggambarnya ulang di Draw.io.
+3.  **Narasi Naskah Skripsi:** Paragraf deskripsi formal Bahasa Indonesia untuk disalin langsung ke naskah skripsi Bab 4 Anda.
+
+---
+
+### 22.1 Gambar 4.3 Activity Diagram Login User
+
+**Struktur Kolom:**
+*   **Kolom Kiri (Aktor):** ADMIN / DOSEN / MAHASISWA
+*   **Kolom Tengah (Sistem):** SISTEM
+*   **Kolom Kanan (Basis Data):** BASIS DATA
+
+**Panduan Alur Langkah Draw.io:**
+
+| Langkah | Lajur Kiri (ADMIN / DOSEN / MAHASISWA) | Lajur Tengah (SISTEM) | Lajur Kanan (BASIS DATA) | Arah Panah | Bentuk Shape |
+| :---: | :--- | :--- | :--- | :---: | :--- |
+| **1** | **Mulai** | | | $\rightarrow$ | Lingkaran Hitam Solid (Initial) |
+| **2** | **Membuka Website SIMTA** | | | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **3** | | **Menampilkan Halaman Login** | | $\leftarrow$ | Kotak Tepi Bulat (Aksi) |
+| **4** | **Mengisi NIM/NIP dan Password** | | | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **5** | | **Validasi NIM/NIP dan Password** | | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **6** | | | **Mencari Data Pengguna** | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **7** | | **Apakah Akun Aktif & Password Valid?** | | $\rightarrow$ | Belah Ketupat (Decision) |
+| **8** | *(Panah kembali ke Langkah 4 jika **Tidak**)* | | | $\leftarrow$ | Panah alur kembali |
+| **9** | | **Menampilkan Dashboard** *(jika **Ya**)* | | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **10** | | **Selesai** | | | Lingkaran Hitam di dalam Lingkaran (Final) |
+
+**Narasi Naskah Skripsi:**
+Proses autentikasi pengguna (Login) berlaku secara seragam bagi ketiga aktor dalam sistem SIMTA, yaitu Mahasiswa, Dosen, dan Administrator. Alur aktivitas dimulai saat pengguna mengakses *website* SIMTA, di mana sistem kemudian akan merespon dengan menyajikan halaman login. Pengguna wajib memasukkan kredensial login berupa NIM/NIP dan kata sandi. Setelah menekan tombol kirim, sistem melakukan verifikasi keaktifan akun (memastikan status bernilai aktif) serta memeriksa kecocokan kata sandi. Jika kredensial tidak valid atau akun berstatus nonaktif, sistem akan menampilkan notifikasi kegagalan dan mengembalikan pengguna ke halaman pengisian kredensial. Sebaliknya, jika data valid dan akun aktif, sistem akan mengarahkan pengguna untuk menampilkan halaman *dashboard* utama yang disesuaikan secara dinamis berdasarkan peran masing-masing aktor. Alur aktivitas Login User dapat dilihat pada Gambar 4.3.
+
+---
+
+### 22.2 Gambar 4.4 Activity Diagram Pengelolaan Data Pengguna (Admin)
+
+**Struktur Kolom:**
+*   **Kolom Kiri (Aktor):** ADMIN
+*   **Kolom Tengah (Sistem):** SISTEM
+*   **Kolom Kanan (Basis Data):** BASIS DATA
+
+**Panduan Alur Langkah Draw.io:**
+
+| Langkah | Lajur Kiri (ADMIN) | Lajur Tengah (SISTEM) | Lajur Kanan (BASIS DATA) | Arah Panah | Bentuk Shape |
+| :---: | :--- | :--- | :--- | :---: | :--- |
+| **1** | **Mulai** | | | $\rightarrow$ | Lingkaran Hitam Solid (Initial) |
+| **2** | | **Menampilkan Menu Kelola User** | | $\leftarrow$ | Kotak Tepi Bulat (Aksi) |
+| **3** | **Mengisi Form Data Pengguna** | | | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **4** | | **Validasi NIM/NIP Baru** | | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **5** | | | **Cek Duplikasi Data** | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **6** | | **Apakah Data Valid?** | | $\rightarrow$ | Belah Ketupat (Decision) |
+| **7** | *(Panah kembali ke Langkah 3 jika **Tidak**)* | | | $\leftarrow$ | Panah alur kembali |
+| **8** | | | **Menyimpan Data Pengguna** *(jika **Ya**)* | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **9** | | **Menampilkan Notifikasi Sukses** | | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **10** | | **Selesai** | | | Lingkaran Hitam di dalam Lingkaran (Final) |
+
+**Narasi Naskah Skripsi:**
+Administrator memiliki wewenang penuh dalam mengelola data master pengguna di sistem SIMTA. Pengelolaan data mencakup pendaftaran akun baru, pembaruan data pengguna lama (*edit*), dan penonaktifan akun secara logis (*soft delete*). Alur aktivitas dimulai ketika Administrator membuka halaman kelola pengguna. Sistem kemudian memuat dan menampilkan seluruh daftar pengguna yang terdaftar. Administrator kemudian memilih salah satu aksi pengelolaan. Untuk aksi penambahan pengguna baru, Administrator mengisi formulir data diri. Sistem secara otomatis melakukan validasi duplikasi untuk memastikan NIM/NIP belum pernah terdaftar. Jika terjadi duplikasi, sistem akan menolak penyimpanan dan menampilkan pesan kesalahan. Jika valid, sistem mengenkripsi kata sandi default dan menyimpan data ke dalam basis data. Untuk aksi pembaruan, Administrator mengubah data yang diperlukan pada formulir *edit*, lalu sistem memperbarui data tersebut. Untuk aksi penonaktifan, Administrator mengonfirmasi aksi *soft delete* yang akan mengubah status pengguna menjadi nonaktif. Di akhir proses, sistem menyegarkan tampilan tabel pengguna di layar dan menampilkan pesan sukses. Alur aktivitas pengelolaan data pengguna dapat dilihat pada Gambar 4.4.
+
+---
+
+### 22.3 Gambar 4.5 Activity Diagram Penentuan Dosen Pembimbing (Admin)
+
+**Struktur Kolom:**
+*   **Kolom Kiri (Aktor):** ADMIN
+*   **Kolom Tengah (Sistem):** SISTEM
+*   **Kolom Kanan (Basis Data):** BASIS DATA
+
+**Panduan Alur Langkah Draw.io:**
+
+| Langkah | Lajur Kiri (ADMIN) | Lajur Tengah (SISTEM) | Lajur Kanan (BASIS DATA) | Arah Panah | Bentuk Shape |
+| :---: | :--- | :--- | :--- | :---: | :--- |
+| **1** | **Mulai** | | | $\rightarrow$ | Lingkaran Hitam Solid (Initial) |
+| **2** | | **Menampilkan Halaman Plotting** | | $\leftarrow$ | Kotak Tepi Bulat (Aksi) |
+| **3** | **Memilih Mahasiswa & Dosen Pembimbing** | | | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **4** | | **Validasi Pemilihan Dosen** | | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **5** | | **Apakah Dosen Berbeda?** | | $\rightarrow$ | Belah Ketupat (Decision) |
+| **6** | *(Panah kembali ke Langkah 3 jika **Tidak**)* | | | $\leftarrow$ | Panah alur kembali |
+| **7** | | | **Menyimpan Relasi Pembimbing** *(jika **Ya**)* | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **8** | | **Menampilkan Notifikasi Sukses** | | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **9** | | **Selesai** | | | Lingkaran Hitam di dalam Lingkaran (Final) |
+
+**Narasi Naskah Skripsi:**
+Penentuan pasangan Dosen Pembimbing 1 dan Dosen Pembimbing 2 untuk mahasiswa tugas akhir dikelola sepenuhnya oleh Administrator. Alur dimulai dengan Administrator mengakses menu plotting dosen pembimbing. Sistem akan memuat form plotting yang berisi daftar pilihan mahasiswa aktif beserta seluruh dosen. Administrator kemudian memilih mahasiswa dan menetapkan Dosen Pembimbing 1 serta Dosen Pembimbing 2 yang diinginkan. Setelah Administrator menekan tombol simpan, sistem melakukan pengecekan logika untuk memastikan dosen yang ditugaskan sebagai pembimbing 1 dan pembimbing 2 tidak sama. Jika dosen yang dipilih sama, sistem membatalkan proses penyimpanan dan menampilkan notifikasi kesalahan. Jika valid, sistem menyimpan relasi pembimbing ke dalam database dan menyajikan notifikasi sukses di layar. Alur aktivitas penentuan dosen pembimbing dapat dilihat pada Gambar 4.5.
+
+---
+
+### 22.4 Gambar 4.6 Activity Diagram Pengelolaan Jadwal Sidang (Admin)
+
+**Struktur Kolom:**
+*   **Kolom Kiri (Aktor):** ADMIN
+*   **Kolom Tengah (Sistem):** SISTEM
+*   **Kolom Kanan (Basis Data):** BASIS DATA
+
+**Panduan Alur Langkah Draw.io:**
+
+| Langkah | Lajur Kiri (ADMIN) | Lajur Tengah (SISTEM) | Lajur Kanan (BASIS DATA) | Arah Panah | Bentuk Shape |
+| :---: | :--- | :--- | :--- | :---: | :--- |
+| **1** | **Mulai** | | | $\rightarrow$ | Lingkaran Hitam Solid (Initial) |
+| **2** | | **Menampilkan Halaman Kelola Jadwal** | | $\leftarrow$ | Kotak Tepi Bulat (Aksi) |
+| **3** | **Mengisi Form Jadwal Sidang** | | | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **4** | | **Validasi Ruangan & Dosen Penguji** | | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **5** | | | **Cek Konflik Jadwal** | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **6** | | **Apakah Jadwal Valid?** | | $\rightarrow$ | Belah Ketupat (Decision) |
+| **7** | *(Panah kembali ke Langkah 3 jika **Tidak**)* | | | $\leftarrow$ | Panah alur kembali |
+| **8** | | | **Menyimpan Jadwal & Update Status** *(jika **Ya**)* | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **9** | | **Menampilkan Jadwal & Kirim Notifikasi** | | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **10** | | **Selesai** | | | Lingkaran Hitam di dalam Lingkaran (Final) |
+
+**Narasi Naskah Skripsi:**
+Administrator mengelola jadwal pelaksanaan Seminar Proposal, Seminar Hasil, dan Sidang Akhir secara otomatis melalui sistem. Alur aktivitas dimulai ketika Administrator membuka menu kelola jadwal. Sistem menyajikan daftar jadwal sidang yang sudah terencana sebelumnya. Administrator kemudian membuka formulir penjadwalan dan menginput data mahasiswa, tanggal, waktu, ruangan, serta menunjuk dosen penguji. Setelah menekan tombol simpan, sistem secara otomatis melakukan pengecekan konflik ganda. Pertama, sistem memeriksa ketersediaan ruangan dan waktu agar tidak terjadi jadwal bentrok (*room conflict*). Kedua, sistem memverifikasi bahwa dosen penguji yang ditunjuk tidak berstatus sebagai dosen pembimbing dari mahasiswa tersebut. Jika terjadi konflik ganda, sistem akan menampilkan pesan penolakan dan mengembalikan ke form pengisian. Jika valid, sistem menyimpan jadwal sidang, memperbarui status ujian mahasiswa, serta mengirimkan email pemberitahuan ke mahasiswa dan dosen terkait secara otomatis. Alur aktivitas kelola jadwal sidang dapat dilihat pada Gambar 4.6.
+
+---
+
+### 22.5 Gambar 4.7 Activity Diagram Pengajuan Bimbingan Mahasiswa
+
+**Struktur Kolom:**
+*   **Kolom Kiri (Aktor):** MAHASISWA
+*   **Kolom Tengah (Sistem):** SISTEM
+*   **Kolom Kanan (Basis Data):** BASIS DATA
+
+**Panduan Alur Langkah Draw.io:**
+
+| Langkah | Lajur Kiri (MAHASISWA) | Lajur Tengah (SISTEM) | Lajur Kanan (BASIS DATA) | Arah Panah | Bentuk Shape |
+| :---: | :--- | :--- | :--- | :---: | :--- |
+| **1** | **Mulai** | | | $\rightarrow$ | Lingkaran Hitam Solid (Initial) |
+| **2** | | **Menampilkan Halaman Bimbingan** | | $\leftarrow$ | Kotak Tepi Bulat (Aksi) |
+| **3** | **Mengunggah Berkas PDF Bimbingan** | | | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **4** | | **Validasi Berkas & Sesi Aktif** | | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **5** | | | **Cek Status Antrean Dokumen** | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **6** | | **Apakah Lolos Validasi?** | | $\rightarrow$ | Belah Ketupat (Decision) |
+| **7** | *(Panah kembali ke Langkah 3 jika **Tidak**)* | | | $\leftarrow$ | Panah alur kembali |
+| **8** | | | **Menyimpan Berkas & Auto-Version** *(jika **Ya**)* | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **9** | | **Menampilkan Riwayat Bimbingan Terkini** | | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **10** | | **Selesai** | | | Lingkaran Hitam di dalam Lingkaran (Final) |
+
+**Narasi Naskah Skripsi:**
+Aktivitas pengajuan bimbingan dilakukan oleh mahasiswa dengan mengunggah draf pengerjaan dalam format PDF. Alur aktivitas dimulai ketika mahasiswa mengakses menu bimbingan pada portal mereka. Sistem akan menyajikan riwayat bimbingan terdahulu beserta statusnya. Mahasiswa memilih untuk membuat pengajuan baru dengan memilih dosen tujuan, mengisi judul bimbingan, catatan deskripsi, serta melampirkan berkas tugas akhir. Sebelum dokumen diproses, sistem memeriksa antrean bimbingan aktif mahasiswa pada dosen tujuan. Jika masih ada dokumen berstatus "Menunggu" yang belum ditinjau oleh dosen tersebut, sistem akan menampilkan notifikasi antrean penuh dan menolak pengajuan. Jika antrean kosong, sistem mendeteksi status akademik mahasiswa. Apabila mahasiswa berada dalam fase revisi ujian (*revisi_sempro*, *revisi_semhas*, atau *revisi_sidang*), sistem secara otomatis mengarahkan dokumen tersebut ke Dosen Penguji. Namun, jika mahasiswa dalam fase bimbingan normal, dokumen diarahkan ke Dosen Pembimbing. Sistem kemudian menyimpan berkas, membuat nomor versi dokumen secara otomatis (V1, V2, dst.), dan mengirim notifikasi email ke dosen terkait. Alur pengajuan bimbingan dapat dilihat pada Gambar 4.7.
+
+---
+
+### 22.6 Gambar 4.8 Activity Diagram Dosen Review Bimbingan
+
+**Struktur Kolom:**
+*   **Kolom Kiri (Aktor):** DOSEN (PEMBIMBING / PENGUJI)
+*   **Kolom Tengah (Sistem):** SISTEM
+*   **Kolom Kanan (Basis Data):** BASIS DATA
+
+**Panduan Alur Langkah Draw.io:**
+
+| Langkah | Lajur Kiri (DOSEN) | Lajur Tengah (SISTEM) | Lajur Kanan (BASIS DATA) | Arah Panah | Bentuk Shape |
+| :---: | :--- | :--- | :--- | :---: | :--- |
+| **1** | **Mulai** | | | $\rightarrow$ | Lingkaran Hitam Solid (Initial) |
+| **2** | | **Menampilkan Berkas PDF & Form Review** | | $\leftarrow$ | Kotak Tepi Bulat (Aksi) |
+| **3** | **Mengisi Form Review & Keputusan** | | | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **4** | | **Validasi Keputusan & Sesi Bimbingan** | | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **5** | | | **Cek Syarat Kelayakan & Sesi** | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **6** | | **Apakah Syarat Terpenuhi?** | | $\rightarrow$ | Belah Ketupat (Decision) |
+| **7** | *(Panah kembali ke Langkah 3 jika **Tidak**)* | | | $\leftarrow$ | Panah alur kembali |
+| **8** | | | **Menyimpan Hasil Review & Progres Bab** *(jika **Ya**)* | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **9** | | **Menampilkan Hasil & Kirim Email** | | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **10** | | **Selesai** | | | Lingkaran Hitam di dalam Lingkaran (Final) |
+
+**Narasi Naskah Skripsi:**
+Dosen (Pembimbing maupun Penguji) bertugas meninjau dokumen tugas akhir yang diajukan oleh mahasiswa. Alur dimulai ketika dosen mengakses detail dokumen bimbingan mahasiswa. Sistem menyajikan berkas PDF tugas akhir beserta kolom masukan ulasan. Dosen mengunduh dokumen, melakukan pembacaan, kemudian mengisi formulir ulasan masukan (*feedback*), memilih keputusan status dokumen, dan dapat melampirkan berkas *feedback* tambahan. Jika status keputusan yang dipilih adalah "ACC Sempro", sistem melakukan validasi kuota minimal pengerjaan dengan memeriksa jumlah sesi bimbingan mahasiswa di basis data. Jika jumlah bimbingan kurang dari 5 sesi, sistem menolak persetujuan ACC dan menampilkan notifikasi kesalahan. Jika kuota terpenuhi (atau jika status yang dipilih bukan ACC Sempro), sistem menyimpan catatan review dan status dokumen. Setelah itu, jika keputusan yang diambil dosen adalah "Lanjut Bab", sistem secara otomatis memutakhirkan progres pengerjaan bab mahasiswa ke bab berikutnya (misalnya, dari BAB I ke BAB II). Terakhir, sistem menampilkan status review terbaru dan mengirimkan pemberitahuan email secara otomatis ke mahasiswa. Alur review bimbingan oleh dosen dapat dilihat pada Gambar 4.8.
+
+---
+
+### 22.7 Gambar 4.9 Activity Diagram Diskusi Bimbingan (Reply Komentar)
+
+**Struktur Kolom:**
+*   **Kolom Kiri (Aktor):** PENGGUNA (MHS / DSN)
+*   **Kolom Tengah (Sistem):** SISTEM
+*   **Kolom Kanan (Basis Data):** BASIS DATA
+
+**Panduan Alur Langkah Draw.io:**
+
+| Langkah | Lajur Kiri (PENGGUNA) | Lajur Tengah (SISTEM) | Lajur Kanan (BASIS DATA) | Arah Panah | Bentuk Shape |
+| :---: | :--- | :--- | :--- | :---: | :--- |
+| **1** | **Mulai** | | | $\rightarrow$ | Lingkaran Hitam Solid (Initial) |
+| **2** | | **Menampilkan Detail Riwayat Bimbingan** | | $\leftarrow$ | Kotak Tepi Bulat (Aksi) |
+| **3** | **Menulis Pesan Balasan Komentar** | | | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **4** | | **Validasi Hak Akses Sesi** | | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **5** | | | **Verifikasi Keterlibatan Akun** | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **6** | | **Apakah Akses Valid?** | | $\rightarrow$ | Belah Ketupat (Decision) |
+| **7** | *(Panah kembali ke Langkah 3 jika **Tidak**)* | | | $\leftarrow$ | Panah alur kembali |
+| **8** | | | **Menyimpan & Memuat Balasan Baru** *(jika **Ya**)* | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **9** | | **Menampilkan Komentar Real-time** | | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **10** | | **Selesai** | | | Lingkaran Hitam di dalam Lingkaran (Final) |
+
+**Narasi Naskah Skripsi:**
+Diskusi komentar memfasilitasi komunikasi asinkron tertulis antara mahasiswa dengan dosen secara terintegrasi di dalam portal riwayat bimbingan. Alur aktivitas dimulai ketika pengguna (mahasiswa atau dosen) mengakses detail riwayat pengajuan bimbingan. Sistem memuat rincian dokumen beserta kolom komentar. Pengguna menulis pesan tanggapan dan mengklik tombol kirim komentar. Sistem kemudian memverifikasi otorisasi sesi aktif untuk memastikan bahwa pengirim pesan adalah mahasiswa pemilik dokumen atau dosen pembimbing/penguji yang ditugaskan khusus. Jika terdeteksi akses dari pihak luar yang tidak sah, sistem menolak pengiriman pesan. Jika valid, sistem menyimpan pesan tanggapan ke dalam database dan langsung menyajikannya secara *real-time* di layar riwayat bimbingan. Alur aktivitas diskusi bimbingan dapat dilihat pada Gambar 4.9.
+
+---
+
+### 22.8 Gambar 4.10 Activity Diagram Lihat Jadwal Ujian
+
+**Struktur Kolom:**
+*   **Kolom Kiri (Aktor):** PENGGUNA (MHS / DSN / ADMIN)
+*   **Kolom Tengah (Sistem):** SISTEM
+*   **Kolom Kanan (Basis Data):** BASIS DATA
+
+**Panduan Alur Langkah Draw.io:**
+
+| Langkah | Lajur Kiri (PENGGUNA) | Lajur Tengah (SISTEM) | Lajur Kanan (BASIS DATA) | Arah Panah | Bentuk Shape |
+| :---: | :--- | :--- | :--- | :---: | :--- |
+| **1** | **Mulai** | | | $\rightarrow$ | Lingkaran Hitam Solid (Initial) |
+| **2** | | **Menampilkan Halaman Jadwal Ujian** | | $\leftarrow$ | Kotak Tepi Bulat (Aksi) |
+| **3** | | **Identifikasi Peran & Otorisasi** | | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **4** | | | **Mencari Data Jadwal Terfilter** | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **5** | | **Menyaring & Menyajikan Jadwal** | | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **6** | | **Selesai** | | | Lingkaran Hitam di dalam Lingkaran (Final) |
+
+**Narasi Naskah Skripsi:**
+Seluruh aktor dapat melihat jadwal pelaksanaan ujian sidang melalui menu jadwal ujian global. Alur aktivitas dimulai saat pengguna mengakses menu jadwal ujian. Sistem merespon dengan memuat modul halaman jadwal ujian, lalu mengidentifikasi peran (*role*) pengguna yang sedang aktif melalui token sesi. Jika peran teridentifikasi sebagai Administrator, sistem memanggil seluruh data jadwal sidang secara menyeluruh dari database. Jika peran teridentifikasi sebagai Dosen, sistem menyaring data dan hanya memanggil jadwal di mana dosen tersebut terdaftar sebagai tim penguji. Jika peran adalah Mahasiswa, sistem memanggil data jadwal sidang yang ditujukan khusus bagi mahasiswa bersangkutan. Sistem kemudian menyaring data tersebut berdasarkan otorisasi hak akses dan menampilkannya dalam bentuk tabel daftar jadwal sidang global. Alur aktivitas lihat jadwal sidang dapat dilihat pada Gambar 4.10.
+
+---
+
+### 22.9 Gambar 4.10b (NEW) Activity Diagram Upload dan Verifikasi Berkas Wisuda (Stage 7)
+
+**Struktur Kolom:**
+*   **Kolom Kiri (Aktor):** PENGGUNA (MAHASISWA / ADMIN)
+*   **Kolom Tengah (Sistem):** SISTEM
+*   **Kolom Kanan (Basis Data):** BASIS DATA
+
+**Panduan Alur Langkah Draw.io:**
+
+| Langkah | Lajur Kiri (MAHASISWA / ADMIN) | Lajur Tengah (SISTEM) | Lajur Kanan (BASIS DATA) | Arah Panah | Bentuk Shape |
+| :---: | :--- | :--- | :--- | :---: | :--- |
+| **1** | **Mulai** *(oleh Mahasiswa)* | | | $\rightarrow$ | Lingkaran Hitam Solid (Initial) |
+| **2** | | **Menampilkan Form Wisuda** | | $\leftarrow$ | Kotak Tepi Bulat (Aksi) |
+| **3** | **Mengunggah Berkas Wisuda** *(oleh Mahasiswa)* | | | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **4** | | **Validasi Kelengkapan Berkas** | | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **5** | | **Apakah Berkas Lengkap?** | | $\rightarrow$ | Belah Ketupat (Decision) |
+| **6** | *(Panah kembali ke Langkah 3 jika **Tidak**)* | | | $\leftarrow$ | Panah alur kembali |
+| **7** | | | **Menyimpan Berkas Wisuda** *(jika **Ya**)* | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **8** | | **Menampilkan Daftar Verifikasi** | | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **9** | **Meninjau & Memilih Keputusan** *(oleh Admin)* | | | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **10** | | **Apakah Data Disetujui?** | | $\rightarrow$ | Belah Ketupat (Decision) |
+| **11** | *(Panah kembali ke Langkah 3 jika **Tolak**)* | | | $\leftarrow$ | Panah alur kembali |
+| **12** | | | **Memperbarui Status Kelulusan** *(jika **Setujui**)* | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **13** | | **Menampilkan Hasil & Kelulusan** | | $\rightarrow$ | Kotak Tepi Bulat (Aksi) |
+| **14** | | **Selesai** | | | Lingkaran Hitam di dalam Lingkaran (Final) |
+
+**Narasi Naskah Skripsi:**
+Aktivitas persiapan wisuda merupakan tahap akhir kelulusan setelah mahasiswa dinyatakan lulus dalam ujian sidang skripsi dan menyelesaikan seluruh revisi penguji. Alur dimulai ketika mahasiswa membuka halaman persiapan wisuda saat status mereka telah berada pada fase *persiapan_wisuda*. Mahasiswa mengunggah 4 berkas kelulusan PDF wajib, yaitu berkas Skripsi Lengkap, file PPT Presentasi, lembar Halaman Pengesahan bertanda tangan, serta Form Logbook Bimbingan. Sistem memverifikasi kelengkapan dokumen yang diunggah. Jika tidak lengkap, sistem menampilkan notifikasi kesalahan. Jika berkas lengkap, sistem menyimpan dokumen dan menetapkan status verifikasi menjadi "menunggu_verifikasi". Selanjutnya, Administrator membuka menu verifikasi wisuda pada portal admin. Sistem menampilkan daftar mahasiswa yang menunggu peninjauan berkas wisuda. Administrator memeriksa kelayakan fisik dari 4 dokumen PDF tersebut. Administrator kemudian menginputkan keputusan persetujuan. Jika Administrator memilih keputusan "Tolak", Administrator menginputkan catatan perbaikan, sistem menyimpan catatan tersebut, dan mahasiswa wajib mengunggah ulang dokumen perbaikan. Jika Administrator memilih keputusan "Setujui", sistem memperbarui status verifikasi disetujui, merubah status akademik mahasiswa menjadi "selesai" (Lulus & Alumni), serta menyajikan notifikasi ucapan selamat kelulusan pada dashboard mahasiswa. Alur aktivitas upload dan verifikasi berkas wisuda dapat dilihat pada Gambar 4.10b.
+
+---
+
+
+---
+
+
+---
+
+
+---
+
+
+---
+
+## 23. REVISED SEQUENCE DIAGRAMS (VISUAL LIFELINES, TABLES & NARRATIVES)
+
+Bagian ini menyajikan rancangan diagram sekuens (*Sequence Diagram*) sistem SIMTA yang telah diselaraskan dengan diagram aktivitas 3-kolom sebelumnya, Mongoose schema, dan format acuan Chrystalio. 
+
+Setiap diagram disajikan dalam tiga format lengkap:
+1.  **Visual Diagram (Gambar PNG):** Menampilkan visualisasi lifelines (Actor, View, Controller, Entity/Database) lengkap dengan alur aktivasi, pesan sync, self-call, dan return message.
+2.  **Panduan Tabel Alur Pesan:** Panduan langkah-demi-langkah sequence dalam tabel terstruktur.
+3.  **Narasi Naskah Skripsi:** Paragraf deskripsi formal Bahasa Indonesia untuk disalin langsung ke naskah skripsi Bab 4 Anda.
+
+---
+
+### 23.1 Gambar 4.11 Sequence Diagram Login User
+
+**Visual Diagram:**
+![Gambar 4.11 Sequence Diagram Login User](file:///C:/Users/GIGABYTE/.gemini/antigravity/brain/335da7d9-ea18-405b-a92d-dce72fc8fbb4/Gambar_4_11_Sequence_Login.png)
+
+**Lifeline Objek:**
+*   `User` (Actor) - ADMIN / DOSEN / MAHASISWA
+*   `Halaman Login` (View / Boundary) - Antarmuka masukan kredensial
+*   `Sistem Validasi` (Controller) - Logika autentikasi API backend
+*   `Database (User)` (Entity) - MongoDB collection `users`
+*   `DashboardView` (View / Boundary) - Tampilan utama setelah login
+
+**Tabel Alur Pesan:**
+
+| No | Pengirim | Penerima | Pesan / Aktivitas | Tipe Pesan |
+| :---: | :--- | :--- | :--- | :---: |
+| **1** | User | Halaman Login | Mengisi NIM/NIP & Password | Sync Call |
+| **2** | Halaman Login | Sistem Validasi | POST /api/auth/login (nim_nip, password) | Sync Call |
+| **3** | Sistem Validasi | Database (User) | User.findOne({ nim_nip }) | Sync Call |
+| **4** | Database (User) | Sistem Validasi | Kembalikan data user & hashed password | Return (Dashed) |
+| **5** | Sistem Validasi | Sistem Validasi | Pengecekan status akun (aktif/nonaktif) | Self Call |
+| **6** | Sistem Validasi | Sistem Validasi | Bandingkan password (bcrypt.compare) | Self Call |
+| **7** | Sistem Validasi | Halaman Login | Return HTTP 401: Autentikasi Gagal / HTTP 200: Sukses | Return (Dashed) |
+| **8** | Halaman Login | DashboardView | Redirect ke Dashboard sesuai peran (jika sukses) | Sync Call |
+| **9** | DashboardView | User | Render tampilan dashboard utama | Return (Dashed) |
+
+**Narasi Naskah Skripsi:**
+*Sequence Diagram* Autentikasi Pengguna (Login) pada Gambar 4.11 menjelaskan interaksi antar objek dalam proses masuk ke sistem. Alur dimulai ketika Pengguna memasukkan kredensial login berupa NIM/NIP dan kata sandi pada objek Halaman Login. Data tersebut dikirimkan ke objek Sistem Validasi melalui request POST. Sistem Validasi kemudian melakukan kueri ke objek Database untuk mencari data pengguna berdasarkan identitas yang dimasukkan. Database mengembalikan objek data pengguna beserta kata sandi yang telah terenkripsi. Sistem Validasi melakukan verifikasi internal untuk memeriksa keaktifan akun dan mencocokkan kata sandi menggunakan fungsi komparasi hash. Apabila autentikasi gagal, pesan kesalahan dikirimkan kembali ke layar pengguna. Namun, jika kredensial cocok dan akun berstatus aktif, sistem mengembalikan token sesi dan mengarahkan halaman pengguna menuju DashboardView yang sesuai dengan hak akses masing-masing peran.
+
+---
+
+### 23.2 Gambar 4.12 Sequence Diagram Admin Kelola Data User
+
+**Visual Diagram:**
+![Gambar 4.12 Sequence Diagram Admin Kelola Data User](file:///C:/Users/GIGABYTE/.gemini/antigravity/brain/335da7d9-ea18-405b-a92d-dce72fc8fbb4/Gambar_4_12_Sequence_Admin_Kelola_User.png)
+
+**Lifeline Objek:**
+*   `Admin` (Actor) - Pengelola data master
+*   `ManajemenUserView` (View / Boundary) - Tabel daftar data pengguna
+*   `FormTambahUser` (View / Boundary) - Modal formulir input user baru
+*   `Sistem Validasi` (Controller) - Logika pengelolaan user backend
+*   `Database (User)` (Entity) - MongoDB collection `users`
+
+**Tabel Alur Pesan:**
+
+| No | Pengirim | Penerima | Pesan / Aktivitas | Tipe Pesan |
+| :---: | :--- | :--- | :--- | :---: |
+| **1** | Admin | Halaman Kelola | Membuka Halaman Kelola User | Sync Call |
+| **2** | Admin | Form User | Mengisi form data user & klik "Simpan" | Sync Call |
+| **3** | Form User | Sistem Validasi | POST /api/users (nim_nip, name, role, email) | Sync Call |
+| **4** | Sistem Validasi | Database (User) | User.findOne({ nim_nip }) | Sync Call |
+| **5** | Database (User) | Sistem Validasi | Kembalikan data pencarian | Return (Dashed) |
+| **6** | Sistem Validasi | Sistem Validasi | Enkripsi password default (bcrypt.hash) | Self Call |
+| **7** | Sistem Validasi | Database (User) | User.create() & simpan data | Sync Call |
+| **8** | Database (User) | Sistem Validasi | Konfirmasi sukses simpan | Return (Dashed) |
+| **9** | Sistem Validasi | Form User | Return HTTP 201: User Created | Return (Dashed) |
+| **10** | Form User | Halaman Kelola | Tutup form modal | Return (Dashed) |
+| **11** | Halaman Kelola | Admin | Tampilkan toast sukses & perbarui tabel | Return (Dashed) |
+
+**Narasi Naskah Skripsi:**
+*Sequence Diagram* Pengelolaan Data Pengguna oleh Administrator pada Gambar 4.12 menggambarkan alur penambahan data pengguna baru ke dalam database. Proses diawali saat Administrator mengakses halaman pengelolaan pengguna dan membuka form pembuatan user. Administrator melengkapi kolom data diri lalu menekan tombol simpan. Permintaan dikirim ke Sistem Validasi untuk diperiksa agar terhindar dari duplikasi NIM/NIP di database. Jika data terindikasi ganda, sistem mengembalikan pesan penolakan. Jika valid, sistem membangkitkan sandi default, mengenkripsinya dengan algoritma hash, dan menginstruksikan objek Database untuk membuat entitas dokumen pengguna baru. Setelah database mengonfirmasi keberhasilan penyimpanan data, Sistem Validasi mengirimkan respons sukses ke FormTambahUser, menutup dialog modal, dan menyegarkan tabel daftar pengguna pada halaman utama untuk menampilkan data baru tersebut.
+
+---
+
+### 23.3 Gambar 4.13 Sequence Diagram Admin Plotting Dosen Pembimbing
+
+**Visual Diagram:**
+![Gambar 4.13 Sequence Diagram Admin Plotting Dospem](file:///C:/Users/GIGABYTE/.gemini/antigravity/brain/335da7d9-ea18-405b-a92d-dce72fc8fbb4/Gambar_4_13_Sequence_Admin_Plotting_Dospem.png)
+
+**Lifeline Objek:**
+*   `Admin` (Actor) - Administrator SIMTA
+*   `PlottingDospemView` (View / Boundary) - Halaman utama plotting dosen
+*   `FormPlottingDospem` (View / Boundary) - Formulir penugasan pembimbing
+*   `Sistem Validasi` (Controller) - Logika pemetaan dosen backend
+*   `Database (User)` (Entity) - MongoDB collection `users`
+
+**Tabel Alur Pesan:**
+
+| No | Pengirim | Penerima | Pesan / Aktivitas | Tipe Pesan |
+| :---: | :--- | :--- | :--- | :---: |
+| **1** | Admin | Plotting View | Membuka Halaman Plotting Dospem | Sync Call |
+| **2** | Admin | Form Plotting | Memilih Mahasiswa & Dospem 1 & 2 | Sync Call |
+| **3** | Form Plotting | Sistem Validasi | PUT /api/users/:id/assign-dospem (dospem_1, dospem_2) | Sync Call |
+| **4** | Sistem Validasi | Database (User) | User.findByIdAndUpdate(studentId, { dospem_1, dospem_2 }) | Sync Call |
+| **5** | Database (User) | Sistem Validasi | Konfirmasi update sukses | Return (Dashed) |
+| **6** | Sistem Validasi | Form Plotting | Return HTTP 200: Plotting Berhasil | Return (Dashed) |
+| **7** | Form Plotting | Plotting View | Tutup form plotting | Return (Dashed) |
+| **8** | Plotting View | Admin | Tampilkan pesan sukses plotting | Return (Dashed) |
+
+**Narasi Naskah Skripsi:**
+Penetapan pasangan pembimbing tugas akhir diuraikan melalui *Sequence Diagram* Penentuan Dosen Pembimbing pada Gambar 4.13. Alur dimulai dari akses Administrator ke halaman utama pemetaan, lalu memilih nama mahasiswa beserta nama Dosen Pembimbing 1 dan Dosen Pembimbing 2 pada form isian. Data ini diteruskan ke Sistem Validasi. Di sini, sistem memvalidasi bahwa Dosen Pembimbing 1 dan Dosen Pembimbing 2 adalah dua orang yang berbeda. Apabila terjadi pemilihan dosen yang sama untuk kedua posisi tersebut, sistem langsung membatalkan proses dan mengembalikan notifikasi penolakan. Jika valid, Sistem Validasi mengirim instruksi pembaruan data ke Database untuk mengasosiasikan relasi ID pembimbing ke dokumen milik mahasiswa yang bersangkutan. Setelah sukses, respons status berhasil dikirimkan kembali ke UI Form untuk menutup modal dan memunculkan toast sukses pemetaan.
+
+---
+
+### 23.4 Gambar 4.14 Sequence Diagram Admin Kelola Jadwal Sidang
+
+**Visual Diagram:**
+![Gambar 4.14 Sequence Diagram Admin Kelola Jadwal](file:///C:/Users/GIGABYTE/.gemini/antigravity/brain/335da7d9-ea18-405b-a92d-dce72fc8fbb4/Gambar_4_14_Sequence_Admin_Kelola_Jadwal.png)
+
+**Lifeline Objek:**
+*   `Admin` (Actor) - Administrator SIMTA
+*   `KelolaJadwalView` (View / Boundary) - Halaman monitoring jadwal ujian
+*   `FormTambahJadwal` (View / Boundary) - Formulir modal input penjadwalan
+*   `Sistem Validasi` (Controller) - Logika pengecekan konflik ganda
+*   `Database (Jadwal/User)` (Entity) - MongoDB collection `jadwals` dan `users`
+
+**Tabel Alur Pesan:**
+
+| No | Pengirim | Penerima | Pesan / Aktivitas | Tipe Pesan |
+| :---: | :--- | :--- | :--- | :---: |
+| **1** | Admin | Jadwal View | Membuka Halaman Kelola Jadwal | Sync Call |
+| **2** | Admin | Form Jadwal | Mengisi form jadwal sidang & klik "Simpan" | Sync Call |
+| **3** | Form Jadwal | Sistem Validasi | POST /api/jadwal (mahasiswa, jenisJadwal, tanggal, waktu, ruangan, penguji) | Sync Call |
+| **4** | Sistem Validasi | Database (Jadwal/User) | Jadwal.isSlotAvailable(tanggal, waktu, ruangan) | Sync Call |
+| **5** | Database (Jadwal/User) | Sistem Validasi | Kembalikan status ketersediaan ruang | Return (Dashed) |
+| **6** | Sistem Validasi | Sistem Validasi | Validasi penguji bukan dospem mahasiswa | Self Call |
+| **7** | Sistem Validasi | Database (Jadwal/User) | Jadwal.create() & simpan jadwal | Sync Call |
+| **8** | Database (Jadwal/User) | Sistem Validasi | Konfirmasi sukses simpan jadwal | Return (Dashed) |
+| **9** | Sistem Validasi | Database (Jadwal/User) | User.findByIdAndUpdate(mahasiswa, { penguji_1, penguji_2, statusMahasiswa }) | Sync Call |
+| **10** | Database (Jadwal/User) | Sistem Validasi | Konfirmasi sinkronisasi data penguji | Return (Dashed) |
+| **11** | Sistem Validasi | Form Jadwal | Return HTTP 201: Jadwal Berhasil Dibuat | Return (Dashed) |
+| **12** | Form Jadwal | Jadwal View | Tutup form jadwal | Return (Dashed) |
+| **13** | Jadwal View | Admin | Tampilkan pesan sukses & kirim notifikasi email | Return (Dashed) |
+
+**Narasi Naskah Skripsi:**
+*Sequence Diagram* Pengelolaan Jadwal Sidang pada Gambar 4.14 menggambarkan runtutan verifikasi konflik saat admin menjadwalkan sidang ujian. Admin memasukkan data tanggal, waktu, ruangan, dan menunjuk dosen penguji pada FormTambahJadwal. Sistem Validasi kemudian memanggil metode kueri ketersediaan pada Database untuk memastikan ruangan tidak bentrok dengan jadwal lain. Apabila ruangan bentrok, database melaporkannya dan sistem menolak pembuatan jadwal. Jika ruangan kosong, Sistem Validasi memeriksa status dosen penguji untuk memastikan mereka bukan merupakan pembimbing mahasiswa bersangkutan. Jika lolos seluruh validasi, Sistem Validasi menginstruksikan Database untuk membuat dokumen jadwal baru sekaligus memperbarui status akademik mahasiswa dan mencatat pasangan penguji ke profil user. Terakhir, sistem menutup form modal, memperbarui tabel jadwal, dan mengirimkan email notifikasi otomatis ke dosen dan mahasiswa terkait.
+
+---
+
+### 23.5 Gambar 4.15 Sequence Diagram Mahasiswa Upload Bimbingan / Revisi
+
+**Visual Diagram:**
+![Gambar 4.15 Sequence Diagram Mahasiswa Upload](file:///C:/Users/GIGABYTE/.gemini/antigravity/brain/335da7d9-ea18-405b-a92d-dce72fc8fbb4/Gambar_4_15_Sequence_Mahasiswa_Upload.png)
+
+**Lifeline Objek:**
+*   `Mahasiswa` (Actor) - Mahasiswa aktif Tugas Akhir
+*   `BimbinganView` (View / Boundary) - Riwayat pengajuan dokumen
+*   `FormUploadBimbingan` (View / Boundary) - Modal formulir upload berkas PDF
+*   `Sistem Validasi` (Controller) - Logika penanganan bimbingan
+*   `Database (Bimbingan)` (Entity) - MongoDB collection `bimbingans`
+
+**Tabel Alur Pesan:**
+
+| No | Pengirim | Penerima | Pesan / Aktivitas | Tipe Pesan |
+| :---: | :--- | :--- | :--- | :---: |
+| **1** | Mahasiswa | Bimbingan View | Membuka Menu Bimbingan | Sync Call |
+| **2** | Mahasiswa | Form Upload | Klik "Pengajuan Baru", pilih Dosen & file PDF | Sync Call |
+| **3** | Form Upload | Sistem Validasi | POST /api/bimbingan (dosenId, dosenType, kategoriBimbingan, file) | Sync Call |
+| **4** | Sistem Validasi | Database (Bimbingan) | Bimbingan.findOne({ status: 'menunggu', dosen }) | Sync Call |
+| **5** | Database (Bimbingan) | Sistem Validasi | Kembalikan dokumen menunggu jika ada | Return (Dashed) |
+| **6** | Sistem Validasi | Database (Bimbingan) | Simpan data bimbingan & hitung versi otomatis (V1->V2) | Sync Call |
+| **7** | Database (Bimbingan) | Sistem Validasi | Konfirmasi berkas tersimpan | Return (Dashed) |
+| **8** | Sistem Validasi | Form Upload | Return HTTP 201: Upload Berhasil | Return (Dashed) |
+| **9** | Form Upload | Bimbingan View | Tutup modal upload | Return (Dashed) |
+| **10** | Bimbingan View | Mahasiswa | Tampilkan riwayat bimbingan & kirim email ke Dosen | Return (Dashed) |
+
+**Narasi Naskah Skripsi:**
+Alur pengiriman berkas laporan tugas akhir dijabarkan dalam *Sequence Diagram* Upload Bimbingan Mahasiswa pada Gambar 4.15. Mahasiswa mengakses menu bimbingan lalu mengunggah berkas PDF dan menetapkan dosen tujuan. Form mengidentifikasi apakah pengiriman ditujukan sebagai bimbingan normal (ke dosen pembimbing) atau revisi hasil sidang (ke dosen penguji) berdasarkan fase akademik saat ini. Request dikirimkan ke backend. Sistem Validasi melakukan pengecekan antrean pada Database. Jika terdeteksi masih terdapat berkas bimbingan lama yang berstatus "Menunggu" pada dosen tujuan, sistem membatalkan penyimpanan berkas baru untuk mencegah antrean menumpuk. Jika tidak ada antrean aktif, berkas disimpan, nomor versi dokumen dinaikkan otomatis (V1, V2, dst.), dan riwayat bimbingan diperbarui beserta pengiriman email notifikasi ke dosen bersangkutan.
+
+---
+
+### 23.6 Gambar 4.16 Sequence Diagram Dosen Review Bimbingan / Revisi
+
+**Visual Diagram:**
+![Gambar 4.16 Sequence Diagram Dosen Review](file:///C:/Users/GIGABYTE/.gemini/antigravity/brain/335da7d9-ea18-405b-a92d-dce72fc8fbb4/Gambar_4_16_Sequence_Dosen_Review.png)
+
+**Lifeline Objek:**
+*   `Dosen` (Actor) - Dosen Pembimbing atau Dosen Penguji
+*   `HalamanReviewBimbingan` (View / Boundary) - Layar pembacaan berkas & ulasan
+*   `FormFeedbackUlasan` (View / Boundary) - Bidang masukan komentar & status keputusan
+*   `Sistem Validasi` (Controller) - Logika pemrosesan feedback & kelayakan
+*   `Database (Bimbingan/User)` (Entity) - MongoDB collection `bimbingans` dan `users`
+
+**Tabel Alur Pesan:**
+
+| No | Pengirim | Penerima | Pesan / Aktivitas | Tipe Pesan |
+| :---: | :--- | :--- | :--- | :---: |
+| **1** | Dosen | Halaman Review | Memilih Dokumen Mahasiswa | Sync Call |
+| **2** | Halaman Review | Dosen | Tampilkan berkas PDF & form review | Return (Dashed) |
+| **3** | Dosen | Form Feedback | Mengisi feedback, pilih status & klik "Kirim" | Sync Call |
+| **4** | Form Feedback | Sistem Validasi | PUT /api/bimbingan/:id/feedback (status, feedbackText, file) | Sync Call |
+| **5** | Sistem Validasi | Database (Bimbingan/User) | Update data Bimbingan (status, feedback) | Sync Call |
+| **6** | Database (Bimbingan/User) | Sistem Validasi | Konfirmasi data bimbingan terupdate | Return (Dashed) |
+| **7** | Sistem Validasi | Database (Bimbingan/User) | User.findByIdAndUpdate (Update currentProgress bab jika 'Lanjut Bab') | Sync Call |
+| **8** | Database (Bimbingan/User) | Sistem Validasi | Konfirmasi update progres bab mahasiswa | Return (Dashed) |
+| **9** | Sistem Validasi | Form Feedback | Return HTTP 200: Feedback Disimpan | Return (Dashed) |
+| **10** | Form Feedback | Halaman Review | Tutup ulasan | Return (Dashed) |
+| **11** | Halaman Review | Dosen | Tampilkan ulasan tersimpan & kirim email ke mahasiswa | Return (Dashed) |
+
+**Narasi Naskah Skripsi:**
+*Sequence Diagram* Review Bimbingan oleh Dosen pada Gambar 4.16 memvisualisasikan bagaimana ulasan dosen memengaruhi riwayat bimbingan dan riwayat bab akademik mahasiswa. Dosen membuka ulasan berkas mahasiswa pada portal, mengisi lembar feedback, memilih status kelayakan, kemudian menekan tombol kirim. Sistem Validasi memproses permintaan tersebut. Jika status yang diberikan adalah "ACC Sempro", sistem melakukan verifikasi ke database untuk memastikan kuota bimbingan minimal 5 kali telah terlampaui. Jika tidak, proses ACC ditolak. Jika syarat terpenuhi, sistem mengupdate status bimbingan. Selanjutnya, jika dosen memberikan status "Lanjut Bab", Sistem Validasi mengupdate secara otomatis field `currentProgress` mahasiswa di database (misalnya naik ke Bab II atau Bab III). Begitu proses database selesai, respons sukses dikirimkan ke UI untuk merender halaman review terupdate serta memicu pengiriman email pemberitahuan ke mahasiswa.
+
+---
+
+### 23.7 Gambar 4.17 Sequence Diagram Diskusi Reply Komentar
+
+**Visual Diagram:**
+![Gambar 4.17 Sequence Diagram Reply Diskusi](file:///C:/Users/GIGABYTE/.gemini/antigravity/brain/335da7d9-ea18-405b-a92d-dce72fc8fbb4/Gambar_4_17_Sequence_Reply_Diskusi.png)
+
+**Lifeline Objek:**
+*   `User` (Actor) - Mahasiswa atau Dosen terkait
+*   `DetailBimbinganView` (View / Boundary) - Detail riwayat thread diskusi bimbingan
+*   `FormKomentarBalasan` (View / Boundary) - Kolom input balasan komentar
+*   `Sistem Validasi` (Controller) - Logika validasi hak akses diskusi
+*   `Database (Reply)` (Entity) - MongoDB collection `replies`
+
+**Tabel Alur Pesan:**
+
+| No | Pengirim | Penerima | Pesan / Aktivitas | Tipe Pesan |
+| :---: | :--- | :--- | :--- | :---: |
+| **1** | User | Detail View | Membuka Detail Riwayat Bimbingan | Sync Call |
+| **2** | User | Form Balasan | Menulis pesan & menekan tombol "Kirim" | Sync Call |
+| **3** | Form Balasan | Sistem Validasi | POST /api/bimbingan/:id/reply (message) | Sync Call |
+| **4** | Sistem Validasi | Sistem Validasi | Validasi otorisasi pengirim (apakah pemilik/dosen dokumen) | Self Call |
+| **5** | Sistem Validasi | Database (Reply) | Reply.create() & simpan pesan | Sync Call |
+| **6** | Database (Reply) | Sistem Validasi | Konfirmasi komentar disimpan | Return (Dashed) |
+| **7** | Sistem Validasi | Form Balasan | Return HTTP 201: Comment Posted | Return (Dashed) |
+| **8** | Form Balasan | Detail View | Tampilkan komentar baru secara real-time di thread UI | Return (Dashed) |
+
+**Narasi Naskah Skripsi:**
+Komunikasi interaktif antar pengguna digambarkan pada *Sequence Diagram* Diskusi Reply Komentar pada Gambar 4.17. Alur diawali ketika Pengguna (baik Mahasiswa pemilik maupun Dosen pembimbing/penguji) membuka thread diskusi bimbingan, menuliskan pesan balasan, lalu mengirimkannya. Sistem Validasi memverifikasi token sesi pengirim untuk memastikan mereka memiliki otorisasi (hanya mahasiswa pemilik dokumen atau dosen yang ditunjuk sebagai pembimbing/penguji mahasiswa tersebut yang diperbolehkan memposting komentar). Jika akses valid, sistem meneruskan instruksi pembuatan pesan balasan ke Database untuk dimasukkan ke sub-collection komentar dokumen terkait. Setelah database mengonfirmasi penyimpanan, Sistem Validasi mengirimkan respons sukses ke UI untuk langsung merender komentar baru tersebut di layar secara real-time menggunakan websocket.
+
+---
+
+### 23.8 Gambar 4.18 Sequence Diagram Lihat Jadwal Ujian
+
+**Visual Diagram:**
+![Gambar 4.18 Sequence Diagram Lihat Jadwal](file:///C:/Users/GIGABYTE/.gemini/antigravity/brain/335da7d9-ea18-405b-a92d-dce72fc8fbb4/Gambar_4_18_Sequence_Lihat_Jadwal.png)
+
+**Lifeline Objek:**
+*   `User` (Actor) - Seluruh pengguna sistem
+*   `JadwalSidangView` (View / Boundary) - Halaman antarmuka daftar jadwal
+*   `Sistem Validasi` (Controller) - Logika pemfilteran jadwal
+*   `Database (Jadwal)` (Entity) - MongoDB collection `jadwals`
+
+**Tabel Alur Pesan:**
+
+| No | Pengirim | Penerima | Pesan / Aktivitas | Tipe Pesan |
+| :---: | :--- | :--- | :--- | :---: |
+| **1** | User | Jadwal View | Membuka Menu Jadwal Sidang | Sync Call |
+| **2** | Jadwal View | Sistem Validasi | GET /api/jadwal | Sync Call |
+| **3** | Sistem Validasi | Sistem Validasi | Identifikasi Peran dari Token Pengguna | Self Call |
+| **4** | Sistem Validasi | Database (Jadwal) | Jadwal.find() (Mengambil data jadwal terfilter sesuai peran) | Sync Call |
+| **5** | Database (Jadwal) | Sistem Validasi | Mengembalikan array data jadwal terfilter | Return (Dashed) |
+| **6** | Sistem Validasi | Jadwal View | Return HTTP 200: Array Jadwal | Return (Dashed) |
+| **7** | Jadwal View | User | Tampilkan data jadwal dalam tabel di layar | Return (Dashed) |
+
+**Narasi Naskah Skripsi:**
+*Sequence Diagram* Lihat Jadwal Ujian pada Gambar 4.18 menjelaskan proses pencarian data jadwal sidang yang telah disaring berdasarkan peran aktor. Pengguna mengklik menu jadwal sidang pada portal, yang memicu request GET ke Sistem Validasi. Sistem Validasi mengidentifikasi peran aktor yang sedang aktif melalui token sesi. Apabila aktor yang mengakses adalah Administrator, Sistem Validasi melakukan query menyeluruh tanpa filter ke Database. Jika aktor adalah Dosen, query difilter agar hanya mengambil jadwal sidang di mana dosen bertindak sebagai penguji. Jika aktor adalah Mahasiswa, query menyaring jadwal ujian khusus miliknya saja. Database menyajikan kumpulan berkas data jadwal terfilter tersebut ke Sistem Validasi untuk diteruskan ke JadwalSidangView agar ditampilkan dalam format tabel dinamis di layar masing-masing aktor.
+
+---
+
+### 23.9 Gambar 4.19 Sequence Diagram Upload dan Verifikasi Berkas Wisuda (Stage 7)
+
+**Visual Diagram:**
+![Gambar 4.19 Sequence Diagram Verifikasi Wisuda](file:///C:/Users/GIGABYTE/.gemini/antigravity/brain/335da7d9-ea18-405b-a92d-dce72fc8fbb4/Gambar_4_19_Sequence_Verifikasi_Wisuda.png)
+
+**Lifeline Objek:**
+*   `Mahasiswa` (Actor) - Mahasiswa yang telah menyelesaikan revisi
+*   `Admin` (Actor) - Administrator kelulusan
+*   `DashboardMahasiswa` (View / Boundary) - Portal dashboard mahasiswa
+*   `VerifikasiWisudaView` (View / Boundary) - Portal dashboard verifikasi admin
+*   `Sistem Validasi` (Controller) - Logika validasi wisuda backend
+*   `Database (User)` (Entity) - MongoDB collection `users`
+
+**Tabel Alur Pesan:**
+
+| No | Pengirim | Penerima | Pesan / Aktivitas | Tipe Pesan |
+| :---: | :--- | :--- | :--- | :---: |
+| **1** | Mahasiswa | Dashboard Mhs | Membuka Widget Wisuda (Status persiapan_wisuda) | Sync Call |
+| **2** | Mahasiswa | Dashboard Mhs | Mengunggah 4 berkas PDF wisuda wajib & klik "Kirim" | Sync Call |
+| **3** | Dashboard Mhs | Sistem Validasi | POST /api/users/upload-wisuda (Files: skripsi, ppt, pengesahan, logbook) | Sync Call |
+| **4** | Sistem Validasi | Sistem Validasi | Validasi kelengkapan 4 file PDF | Self Call |
+| **5** | Sistem Validasi | Database (User) | Update dokumenWisuda & statusVerifikasi = 'menunggu_verifikasi' | Sync Call |
+| **6** | Database (User) | Sistem Validasi | Konfirmasi data wisuda terupdate | Return (Dashed) |
+| **7** | Sistem Validasi | Dashboard Mhs | Return HTTP 200: Upload wisuda berhasil | Return (Dashed) |
+| **8** | Dashboard Mhs | Mahasiswa | Tampilkan indikator menunggu verifikasi admin | Return (Dashed) |
+| **9** | Admin | Verifikasi View | Membuka Menu Verifikasi Wisuda | Sync Call |
+| **10** | Verifikasi View | Sistem Validasi | GET /api/users?role=mahasiswa&statusVerifikasi=menunggu_verifikasi | Sync Call |
+| **11** | Sistem Validasi | Database (User) | User.find({ statusVerifikasi: 'menunggu_verifikasi' }) | Sync Call |
+| **12** | Database (User) | Sistem Validasi | Mengembalikan daftar mahasiswa menunggu verifikasi | Return (Dashed) |
+| **13** | Sistem Validasi | Verifikasi View | Return HTTP 200: Daftar Verifikasi | Return (Dashed) |
+| **14** | Verifikasi View | Admin | Tampilkan daftar tabel mahasiswa wisuda | Return (Dashed) |
+| **15** | Admin | Verifikasi View | Klik "Setujui" & Konfirmasi | Sync Call |
+| **16** | Verifikasi View | Sistem Validasi | PUT /api/users/:id/verifikasi-wisuda (status: 'disetujui') | Sync Call |
+| **17** | Sistem Validasi | Database (User) | Update statusVerifikasi = 'disetujui', statusMahasiswa = 'selesai' | Sync Call |
+| **18** | Database (User) | Sistem Validasi | Konfirmasi kelulusan wisuda disimpan | Return (Dashed) |
+| **19** | Sistem Validasi | Verifikasi View | Return HTTP 200: Wisuda Disetujui | Return (Dashed) |
+| **20** | Verifikasi View | Admin | Tampilkan pesan sukses & hilangkan dari daftar | Return (Dashed) |
+
+**Narasi Naskah Skripsi:**
+*Sequence Diagram* Upload dan Verifikasi Berkas Wisuda pada Gambar 4.19 menggambarkan proses akhir kelulusan (Stage 7). Mahasiswa membuka widget wisuda pada DashboardMahasiswa saat berstatus `persiapan_wisuda` dan mengunggah 4 dokumen kelulusan wajib. Request POST dikirimkan ke Sistem Validasi. Setelah sistem memvalidasi keberadaan keempat dokumen tersebut, sistem menginstruksikan Database untuk menyimpan berkas wisuda dan mengubah status verifikasi menjadi `'menunggu_verifikasi'`. Di sisi admin, Administrator membuka VerifikasiWisudaView, yang memicu Sistem Validasi mengambil seluruh berkas bertipe `'menunggu_verifikasi'` dari Database untuk ditampilkan dalam tabel. Administrator memeriksa kelayakan fisik berkas tersebut dan mengklik tombol "Setujui". Sistem Validasi kemudian merubah status verifikasi mahasiswa menjadi `'disetujui'` serta memutakhirkan `statusMahasiswa` menjadi `'selesai'` (alumni) di Database. Akhirnya, sistem menyajikan pemberitahuan kelulusan sukses pada dashboard admin dan memberikan feedback visual kelulusan kepada mahasiswa.
