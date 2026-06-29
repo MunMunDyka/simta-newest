@@ -13,6 +13,8 @@
 const User = require('../models/User');
 const Bimbingan = require('../models/Bimbingan');
 const mongoose = require('mongoose');
+const path = require('path');
+const fs = require('fs');
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess, sendPaginated, sendCreated } = require('../utils/responseHelper');
@@ -738,7 +740,6 @@ const downloadWisudaFile = asyncHandler(async (req, res) => {
     const { fileName } = req.params;
     const safeFileName = path.basename(fileName);
     const filePath = path.resolve(__dirname, '..', 'uploads', 'wisuda', safeFileName);
-    const fs = require('fs');
 
     if (!fs.existsSync(filePath)) {
         throw ApiError.notFound('File dokumen wisuda tidak ditemukan');
