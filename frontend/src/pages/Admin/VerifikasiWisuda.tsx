@@ -25,8 +25,8 @@ import { logout } from '@/store/slices/authSlice'
 import api from '@/lib/api'
 import { FeedbackAlert } from '@/components/FeedbackAlert'
 import { getApiErrorMessage } from '@/lib/errorMessage'
-import { verifikasiWisuda } from '@/services/wisudaService'
-import { type User as UserType } from '@/services/authService'
+import { downloadWisudaFile, previewWisudaFile, verifikasiWisuda } from '@/services/wisudaService'
+import { type FileWisuda, type User as UserType } from '@/services/authService'
 
 // Sidebar config matching other Admin pages
 const menuItems = [
@@ -142,15 +142,26 @@ export const VerifikasiWisuda = () => {
     }
 
     // Helpers
-    const getFileUrl = (path: string) => {
-        if (!path) return ''
-        const apiBaseUrl = import.meta.env.VITE_API_URL || '/api'
-        if (path.startsWith('uploads/wisuda/')) {
-            const fileName = path.split('/').pop()
-            return `${apiBaseUrl}/users/wisuda-download/${fileName}`
+    const handlePreviewFile = async (file?: FileWisuda) => {
+        if (!file?.filePath) return
+
+        try {
+            setError(null)
+            await previewWisudaFile(file.filePath)
+        } catch (err: unknown) {
+            setError(getApiErrorMessage(err, 'Gagal membuka pratinjau dokumen wisuda.'))
         }
-        const assetBaseUrl = apiBaseUrl.replace(/\/api\/?$/, '')
-        return `${assetBaseUrl}/${path.replace(/\\/g, '/')}`
+    }
+
+    const handleDownloadFile = async (file?: FileWisuda) => {
+        if (!file?.filePath) return
+
+        try {
+            setError(null)
+            await downloadWisudaFile(file.filePath, file.fileOriginalName || file.fileName)
+        } catch (err: unknown) {
+            setError(getApiErrorMessage(err, 'Gagal mengunduh dokumen wisuda.'))
+        }
     }
 
     const getStatusLabel = (status: string | undefined) => {
@@ -480,23 +491,22 @@ export const VerifikasiWisuda = () => {
                                     </div>
                                     {selectedStudent.dokumenWisuda?.skripsiFull?.filePath && (
                                         <div className="flex gap-2">
-                                            <a
-                                                href={getFileUrl(selectedStudent.dokumenWisuda.skripsiFull.filePath)}
-                                                target="_blank"
-                                                rel="noreferrer"
+                                            <button
+                                                type="button"
+                                                onClick={() => handlePreviewFile(selectedStudent.dokumenWisuda?.skripsiFull)}
                                                 className="bg-blue-50 hover:bg-blue-100 text-blue-600 p-2 rounded-lg border border-blue-200 hover:border-blue-300 transition-colors"
                                                 title="Pratinjau File"
                                             >
                                                 <Eye className="w-4 h-4" />
-                                            </a>
-                                            <a
-                                                href={getFileUrl(selectedStudent.dokumenWisuda.skripsiFull.filePath)}
-                                                download={selectedStudent.dokumenWisuda.skripsiFull.fileOriginalName}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDownloadFile(selectedStudent.dokumenWisuda?.skripsiFull)}
                                                 className="bg-gray-50 hover:bg-gray-100 text-gray-600 p-2 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
                                                 title="Unduh File"
                                             >
                                                 <Download className="w-4 h-4" />
-                                            </a>
+                                            </button>
                                         </div>
                                     )}
                                 </div>
@@ -514,23 +524,22 @@ export const VerifikasiWisuda = () => {
                                     </div>
                                     {selectedStudent.dokumenWisuda?.pptSkripsi?.filePath && (
                                         <div className="flex gap-2">
-                                            <a
-                                                href={getFileUrl(selectedStudent.dokumenWisuda.pptSkripsi.filePath)}
-                                                target="_blank"
-                                                rel="noreferrer"
+                                            <button
+                                                type="button"
+                                                onClick={() => handlePreviewFile(selectedStudent.dokumenWisuda?.pptSkripsi)}
                                                 className="bg-blue-50 hover:bg-blue-100 text-blue-600 p-2 rounded-lg border border-blue-200 hover:border-blue-300 transition-colors"
                                                 title="Pratinjau File"
                                             >
                                                 <Eye className="w-4 h-4" />
-                                            </a>
-                                            <a
-                                                href={getFileUrl(selectedStudent.dokumenWisuda.pptSkripsi.filePath)}
-                                                download={selectedStudent.dokumenWisuda.pptSkripsi.fileOriginalName}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDownloadFile(selectedStudent.dokumenWisuda?.pptSkripsi)}
                                                 className="bg-gray-50 hover:bg-gray-100 text-gray-600 p-2 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
                                                 title="Unduh File"
                                             >
                                                 <Download className="w-4 h-4" />
-                                            </a>
+                                            </button>
                                         </div>
                                     )}
                                 </div>
@@ -548,23 +557,22 @@ export const VerifikasiWisuda = () => {
                                     </div>
                                     {selectedStudent.dokumenWisuda?.halamanPengesahan?.filePath && (
                                         <div className="flex gap-2">
-                                            <a
-                                                href={getFileUrl(selectedStudent.dokumenWisuda.halamanPengesahan.filePath)}
-                                                target="_blank"
-                                                rel="noreferrer"
+                                            <button
+                                                type="button"
+                                                onClick={() => handlePreviewFile(selectedStudent.dokumenWisuda?.halamanPengesahan)}
                                                 className="bg-blue-50 hover:bg-blue-100 text-blue-600 p-2 rounded-lg border border-blue-200 hover:border-blue-300 transition-colors"
                                                 title="Pratinjau File"
                                             >
                                                 <Eye className="w-4 h-4" />
-                                            </a>
-                                            <a
-                                                href={getFileUrl(selectedStudent.dokumenWisuda.halamanPengesahan.filePath)}
-                                                download={selectedStudent.dokumenWisuda.halamanPengesahan.fileOriginalName}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDownloadFile(selectedStudent.dokumenWisuda?.halamanPengesahan)}
                                                 className="bg-gray-50 hover:bg-gray-100 text-gray-600 p-2 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
                                                 title="Unduh File"
                                             >
                                                 <Download className="w-4 h-4" />
-                                            </a>
+                                            </button>
                                         </div>
                                     )}
                                 </div>
@@ -582,23 +590,22 @@ export const VerifikasiWisuda = () => {
                                     </div>
                                     {selectedStudent.dokumenWisuda?.formBimbingan?.filePath && (
                                         <div className="flex gap-2">
-                                            <a
-                                                href={getFileUrl(selectedStudent.dokumenWisuda.formBimbingan.filePath)}
-                                                target="_blank"
-                                                rel="noreferrer"
+                                            <button
+                                                type="button"
+                                                onClick={() => handlePreviewFile(selectedStudent.dokumenWisuda?.formBimbingan)}
                                                 className="bg-blue-50 hover:bg-blue-100 text-blue-600 p-2 rounded-lg border border-blue-200 hover:border-blue-300 transition-colors"
                                                 title="Pratinjau File"
                                             >
                                                 <Eye className="w-4 h-4" />
-                                            </a>
-                                            <a
-                                                href={getFileUrl(selectedStudent.dokumenWisuda.formBimbingan.filePath)}
-                                                download={selectedStudent.dokumenWisuda.formBimbingan.fileOriginalName}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDownloadFile(selectedStudent.dokumenWisuda?.formBimbingan)}
                                                 className="bg-gray-50 hover:bg-gray-100 text-gray-600 p-2 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
                                                 title="Unduh File"
                                             >
                                                 <Download className="w-4 h-4" />
-                                            </a>
+                                            </button>
                                         </div>
                                     )}
                                 </div>

@@ -41,8 +41,8 @@ import { logout } from '@/store/slices/authSlice'
 import api from '@/lib/api'
 import { FeedbackAlert } from '@/components/FeedbackAlert'
 import { getApiErrorMessage } from '@/lib/errorMessage'
-import { uploadWisuda } from '@/services/wisudaService'
-import type { DokumenWisuda } from '@/services/authService'
+import { downloadWisudaFile, uploadWisuda } from '@/services/wisudaService'
+import type { DokumenWisuda, FileWisuda } from '@/services/authService'
 
 // Types
 interface DosenInfo {
@@ -251,15 +251,15 @@ export const DashboardMhs = () => {
         }
     }
 
-    const getFileUrl = (path: string) => {
-        if (!path) return ''
-        const apiBaseUrl = import.meta.env.VITE_API_URL || '/api'
-        if (path.startsWith('uploads/wisuda/')) {
-            const fileName = path.split('/').pop()
-            return `${apiBaseUrl}/users/wisuda-download/${fileName}`
+    const handleDownloadWisudaFile = async (file?: FileWisuda) => {
+        if (!file?.filePath) return
+
+        try {
+            setUploadWisudaError(null)
+            await downloadWisudaFile(file.filePath, file.fileOriginalName || file.fileName)
+        } catch (err: unknown) {
+            setUploadWisudaError(getApiErrorMessage(err, 'Gagal mengunduh dokumen wisuda. Silakan login ulang atau coba lagi.'))
         }
-        const assetBaseUrl = apiBaseUrl.replace(/\/api\/?$/, '')
-        return `${assetBaseUrl}/${path.replace(/\\/g, '/')}`
     }
 
     // Animation variants
@@ -738,14 +738,13 @@ export const DashboardMhs = () => {
                                             <label className="block text-sm font-bold text-gray-700 mb-2">1. File Skripsi Lengkap (PDF)</label>
                                             {mahasiswaData.dokumenWisuda?.skripsiFull?.fileName ? (
                                                 <div className="flex items-center justify-between text-xs bg-gray-55 p-2.5 rounded-lg border border-gray-150 mb-2">
-                                                    <a
-                                                        href={getFileUrl(mahasiswaData.dokumenWisuda.skripsiFull.filePath)}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                        className="font-semibold text-blue-600 hover:underline truncate max-w-[200px]"
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleDownloadWisudaFile(mahasiswaData.dokumenWisuda?.skripsiFull)}
+                                                        className="font-semibold text-blue-600 hover:underline truncate max-w-[200px] text-left"
                                                     >
                                                         {mahasiswaData.dokumenWisuda.skripsiFull.fileOriginalName}
-                                                    </a>
+                                                    </button>
                                                     <span className="text-gray-400 font-medium">{mahasiswaData.dokumenWisuda.skripsiFull.fileSize}</span>
                                                 </div>
                                             ) : (
@@ -780,14 +779,13 @@ export const DashboardMhs = () => {
                                             <label className="block text-sm font-bold text-gray-700 mb-2">2. PPT Presentasi Skripsi (PDF)</label>
                                             {mahasiswaData.dokumenWisuda?.pptSkripsi?.fileName ? (
                                                 <div className="flex items-center justify-between text-xs bg-gray-55 p-2.5 rounded-lg border border-gray-150 mb-2">
-                                                    <a
-                                                        href={getFileUrl(mahasiswaData.dokumenWisuda.pptSkripsi.filePath)}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                        className="font-semibold text-blue-600 hover:underline truncate max-w-[200px]"
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleDownloadWisudaFile(mahasiswaData.dokumenWisuda?.pptSkripsi)}
+                                                        className="font-semibold text-blue-600 hover:underline truncate max-w-[200px] text-left"
                                                     >
                                                         {mahasiswaData.dokumenWisuda.pptSkripsi.fileOriginalName}
-                                                    </a>
+                                                    </button>
                                                     <span className="text-gray-400 font-medium">{mahasiswaData.dokumenWisuda.pptSkripsi.fileSize}</span>
                                                 </div>
                                             ) : (
@@ -822,14 +820,13 @@ export const DashboardMhs = () => {
                                             <label className="block text-sm font-bold text-gray-700 mb-2">3. Halaman Pengesahan Ber-TTD (PDF)</label>
                                             {mahasiswaData.dokumenWisuda?.halamanPengesahan?.fileName ? (
                                                 <div className="flex items-center justify-between text-xs bg-gray-55 p-2.5 rounded-lg border border-gray-150 mb-2">
-                                                    <a
-                                                        href={getFileUrl(mahasiswaData.dokumenWisuda.halamanPengesahan.filePath)}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                        className="font-semibold text-blue-600 hover:underline truncate max-w-[200px]"
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleDownloadWisudaFile(mahasiswaData.dokumenWisuda?.halamanPengesahan)}
+                                                        className="font-semibold text-blue-600 hover:underline truncate max-w-[200px] text-left"
                                                     >
                                                         {mahasiswaData.dokumenWisuda.halamanPengesahan.fileOriginalName}
-                                                    </a>
+                                                    </button>
                                                     <span className="text-gray-400 font-medium">{mahasiswaData.dokumenWisuda.halamanPengesahan.fileSize}</span>
                                                 </div>
                                             ) : (
@@ -864,14 +861,13 @@ export const DashboardMhs = () => {
                                             <label className="block text-sm font-bold text-gray-700 mb-2">4. Form Logbook Bimbingan (PDF)</label>
                                             {mahasiswaData.dokumenWisuda?.formBimbingan?.fileName ? (
                                                 <div className="flex items-center justify-between text-xs bg-gray-55 p-2.5 rounded-lg border border-gray-150 mb-2">
-                                                    <a
-                                                        href={getFileUrl(mahasiswaData.dokumenWisuda.formBimbingan.filePath)}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                        className="font-semibold text-blue-600 hover:underline truncate max-w-[200px]"
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleDownloadWisudaFile(mahasiswaData.dokumenWisuda?.formBimbingan)}
+                                                        className="font-semibold text-blue-600 hover:underline truncate max-w-[200px] text-left"
                                                     >
                                                         {mahasiswaData.dokumenWisuda.formBimbingan.fileOriginalName}
-                                                    </a>
+                                                    </button>
                                                     <span className="text-gray-400 font-medium">{mahasiswaData.dokumenWisuda.formBimbingan.fileSize}</span>
                                                 </div>
                                             ) : (
