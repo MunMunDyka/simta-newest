@@ -729,6 +729,32 @@ const verifikasiWisuda = asyncHandler(async (req, res) => {
     sendSuccess(res, 200, `Dokumen wisuda berhasil ${statusVerifikasi === 'disetujui' ? 'disetujui' : 'ditolak'}`, student.toPublicJSON());
 });
 
+/**
+ * @desc    Download wisuda document file
+ * @route   GET /api/users/wisuda-download/:fileName
+ * @access  Private
+ */
+const downloadWisudaFile = asyncHandler(async (req, res) => {
+    const { fileName } = req.params;
+    const safeFileName = path.basename(fileName);
+    const filePath = path.resolve(__dirname, '..', 'uploads', 'wisuda', safeFileName);
+    const fs = require('fs');
+
+    if (!fs.existsSync(filePath)) {
+        throw ApiError.notFound('File dokumen wisuda tidak ditemukan');
+    }
+
+    // Authorization check
+    if (req.user.role === 'mahasiswa') {
+        const expectedPrefix = `wisuda_${req.user._id}_`;
+        if (!safeFileName.startsWith(expectedPrefix)) {
+            throw ApiError.forbidden('Anda tidak memiliki akses untuk mendownload file ini');
+        }
+    }
+
+    res.download(filePath, safeFileName);
+});
+
 module.exports = {
     getAll,
     getById,
@@ -745,5 +771,6 @@ module.exports = {
     resetPassword,
     getDosenWorkloads,
     uploadWisuda,
-    verifikasiWisuda
+    verifikasiWisuda,
+    downloadWisudaFile
 };

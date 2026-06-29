@@ -176,6 +176,16 @@ router.put(
 );
 
 /**
+ * @route   GET /api/users/wisuda-download/:fileName
+ * @desc    Download graduation document file
+ * @access  Private (Authenticated users)
+ */
+router.get(
+    '/wisuda-download/:fileName',
+    userController.downloadWisudaFile
+);
+
+/**
  * @route   PUT /api/users/profile
  * @desc    Update own profile
  * @access  Private (all authenticated users)

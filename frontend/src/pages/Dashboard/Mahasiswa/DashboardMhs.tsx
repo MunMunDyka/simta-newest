@@ -254,6 +254,10 @@ export const DashboardMhs = () => {
     const getFileUrl = (path: string) => {
         if (!path) return ''
         const apiBaseUrl = import.meta.env.VITE_API_URL || '/api'
+        if (path.startsWith('uploads/wisuda/')) {
+            const fileName = path.split('/').pop()
+            return `${apiBaseUrl}/users/wisuda-download/${fileName}`
+        }
         const assetBaseUrl = apiBaseUrl.replace(/\/api\/?$/, '')
         return `${assetBaseUrl}/${path.replace(/\\/g, '/')}`
     }
