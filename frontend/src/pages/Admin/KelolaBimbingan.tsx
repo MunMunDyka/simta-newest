@@ -71,7 +71,7 @@ const managementItems = [
     { label: 'Manajemen Dosen', icon: GraduationCap, path: '/admin/plotting' },
     { label: 'Kelola Bimbingan', icon: FileText, active: true, path: '/admin/bimbingan' },
     { label: 'Kelola Jadwal', icon: Calendar, path: '/admin/jadwal' },
-    { label: 'Verifikasi Wisuda', icon: GraduationCap, path: '/admin/wisuda' },
+    { label: 'Verifikasi Dokumen', icon: GraduationCap, path: '/admin/wisuda' },
 ]
 const reportItems = [
     { label: 'Laporan', icon: BarChart3, path: '/admin/laporan' },

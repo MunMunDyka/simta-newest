@@ -15,6 +15,7 @@ const authRoutes = require('./authRoutes');
 const userRoutes = require('./userRoutes');
 const bimbinganRoutes = require('./bimbinganRoutes');
 const jadwalRoutes = require('./jadwalRoutes');
+const pengajuanSeminarRoutes = require('./pengajuanSeminarRoutes');
 
 /**
  * API Route Mapping
@@ -23,6 +24,7 @@ const jadwalRoutes = require('./jadwalRoutes');
  * /api/users/*     - User management (CRUD, assign dospem, etc.)
  * /api/bimbingan/* - Bimbingan management (submit, feedback, reply)
  * /api/jadwal/*    - Jadwal sidang management
+ * /api/pengajuan-seminar/* - Softcopy pengajuan seminar
  */
 
 // Mount routes
@@ -30,6 +32,7 @@ router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/bimbingan', bimbinganRoutes);
 router.use('/jadwal', jadwalRoutes);
+router.use('/pengajuan-seminar', pengajuanSeminarRoutes);
 
 // ===== Health Check Endpoint =====
 /**
@@ -96,6 +99,12 @@ router.get('/', (req, res) => {
                     'DELETE /api/jadwal/:id': 'Cancel jadwal (admin only)',
                     'GET /api/jadwal/upcoming': 'Get upcoming jadwal',
                     'GET /api/jadwal/statistics': 'Get jadwal statistics (admin only)'
+                },
+                pengajuanSeminar: {
+                    'GET /api/pengajuan-seminar': 'Get pengajuan seminar list',
+                    'POST /api/pengajuan-seminar/:jenisPengajuan/upload': 'Upload softcopy pengajuan seminar',
+                    'PUT /api/pengajuan-seminar/:id/verifikasi': 'Verify pengajuan seminar (admin only)',
+                    'GET /api/pengajuan-seminar/download/:fileName': 'Download pengajuan seminar file'
                 }
             }
         }

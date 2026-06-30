@@ -54,11 +54,14 @@ interface MahasiswaWithBimbingan {
     judulTA: string
     progress: string
     lastUpdate: string
+    sortTime: number
     pendingCount: number
     status: 'menunggu' | 'revisi' | 'baik' | 'acc' | 'lanjut_bab' | 'acc_sempro' | 'selesai' | 'belum_ada'
     isSemproReady: boolean
     dosenRelation?: 'pembimbing' | 'penguji'
 }
+
+type StatusFilter = 'semua' | 'menunggu_review' | 'sudah_direview' | MahasiswaWithBimbingan['status']
 
 // Menu items untuk dosen
 const menuItems = [
@@ -78,6 +81,7 @@ export const ListMahasiswaBimbingan = () => {
     const [searchQuery, setSearchQuery] = useState('')
     const [mahasiswaList, setMahasiswaList] = useState<MahasiswaWithBimbingan[]>([])
     const [filterRole, setFilterRole] = useState<'pembimbing' | 'penguji' | 'semua'>('pembimbing')
+    const [filterStatus, setFilterStatus] = useState<StatusFilter>('semua')
     const [isLoading, setIsLoading] = useState(true)
     const [loadError, setLoadError] = useState<string | null>(null)
 
@@ -150,6 +154,7 @@ export const ListMahasiswaBimbingan = () => {
                                 : mhs.currentProgress || 'BAB I')
                             : mhs.currentProgress || 'BAB I',
                         lastUpdate: displayDate ? new Date(displayDate).toLocaleDateString('id-ID') : '-',
+                        sortTime: displayDate ? new Date(displayDate).getTime() : 0,
                         pendingCount,
                         status,
                         isSemproReady: false,
@@ -171,6 +176,16 @@ export const ListMahasiswaBimbingan = () => {
                     }
                 }))
 
+                mahasiswaArray.sort((a, b) => {
+                    const aWaiting = a.pendingCount > 0 || a.status === 'menunggu'
+                    const bWaiting = b.pendingCount > 0 || b.status === 'menunggu'
+
+                    if (aWaiting !== bWaiting) return aWaiting ? -1 : 1
+                    if (a.pendingCount !== b.pendingCount) return b.pendingCount - a.pendingCount
+                    if (a.sortTime !== b.sortTime) return b.sortTime - a.sortTime
+                    return a.nama.localeCompare(b.nama)
+                })
+
                 setMahasiswaList(mahasiswaArray)
             } catch (error) {
                 console.error('Failed to fetch mahasiswa:', error)
@@ -183,11 +198,22 @@ export const ListMahasiswaBimbingan = () => {
         fetchData()
     }, [filterRole])
 
-    // Filter mahasiswa based on search
-    const filteredMahasiswa = mahasiswaList.filter(m =>
-        m.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        m.nim.includes(searchQuery)
-    )
+    const statusMatches = (mahasiswa: MahasiswaWithBimbingan) => {
+        if (filterStatus === 'semua') return true
+        if (filterStatus === 'menunggu_review') return mahasiswa.pendingCount > 0 || mahasiswa.status === 'menunggu'
+        if (filterStatus === 'sudah_direview') {
+            return ['revisi', 'baik', 'acc', 'lanjut_bab', 'acc_sempro'].includes(mahasiswa.status)
+        }
+        return mahasiswa.status === filterStatus
+    }
+
+    // Filter mahasiswa based on search and status. Order is kept from mahasiswaList,
+    // where pending review items are already sorted to the top.
+    const filteredMahasiswa = mahasiswaList.filter(m => {
+        const keyword = searchQuery.toLowerCase()
+        const searchMatches = m.nama.toLowerCase().includes(keyword) || m.nim.includes(searchQuery)
+        return searchMatches && statusMatches(m)
+    })
 
     const getStatusBadge = (status: string, pendingCount: number) => {
         if (pendingCount > 0) {
@@ -208,7 +234,7 @@ export const ListMahasiswaBimbingan = () => {
             case 'lanjut_bab':
                 return <Badge className="bg-blue-100 text-blue-600 hover:bg-blue-100 border-0">Lanjut BAB</Badge>
             case 'acc_sempro':
-                return <Badge className="bg-purple-100 text-purple-600 hover:bg-purple-100 border-0">ACC Sempro</Badge>
+                return <Badge className="bg-purple-100 text-purple-600 hover:bg-purple-100 border-0">ACC Seminar</Badge>
             case 'selesai':
                 return <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-0">Selesai</Badge>
             case 'belum_ada':
@@ -393,6 +419,25 @@ export const ListMahasiswaBimbingan = () => {
                                             <SelectItem value="pembimbing">Mahasiswa Bimbingan</SelectItem>
                                             <SelectItem value="penguji">Mahasiswa Pengujian</SelectItem>
                                             <SelectItem value="semua">Semua</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm text-gray-600 font-medium whitespace-nowrap">Status:</span>
+                                    <Select value={filterStatus} onValueChange={(val: StatusFilter) => setFilterStatus(val)}>
+                                        <SelectTrigger className="w-full sm:w-48 h-10 bg-white border-gray-200 focus:border-blue-500 rounded-xl shadow-sm">
+                                            <SelectValue placeholder="Pilih Status" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="semua">Semua Status</SelectItem>
+                                            <SelectItem value="menunggu_review">Menunggu Review</SelectItem>
+                                            <SelectItem value="sudah_direview">Sudah Direview</SelectItem>
+                                            <SelectItem value="revisi">Revisi</SelectItem>
+                                            <SelectItem value="acc">ACC</SelectItem>
+                                            <SelectItem value="lanjut_bab">Lanjut BAB</SelectItem>
+                                            <SelectItem value="acc_sempro">ACC Seminar</SelectItem>
+                                            <SelectItem value="selesai">Selesai</SelectItem>
+                                            <SelectItem value="belum_ada">Belum Ada Bimbingan</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>

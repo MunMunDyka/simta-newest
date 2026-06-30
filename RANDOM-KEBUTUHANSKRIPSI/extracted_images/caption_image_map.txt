@@ -1,0 +1,502 @@
+
+Caption found: Gambar 4.1 Aliran Sistem yang Sedang Berjalan43
+  -> No nearby image found.
+
+Caption found: Gambar 4.2 Use Case Diagram SI Manajemen Tugas Akhir (SIMTA)45
+  -> No nearby image found.
+
+Caption found: Gambar 4.3 Activity Diagram Login user (Admin/Mahasiswa/Dosen)46
+  -> No nearby image found.
+
+Caption found: Gambar 4.4 Activity Diagram Pengelolaan Data Pengguna (User)47
+  -> No nearby image found.
+
+Caption found: Gambar 4.5 Activity Diagram Penentuan Dosen Pembimbing48
+  -> No nearby image found.
+
+Caption found: Gambar 4.6 Activity Diagram Pengelolaan Jadwal Sidang49
+  -> No nearby image found.
+
+Caption found: Gambar 4.7 Activity Diagram Pengajuan Bimbingan Mahasiswa50
+  -> No nearby image found.
+
+Caption found: Gambar 4.8 Activity Diagram Dosen Review Bimbingan51
+  -> No nearby image found.
+
+Caption found: Gambar 4.9 Activity Diagram Diskusi Bimbingan52
+  -> No nearby image found.
+
+Caption found: Gambar 4.10 Activity Diagram Lihat Jadwal Sidang53
+  -> No nearby image found.
+
+Caption found: Gambar 4. 11 Sequence Diagram Autentikasi Pengguna54
+  -> No nearby image found.
+
+Caption found: Gambar 4.12 Sequence Diagram Admin Kelola Data User54
+  -> No nearby image found.
+
+Caption found: Gambar 4. 13 Sequence Diagram Admin Plotting Dosen Pembimbing55
+  -> No nearby image found.
+
+Caption found: Gambar 4. 14 Sequence Diagram Admin Kelola Jadwal Sidang56
+  -> No nearby image found.
+
+Caption found: Gambar 4.15 Sequence Diagram Mahasiswa Upload Bimbingan56
+  -> No nearby image found.
+
+Caption found: Gambar 4.16 Sequence Diagram Dosen Review Bimbingan57
+  -> No nearby image found.
+
+Caption found: Gambar 4.17 Sequence Diagram Diskusi Reply Komentar58
+  -> No nearby image found.
+
+Caption found: Gambar 4.18 Sequence Diagram Lihat Jadwal Sidang58
+  -> No nearby image found.
+
+Caption found: Gambar 4.19 Class Diagram Website SIMTA59
+  -> No nearby image found.
+
+Caption found: Gambar 4.20 Desain Wireframe Halaman Login63
+  -> No nearby image found.
+
+Caption found: Gambar 4.21 Desain Wireframe Dashboard Mahasiswa64
+  -> No nearby image found.
+
+Caption found: Gambar 4.22 Desain Wireframe Halaman Bimbingan Mahasiswa65
+  -> No nearby image found.
+
+Caption found: Gambar 4.23 Desain Wireframe Dashboard Dosen66
+  -> No nearby image found.
+
+Caption found: Gambar 4.24 Desain Wireframe Halaman Review Bimbingan Dosen67
+  -> No nearby image found.
+
+Caption found: Gambar 4.25 Desain Wireframe Halaman Manajemen User Admin67
+  -> No nearby image found.
+
+Caption found: Gambar 4. 26 Desain Wireframe Halaman Assign Dosen Pembimbing68
+  -> No nearby image found.
+
+Caption found: Gambar 4.27 Desain Wireframe Halaman Upload Bimbingan69
+  -> No nearby image found.
+
+Caption found: Gambar 4.28 Desain Wireframe Halaman Jadwal Sidang69
+  -> No nearby image found.
+
+Caption found: Gambar 4.29 Flowchart Alur Kerja Mahasiswa73
+  -> No nearby image found.
+
+Caption found: Gambar 4.30 Flowchart Alur Kerja Dosen Pembimbing74
+  -> No nearby image found.
+
+Caption found: Gambar 4.31 Flowchart Alur Kerja Admin76
+  -> No nearby image found.
+
+Caption found: Gambar 5.1 Halaman Login Admin78
+  -> No nearby image found.
+
+Caption found: Gambar 5.2 Halaman Dashboard Admin79
+  -> No nearby image found.
+
+Caption found: Gambar 5.3 Halaman Manajemen User79
+  -> No nearby image found.
+
+Caption found: Gambar 5.4 Halaman Assign Dosen Pembimbing80
+  -> No nearby image found.
+
+Caption found: Gambar 5.5 Halaman Kelola Jadwal Sidang81
+  -> No nearby image found.
+
+Caption found: Gambar 5.6 Halaman Dashboard Dosen Pembimbing82
+  -> No nearby image found.
+
+Caption found: Gambar 5.7 Halaman Daftar Mahasiswa Bimbingan Dosen82
+  -> No nearby image found.
+
+Caption found: Gambar 5.8 Halaman Review Bimbingan Dosen83
+  -> No nearby image found.
+
+Caption found: Gambar 5.9 Halaman Jadwal Sidang Dosen84
+  -> No nearby image found.
+
+Caption found: Gambar 5.10 Halaman Dashboard Mahasiswa85
+  -> No nearby image found.
+
+Caption found: Gambar 5.11 Halaman Riwayat Bimbingan Mahasiswa85
+  -> No nearby image found.
+
+Caption found: Gambar 5.12 Halaman Pengajuan & Feedback Bimbingan86
+  -> No nearby image found.
+
+Caption found: Gambar 5.13 Halaman Jadwal Sidang Mahasiswa87
+  -> No nearby image found.
+
+Caption found: Pada tahap akhir, mahasiswa mencetak lembar persetujuan dan menyerahkan seluruh berkas pendaftaran beserta form bimbingan fisik kepada Koordinator TA atau pihak akademik. Pihak akademik kemudian memeriksa kelengkapan berkas untuk menentukan apakah mahasiswa dapat lanjut ke tahap penjadwalan sidang. Proses bimbingan yang masih bergantung pada pencatatan form fisik yang rentan hilang, serta komunikasi revisi via WhatsApp yang sering tertumpuk ini kerap menghambat kelancaran tugas akhir. Oleh karena itu, diperlukan sebuah pengembangan sistem manajemen tugas akhir berbasis web yang terintegrasi untuk optimalisasi proses bimbingan Visualnya tertera pada Gambar 4.1.
+  -> Connected Image (offset 2): image39.png
+
+Caption found: Gambar 4.1 Aliran Sistem yang Sedang Berjalan
+  -> Connected Image (offset -1): image39.png
+
+Caption found: Use case diagram sistem SIMTA dapat dilihat pada Gambar 4.2.
+  -> Connected Image (offset 1): image40.png
+
+Caption found: Gambar 4.2 Use Case Diagram SI Manajemen Tugas Akhir (SIMTA)
+  -> Connected Image (offset -1): image40.png
+
+Caption found: Activity Diagram Autentikasi Pengguna (Login) Proses autentikasi berlaku seragam untuk seluruh aktor (Administrator, Dosen, dan Mahasiswa). Pengguna diwajibkan memasukkan kredensial identitas pada halaman login. Sistem akan memvalidasi data tersebut ke basis data Users. Jika valid, sistem akan mengidentifikasi peran (role) pengguna dan mengarahkannya ke halaman dashboard yang sesuai Alur autentikasi pengguna dapat dilihat pada Gambar 4.3.
+  -> Connected Image (offset 1): image41.png
+
+Caption found: Gambar 4.3 Activity Diagram Login user (Admin/Mahasiswa/Dosen)
+  -> Connected Image (offset -1): image41.png
+  -> Connected Image (offset 2): image42.png
+
+Caption found: Activity Diagram Pengelolaan Data Pengguna (Admin) Administrator memiliki wewenang penuh dalam manajemen data induk pengguna, baik pendaftaran akun baru maupun pembaruan data. Proses dimulai dengan Administrator mengisi nama, dan peran (role) pada menu Kelola User. Sistem melakukan validasi integritas data untuk memastikan Nomor Induk belum terdaftar sebelumnya. Data yang valid akan disimpan ke dalam sistem dengan keamanan tambahan berupa enkripsi pada kata sandi, sedangkan data duplikat akan ditolak oleh sistem, Alur pengelolaan data pengguna dapat dilihat pada Gambar 4.4.
+  -> Connected Image (offset -2): image41.png
+  -> Connected Image (offset 1): image42.png
+
+Caption found: Gambar 4.4 Activity Diagram Pengelolaan Data Pengguna (User)
+  -> Connected Image (offset -1): image42.png
+  -> Connected Image (offset 2): image43.png
+
+Caption found: Activity Diagram Penentuan (Plotting) Dosen Pembimbing Fitur ini memfasilitasi Administrator untuk memetakan hubungan akademik antara mahasiswa dan dosen pembimbing. Administrator memilih data mahasiswa target dan menentukan dua dosen pembimbing. Sistem menerapkan logika validasi bisnis bertingkat: memastikan target berstatus mahasiswa, pembimbing berstatus dosen, dan mencegah duplikasi personil di mana Dosen Pembimbing 1 tidak boleh sama dengan Dosen Pembimbing 2. Jika seluruh syarat terpenuhi, sistem akan memperbarui relasi data pembimbing pada record mahasiswa terkait, Alur penentuan dosen pembimbing dapat dilihat pada Gambar 4.5.
+  -> Connected Image (offset -2): image42.png
+  -> Connected Image (offset 1): image43.png
+
+Caption found: Gambar 4.5 Activity Diagram Penentuan Dosen Pembimbing
+  -> Connected Image (offset -1): image43.png
+
+Caption found: Activity Diagram Pengelolaan Jadwal Sidang (Admin) Manajemen jadwal sidang tugas akhir dikelola sepenuhnya oleh Administrator melalui operasi tambah, ubah, dan hapus data. Administrator memasukkan detail pelaksanaan sidang yang meliputi identitas mahasiswa, waktu, lokasi, dan dosen penguji. Data yang tersimpan akan terdistribusi secara otomatis dan dapat diakses oleh pengguna terkait sesuai dengan batasan hak akses masing-masing, Alur pengelolaan jadwal sidang dapat dilihat pada Gambar 4.6.
+  -> Connected Image (offset -3): image43.png
+  -> Connected Image (offset 2): image44.png
+
+Caption found: Gambar 4.6 Activity Diagram Pengelolaan Jadwal Sidang
+  -> Connected Image (offset -1): image44.png
+  -> Connected Image (offset 3): image45.png
+
+Caption found: Activity Diagram Pengajuan Bimbingan (Mahasiswa) Mahasiswa melakukan pengajuan bimbingan dengan mengunggah dokumen skripsi (format PDF) kepada dosen yang dituju. Sistem melakukan serangkaian validasi sebelum penyimpanan: memastikan format berkas sesuai, memverifikasi status afiliasi dosen, dan melakukan pengecekan antrean (concurrency check). Sistem akan menolak pengajuan baru apabila masih terdapat dokumen dengan status "Menunggu" pada dosen yang sama. Dokumen yang lolos validasi akan disimpan dengan mekanisme penomoran versi otomatis (auto-versioning) untuk merekam riwayat revisi seperti yang dapat dilihat pada Gambar 4.7.
+  -> Connected Image (offset -3): image44.png
+  -> Connected Image (offset 1): image45.png
+
+Caption found: Gambar 4.7 Activity Diagram Pengajuan Bimbingan Mahasiswa
+  -> Connected Image (offset -1): image45.png
+  -> Connected Image (offset 2): image46.png
+
+Caption found: Gambar 4.8 Activity Diagram Dosen Review Bimbingan
+  -> Connected Image (offset -1): image46.png
+  -> Connected Image (offset 3): image47.png
+
+Caption found: Activity Diagram Diskusi Terstruktur (Reply) Interaksi kontekstual antara mahasiswa dan dosen difasilitasi melalui fitur komentar balasan pada setiap topik bimbingan. Sistem memvalidasi otorisasi pengirim untuk memastikan hanya pihak yang terlibat (pemilik dokumen dan pembimbing) yang dapat berdiskusi. Pesan yang dikirimkan akan disimpan dan direlasikan secara spesifik dengan ID dokumen bimbingan (One-to-Many relationship) untuk menjaga konteks percakapan, Alur diskusi bimbingan dapat dilihat pada Gambar 4.9.
+  -> Connected Image (offset -3): image46.png
+  -> Connected Image (offset 1): image47.png
+
+Caption found: Gambar 4.9 Activity Diagram Diskusi/Reply Bimbingan
+  -> Connected Image (offset -1): image47.png
+
+Caption found: Activity Diagram Lihat Jadwal Sidang Fitur ini menyediakan akses informasi jadwal sidang bagi Dosen dan Mahasiswa. Pengguna dapat melihat detail jadwal yang mencakup waktu, lokasi, dan penguji dalam format tabel atau kalender. Hak akses pada modul ini dibatasi hanya untuk melihat data (view only) tanpa izin untuk melakukan modifikasi data, Alur lihat jadwal sidang dapat dilihat pada Gambar 4.10.
+  -> Connected Image (offset -3): image47.png
+  -> Connected Image (offset 2): image48.png
+
+Caption found: Gambar 4.10 Activity Diagram Lihat Jadwal Sidang
+  -> Connected Image (offset -1): image48.png
+
+Caption found: Sequence Diagram Autentikasi Pengguna (Login) Diagram ini menggambarkan alur proses masuk ke dalam aplikasi. Aktor memulai dengan memasukkan NIP/NIM dan kata sandi pada Halaman Login. Data tersebut kemudian dikirimkan ke Sistem untuk diproses. Sistem melakukan pengecekan ketersediaan akun dan kecocokan data pada Database. Setelah data terkonfirmasi valid, Sistem memberikan hak akses dan mengarahkan pengguna ke halaman utama (Dashboard), Urutan proses autentikasi pengguna dapat dilihat pada Gambar 4.11.
+  -> Connected Image (offset 1): image49.png
+
+Caption found: Gambar 4.11 Sequence Diagram Autentikasi Pengguna
+  -> Connected Image (offset -1): image49.png
+  -> Connected Image (offset 2): image50.png
+
+Caption found: Sequence Diagram Admin Kelola Data User Diagram ini memodelkan proses pendaftaran pengguna baru oleh Administrator. Administrator memasukkan data diri pengguna pada Halaman User. Sistem menerima data tersebut, melakukan enkripsi pada kata sandi demi keamanan, lalu menyimpannya ke Database. Setelah Database mengonfirmasi penyimpanan berhasil, Sistem mengirimkan notifikasi sukses yang ditampilkan kembali kepada Administrator. Urutan proses Admin dalam mengelola data user dapat dilihat pada Gambar 4.12.
+  -> Connected Image (offset -2): image49.png
+  -> Connected Image (offset 1): image50.png
+
+Caption found: Gambar 4.12 Sequence Diagram Admin Kelola Data User
+  -> Connected Image (offset -1): image50.png
+  -> Connected Image (offset 2): image51.png
+
+Caption found: Sequence Diagram Admin Plotting Dosen Pembimbing Diagram ini menunjukkan alur penetapan dosen pembimbing untuk mahasiswa. Administrator memilih data mahasiswa dan dosen pada Halaman Plotting. Sistem memproses permintaan tersebut dengan memverifikasi data mahasiswa dan dosen yang dipilih di Database. Selanjutnya, Sistem memperbarui data pembimbing pada data mahasiswa terkait di Database dan memberikan konfirmasi keberhasilan proses plotting, Urutan proses plotting dosen pembimbing dapat dilihat pada Gambar 4.13.
+  -> Connected Image (offset -2): image50.png
+  -> Connected Image (offset 1): image51.png
+
+Caption found: Gambar 4.13 Sequence Diagram Admin Plotting Dosen Pembimbing
+  -> Connected Image (offset -1): image51.png
+  -> Connected Image (offset 3): image52.png
+
+Caption found: Sequence Diagram Admin Kelola Jadwal Sidang Diagram ini menjelaskan mekanisme penjadwalan sidang tugas akhir. Administrator memasukkan detail sidang (mahasiswa, waktu, penguji) pada Halaman Jadwal. Sistem memvalidasi data mahasiswa tersebut ke Database. Setelah validasi selesai, Sistem menyimpan data jadwal sidang baru ke Database dan menampilkan pesan sukses kepada Administrator, Urutan proses pengelolaan jadwal sidang dapat dilihat pada Gambar 4.14.
+  -> Connected Image (offset -2): image51.png
+  -> Connected Image (offset 2): image52.png
+
+Caption found: Gambar 4.14 Sequence Diagram Admin Kelola Jadwal Sidang
+  -> Connected Image (offset -1): image52.png
+  -> Connected Image (offset 2): image53.png
+
+Caption found: Sequence Diagram Mahasiswa Upload Bimbingan Diagram ini memvisualisasikan pengajuan dokumen skripsi oleh mahasiswa. Mahasiswa mengisi formulir dan mengunggah berkas PDF pada Halaman Bimbingan. Sistem menerima berkas tersebut dan memastikan tidak ada antrean bimbingan sebelumnya di Database. Setelah pengecekan selesai, Sistem menyimpan data bimbingan baru dan memberikan notifikasi bahwa pengajuan berhasil dikirim, Urutan proses upload bimbingan mahasiswa dapat dilihat pada Gambar 4.15.
+  -> Connected Image (offset -2): image52.png
+  -> Connected Image (offset 1): image53.png
+
+Caption found: Gambar 4.15 Sequence Diagram Mahasiswa Upload Bimbingan
+  -> Connected Image (offset -1): image53.png
+  -> Connected Image (offset 2): image54.png
+
+Caption found: Sequence Diagram Dosen Review Bimbingan Diagram ini merepresentasikan proses pemberian evaluasi oleh dosen. Dosen memilih bimbingan dan memberikan catatan perbaikan pada Halaman Review. Sistem memproses data tersebut dengan memperbarui status bimbingan serta progres akademik mahasiswa di Database. Setelah pembaruan data tersimpan, Sistem menampilkan pesan konfirmasi kepada Dosen, Urutan proses review bimbingan oleh dosen dapat dilihat pada Gambar 4.16.
+  -> Connected Image (offset -2): image53.png
+  -> Connected Image (offset 1): image54.png
+
+Caption found: Gambar 4.16 Sequence Diagram Dosen Review Bimbingan
+  -> Connected Image (offset -1): image54.png
+  -> Connected Image (offset 3): image55.png
+
+Caption found: Sequence Diagram Diskusi Reply Komentar Diagram ini menggambarkan alur komunikasi antara pengguna dalam fitur diskusi. Pengguna mengetik dan mengirimkan pesan melalui Halaman Detail. Sistem memproses pesan tersebut dan menyimpannya ke dalam Database. Setelah data tersimpan, Sistem memperbarui tampilan pada Halaman Detail sehingga pesan baru dapat dilihat oleh pengguna. Urutan proses diskusi reply komentar dapat dilihat pada Gambar 4.17.
+  -> Connected Image (offset -3): image54.png
+  -> Connected Image (offset 1): image55.png
+
+Caption found: Gambar 4.17 Sequence Diagram Diskusi Reply Komentar
+  -> Connected Image (offset -1): image55.png
+  -> Connected Image (offset 2): image56.png
+
+Caption found: Sequence Diagram Lihat Jadwal Sidang Diagram terakhir ini menunjukkan mekanisme pengambilan informasi jadwal sidang. Pengguna mengakses menu pada Halaman Jadwal, yang kemudian mengirimkan permintaan data ke Sistem. Sistem mengambil daftar jadwal sidang yang tersimpan di Database. Data yang diperoleh kemudian dikirimkan kembali oleh Sistem untuk ditampilkan dalam bentuk tabel informasi kepada pengguna. Urutan proses lihat jadwal sidang dapat dilihat pada Gambar 4.18.
+  -> Connected Image (offset -2): image55.png
+  -> Connected Image (offset 1): image56.png
+
+Caption found: Gambar 4.18 Sequence Diagram Lihat Jadwal Sidang
+  -> Connected Image (offset -1): image56.png
+  -> Connected Image (offset 3): image57.png
+
+Caption found: Class Diagram menggambarkan struktur statis sistem dengan mendefinisikan kelas-kelas yang akan dibuat, atribut yang dimiliki, serta hubungan (relationship) antar kelas tersebut. Diagram ini memetakan struktur data yang digunakan dalam aplikasi untuk mendukung seluruh fungsionalitas sistem. Berikut adalah rancangan Class Diagram untuk sistem yang diusulkan, Struktur class diagram pada sistem SIMTA dapat dilihat pada Gambar 4.19.
+  -> Connected Image (offset -3): image56.png
+  -> Connected Image (offset 1): image57.png
+
+Caption found: Gambar 4.19 Class Diagram Website SIMTA
+  -> Connected Image (offset -1): image57.png
+
+Caption found: Halaman login dirancang sebagai akses awal bagi seluruh aktor untuk masuk ke sistem SIMTA sebelum diarahkan ke dashboard sesuai hak akses masing-masing, seperti yang ditunjukkan pada Gambar 4.20.
+  -> Connected Image (offset 1): image58.png
+
+Caption found: Gambar 4.20 Desain Wireframe Halaman Login
+  -> Connected Image (offset -1): image58.png
+
+Caption found: Gambar 4.20 menampilkan rancangan halaman login yang digunakan oleh seluruh aktor untuk masuk ke sistem. Halaman ini terdiri dari area identitas sistem, kolom username, kolom password, opsi remember me, tautan lupa password, serta tombol login sebagai aksi utama. Setelah berhasil login, pengguna akan diarahkan ke dashboard sesuai dengan hak akses masing-masing.
+  -> Connected Image (offset -2): image58.png
+
+Caption found: Dashboard mahasiswa dirancang untuk menampilkan informasi utama terkait data mahasiswa, dosen pembimbing, status, dan progres bimbingan, seperti yang ditunjukkan pada Gambar 4.21.
+  -> Connected Image (offset 1): image59.png
+
+Caption found: Gambar 4.21 Desain Wireframe Dashboard Mahasiswa
+  -> Connected Image (offset -1): image59.png
+
+Caption found: Gambar 4.21 menampilkan rancangan dashboard mahasiswa setelah berhasil masuk ke sistem. Halaman ini menyajikan informasi utama seperti identitas mahasiswa, judul tugas akhir, dosen pembimbing, status bimbingan, jumlah sesi bimbingan, serta progres bimbingan. Dashboard ini berfungsi sebagai halaman ringkasan agar mahasiswa dapat memantau kondisi bimbingan secara cepat.
+  -> Connected Image (offset -2): image59.png
+
+Caption found: Halaman bimbingan mahasiswa dirancang sebagai fitur utama untuk mengajukan dokumen, memilih dosen pembimbing tujuan, melihat riwayat, dan membaca feedback bimbingan, seperti ditunjukkan pada Gambar 4.22.
+  -> Connected Image (offset 1): image60.png
+
+Caption found: Gambar 4.22 Desain Wireframe Halaman Bimbingan Mahasiswa
+  -> Connected Image (offset -1): image60.png
+
+Caption found: Gambar 4.22 menampilkan rancangan halaman bimbingan mahasiswa. Halaman ini digunakan untuk memilih dosen pembimbing tujuan, mengunggah dokumen bimbingan, menambahkan catatan, melihat riwayat bimbingan, melihat feedback/status dari dosen, serta membalas komentar. Halaman ini menjadi fitur utama bagi mahasiswa dalam proses pengajuan dan pemantauan revisi tugas akhir.
+  -> Connected Image (offset -2): image60.png
+
+Caption found: Dashboard dosen dirancang untuk menampilkan ringkasan mahasiswa bimbingan dan bimbingan yang perlu ditinjau oleh dosen pembimbing, seperti yang ditunjukkan pada Gambar 4.23.
+  -> Connected Image (offset 1): image61.png
+
+Caption found: Gambar 4.23 Desain Wireframe Dashboard Dosen
+  -> Connected Image (offset -1): image61.png
+
+Caption found: Gambar 4.23 menampilkan rancangan dashboard dosen pembimbing. Halaman ini menyajikan ringkasan jumlah mahasiswa bimbingan, jumlah bimbingan yang perlu ditinjau, serta status bimbingan mahasiswa. Selain itu, tersedia daftar mahasiswa bimbingan agar dosen dapat memilih mahasiswa yang akan direview.
+  -> Connected Image (offset -2): image61.png
+
+Caption found: Halaman review bimbingan dosen dirancang untuk membantu dosen melihat dokumen mahasiswa, memberikan feedback, dan menentukan status bimbingan, seperti yang ditunjukkan pada Gambar 4.24.
+  -> Connected Image (offset 1): image62.png
+
+Caption found: Gambar 4.24 Desain Wireframe Halaman Review Bimbingan Dosen
+  -> Connected Image (offset -1): image62.png
+
+Caption found: Gambar 4.24 menampilkan rancangan halaman review bimbingan yang digunakan oleh dosen pembimbing. Pada halaman ini, dosen dapat melihat informasi mahasiswa, membuka dokumen bimbingan, mengunduh file, melihat riwayat revisi, memberikan feedback, menentukan status bimbingan, serta melakukan diskusi melalui fitur komentar. Halaman ini mendukung proses evaluasi dokumen bimbingan secara terstruktur.
+  -> Connected Image (offset -2): image62.png
+
+Caption found: Halaman manajemen user dirancang untuk membantu Admin dalam mengelola data mahasiswa, dosen, dan pengguna sistem lainnya, seperti yang ditunjukkan pada Gambar 4.25.
+  -> Connected Image (offset 1): image63.png
+
+Caption found: Gambar 4.25 Desain Wireframe Halaman Manajemen User Admin
+  -> Connected Image (offset -1): image63.png
+
+Caption found: Gambar 4.25 menampilkan rancangan halaman manajemen user untuk Administrator. Halaman ini digunakan untuk mengelola data pengguna, khususnya data mahasiswa dan dosen. Admin dapat melihat daftar user, melakukan pencarian, memfilter data berdasarkan role, serta melakukan aksi pengelolaan seperti tambah, ubah, atau menonaktifkan akun pengguna.
+  -> Connected Image (offset -2): image63.png
+
+Caption found: Halaman assign dosen pembimbing dirancang untuk membantu Admin menetapkan Dosen Pembimbing 1 dan Dosen Pembimbing 2 kepada mahasiswa, seperti yang ditunjukkan pada Gambar 4.26.
+  -> Connected Image (offset 1): image64.png
+
+Caption found: Gambar 4.26 Desain Wireframe Halaman Assign Dosen Pembimbing
+  -> Connected Image (offset -1): image64.png
+
+Caption found: Gambar 4.26 menampilkan rancangan halaman assign dosen pembimbing. Halaman ini digunakan oleh Admin untuk menentukan Dosen Pembimbing 1 dan Dosen Pembimbing 2 bagi mahasiswa. Fitur ini diperlukan agar setiap mahasiswa memiliki pembimbing yang jelas dalam proses bimbingan tugas akhir.
+  -> Connected Image (offset -2): image64.png
+
+Caption found: Halaman kelola jadwal sidang dirancang untuk membantu Admin dalam menambah, mengubah, dan mengelola jadwal sidang tugas akhir, seperti yang ditunjukkan pada Gambar 4.27.
+  -> Connected Image (offset 1): image65.png
+
+Caption found: Gambar 4.27 Desain Wireframe Kelola Jadwal Sidang
+  -> Connected Image (offset -1): image65.png
+
+Caption found: Gambar 4.27 menampilkan rancangan halaman kelola jadwal sidang yang digunakan oleh Admin. Halaman ini memuat data jadwal sidang, seperti nama mahasiswa, jenis jadwal, tanggal, waktu, ruangan, dosen penguji, dan status. Admin dapat menambahkan, mengubah, atau menghapus jadwal sesuai kebutuhan akademik.
+  -> Connected Image (offset -2): image65.png
+
+Caption found: Halaman jadwal sidang dirancang untuk menampilkan informasi jadwal sidang kepada pengguna terkait, seperti mahasiswa dan dosen pembimbing, seperti yang ditunjukkan pada Gambar 4.28.
+  -> Connected Image (offset 1): image66.png
+
+Caption found: Gambar 4.28 Desain Wireframe Halaman Jadwal Sidang
+  -> Connected Image (offset -1): image66.png
+
+Caption found: Gambar 4.28 menampilkan rancangan halaman jadwal sidang yang dapat dilihat oleh pengguna terkait. Halaman ini menampilkan informasi jadwal sidang dalam bentuk tabel agar mahasiswa dan dosen dapat mengetahui waktu, ruangan, penguji, serta status jadwal sidang. Fitur ini berperan sebagai pendukung proses administrasi setelah bimbingan berlangsung.
+  -> Connected Image (offset -2): image66.png
+
+Caption found: Flowchart alur kerja mahasiswa digunakan untuk menggambarkan tahapan proses yang dilakukan mahasiswa dalam sistem SIMTA, seperti yang ditunjukkan pada Gambar 4.29.
+  -> Connected Image (offset 1): image67.png
+
+Caption found: Gambar 4.29 Flowchart Alur Kerja Mahasiswa
+  -> Connected Image (offset -1): image67.png
+
+Caption found: Berdasarkan Gambar 4.29, alur kerja mahasiswa dimulai dari proses login menggunakan username dan password. Jika login berhasil, mahasiswa akan diarahkan ke Dashboard Mahasiswa untuk melihat informasi progres bimbingan dan data dosen pembimbing. Selanjutnya, mahasiswa dapat membuka menu Bimbingan, memilih Dospem 1 atau Dospem 2, serta melihat riwayat bimbingan berdasarkan dosen pembimbing yang dipilih.
+  -> Connected Image (offset -2): image67.png
+
+Caption found: Flowchart alur kerja Dosen Pembimbing digunakan untuk menggambarkan tahapan proses yang dilakukan dosen dalam melakukan review bimbingan mahasiswa pada sistem SIMTA, seperti yang ditunjukkan pada Gambar 4.30.
+  -> Connected Image (offset 1): image68.png
+
+Caption found: Gambar 4.30 Flowchart Alur Kerja Dosen Pembimbing
+  -> Connected Image (offset -1): image68.png
+
+Caption found: Berdasarkan Gambar 4.30, alur kerja Dosen Pembimbing dimulai dari proses login menggunakan username dan password. Jika login berhasil, dosen akan diarahkan ke Dashboard Dosen untuk melihat ringkasan bimbingan. Selanjutnya, dosen membuka daftar mahasiswa bimbingan, memilih mahasiswa, dan melihat detail bimbingan yang telah diajukan.
+  -> Connected Image (offset -2): image68.png
+
+Caption found: Flowchart alur kerja Admin digunakan untuk menggambarkan tahapan proses yang dilakukan Admin dalam mengelola data utama pada sistem SIMTA, seperti yang ditunjukkan pada Gambar 4.31.
+  -> Connected Image (offset 1): image69.png
+
+Caption found: Gambar 4.31 Flowchart Alur Kerja Admin
+  -> Connected Image (offset -1): image69.png
+
+Caption found: Berdasarkan Gambar 4.31, alur kerja Admin dimulai dari proses login menggunakan username dan password. Jika login berhasil, Admin akan masuk ke Dashboard Admin. Selanjutnya, Admin dapat memilih menu yang akan dikelola, seperti manajemen user, kelola jadwal sidang, atau monitoring data bimbingan.
+  -> Connected Image (offset -2): image69.png
+
+Caption found: Halaman login admin digunakan untuk masuk ke dalam sistem seperti pada Gambar 5.1.
+  -> Connected Image (offset 1): image70.png
+
+Caption found: Gambar 5.1 Halaman Login Admin
+  -> Connected Image (offset -1): image70.png
+
+Caption found: Gambar 5.1 menunjukkan tampilan login admin yang digunakan untuk melakukan autentikasi pengguna menggunakan username dan password sebelum mengakses fitur yang tersedia pada sistem.
+  -> Connected Image (offset -2): image70.png
+
+Caption found: Halaman dashboard admin ditampilkan setelah admin berhasil login ke dalam sistem seperti pada Gambar 5.2.
+  -> Connected Image (offset 1): image71.png
+
+Caption found: Gambar 5.2 Halaman Dashboard Admin
+  -> Connected Image (offset -1): image71.png
+
+Caption found: Gambar 5.2 menunjukkan halaman dashboard admin yang berisi informasi sistem serta menu navigasi yang digunakan untuk mengelola data pengguna, dosen pembimbing, dan jadwal sidang.
+  -> Connected Image (offset -2): image71.png
+  -> Connected Image (offset 3): image72.png
+
+Caption found: Halaman manajemen user digunakan untuk mengelola data pengguna sistem seperti pada Gambar 5.3.
+  -> Connected Image (offset 1): image72.png
+
+Caption found: Gambar 5.3 Halaman Manajemen User
+  -> Connected Image (offset -1): image72.png
+
+Caption found: Gambar 5.3 menunjukkan halaman manajemen user yang digunakan untuk menambah, melihat, mengubah, dan mengelola data mahasiswa maupun dosen yang terdaftar pada sistem.
+  -> Connected Image (offset -2): image72.png
+
+Caption found: Halaman assign dosen pembimbing digunakan untuk menentukan dosen pembimbing mahasiswa seperti pada Gambar 5.4.
+  -> Connected Image (offset 1): image73.png
+
+Caption found: Gambar 5.4 Halaman Assign Dosen Pembimbing
+  -> Connected Image (offset -1): image73.png
+
+Caption found: Gambar 5.4 menunjukkan halaman assign dosen pembimbing yang digunakan untuk menetapkan dosen pembimbing 1 dan dosen pembimbing 2 kepada mahasiswa yang sedang melaksanakan tugas akhir.
+  -> Connected Image (offset -2): image73.png
+  -> Connected Image (offset 3): image74.png
+
+Caption found: Halaman kelola jadwal sidang digunakan untuk mengatur jadwal sidang mahasiswa seperti pada Gambar 5.5.
+  -> Connected Image (offset 1): image74.png
+
+Caption found: Gambar 5.5 Halaman Kelola Jadwal Sidang
+  -> Connected Image (offset -1): image74.png
+
+Caption found: Gambar 5.5 menunjukkan halaman kelola jadwal sidang yang digunakan untuk mengatur informasi jadwal seminar proposal maupun sidang tugas akhir mahasiswa, termasuk waktu, tempat, dan dosen penguji
+  -> Connected Image (offset -2): image74.png
+
+Caption found: Halaman dashboard dosen ditampilkan setelah dosen berhasil login ke dalam sistem seperti pada Gambar 5.6.
+  -> Connected Image (offset 1): image75.png
+
+Caption found: Gambar 5.6 Halaman Dashboard Dosen Pembimbing
+  -> Connected Image (offset -1): image75.png
+
+Caption found: Gambar 5.6 menunjukkan halaman dashboard dosen yang berisi ringkasan informasi mahasiswa bimbingan serta menu yang dapat digunakan untuk melakukan proses bimbingan tugas akhir.
+  -> Connected Image (offset -2): image75.png
+  -> Connected Image (offset 3): image76.png
+
+Caption found: Halaman daftar mahasiswa bimbingan digunakan untuk melihat data mahasiswa bimbingan seperti pada Gambar 5.7.
+  -> Connected Image (offset 1): image76.png
+
+Caption found: Gambar 5.7 Halaman Daftar Mahasiswa Bimbingan Dosen
+  -> Connected Image (offset -1): image76.png
+
+Caption found: Gambar 5.7 menunjukkan halaman daftar mahasiswa bimbingan yang menampilkan informasi mahasiswa yang berada di bawah bimbingan dosen sehingga memudahkan proses monitoring bimbingan.
+  -> Connected Image (offset -2): image76.png
+  -> Connected Image (offset 3): image77.png
+
+Caption found: Halaman review bimbingan digunakan untuk memeriksa pengajuan bimbingan mahasiswa seperti pada Gambar 5.8.
+  -> Connected Image (offset 1): image77.png
+
+Caption found: Gambar 5.8 Halaman Review Bimbingan Dosen
+  -> Connected Image (offset -1): image77.png
+
+Caption found: Gambar 5.8 menunjukkan halaman review bimbingan yang digunakan dosen untuk melihat dokumen bimbingan, memberikan feedback, serta menentukan status bimbingan mahasiswa sesuai hasil evaluasi.
+  -> Connected Image (offset -2): image77.png
+
+Caption found: Halaman jadwal sidang digunakan untuk melihat informasi jadwal sidang mahasiswa seperti pada Gambar 5.9.
+  -> Connected Image (offset 1): image78.png
+
+Caption found: Gambar 5.9 Halaman Jadwal Sidang Dosen
+  -> Connected Image (offset -1): image78.png
+
+Caption found: Gambar 5.9 menunjukkan halaman jadwal sidang dosen yang menampilkan informasi pelaksanaan seminar proposal maupun sidang tugas akhir mahasiswa yang berkaitan dengan dosen tersebut.
+  -> Connected Image (offset -2): image78.png
+
+Caption found: Halaman dashboard mahasiswa ditampilkan setelah mahasiswa berhasil login ke dalam sistem seperti pada Gambar 5.10.
+  -> Connected Image (offset 1): image79.png
+
+Caption found: Gambar 5.10 Halaman Dashboard Mahasiswa
+  -> Connected Image (offset -1): image79.png
+  -> Connected Image (offset 3): image80.png
+
+Caption found: Gambar 5.10 menunjukkan halaman dashboard mahasiswa yang berisi informasi tugas akhir, dosen pembimbing, serta akses menuju fitur-fitur yang tersedia pada sistem.
+  -> Connected Image (offset -2): image79.png
+  -> Connected Image (offset 2): image80.png
+
+Caption found: Halaman riwayat bimbingan digunakan untuk melihat data pengajuan bimbingan yang telah dilakukan seperti pada Gambar 5.11.
+  -> Connected Image (offset 0): image80.png
+
+Caption found: Gambar 5.11 Halaman Riwayat Bimbingan Mahasiswa
+  -> Connected Image (offset -1): image80.png
+
+Caption found: Gambar 5.11 menunjukkan halaman riwayat bimbingan mahasiswa yang menampilkan daftar pengajuan bimbingan beserta status dan feedback yang diberikan oleh dosen pembimbing.
+  -> Connected Image (offset -2): image80.png
+
+Caption found: Halaman pengajuan dan feedback bimbingan digunakan untuk mengelola proses bimbingan mahasiswa seperti pada Gambar 5.12.
+  -> Connected Image (offset 1): image81.png
+
+Caption found: Gambar 5.12 Halaman Pengajuan & Feedback Bimbingan
+  -> Connected Image (offset -1): image81.png
+
+Caption found: Gambar 5.12 menunjukkan halaman yang digunakan mahasiswa untuk mengunggah dokumen bimbingan, melihat feedback dosen, serta memantau perkembangan proses bimbingan tugas akhir.
+  -> Connected Image (offset -2): image81.png
+  -> Connected Image (offset 3): image82.png
+
+Caption found: Halaman jadwal sidang digunakan untuk melihat informasi jadwal sidang mahasiswa seperti pada Gambar 5.13.
+  -> Connected Image (offset 1): image82.png
+
+Caption found: Gambar 5.13 Halaman Jadwal Sidang Mahasiswa
+  -> Connected Image (offset -1): image82.png
+
+Caption found: Gambar 5.13 menunjukkan halaman jadwal sidang mahasiswa yang menampilkan informasi pelaksanaan seminar proposal maupun sidang tugas akhir yang telah ditetapkan oleh admin sistem.
+  -> Connected Image (offset -2): image82.png

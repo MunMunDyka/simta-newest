@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mxfile host="Electron" version="22.1.2">
+  <diagram id="d1" name="Gambar 4.12: Sequence Diagram Admin Kelola Data User">
+    <mxGraphModel dx="1200" dy="1200" grid="1" gridSize="10" pageWidth="950" pageHeight="795">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1" value="Gambar 4.12: Sequence Diagram Admin Kelola Data User" vertex="1" connectable="0">
+          <mxGeometry x="175" y="20" width="600" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="a" parent="1" style="shape=umlLifeline;participant=umlActor;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontStyle=1" value="Admin" vertex="1">
+          <mxGeometry x="0" y="80" width="100" height="595" as="geometry" />
+        </mxCell>
+        <mxCell id="uv" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" value="ManajemenUserView" vertex="1">
+          <mxGeometry x="200" y="80" width="100" height="595" as="geometry" />
+        </mxCell>
+        <mxCell id="act_uv" parent="1" style="fillColor=#f5f5f5;strokeColor=#666666;rounded=0;whiteSpace=wrap;html=1;" value="" vertex="1">
+          <mxGeometry x="242" y="120" width="16" height="495" as="geometry" />
+        </mxCell>
+        <mxCell id="fa" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" value="FormTambahUser" vertex="1">
+          <mxGeometry x="400" y="80" width="100" height="595" as="geometry" />
+        </mxCell>
+        <mxCell id="act_fa" parent="1" style="fillColor=#f5f5f5;strokeColor=#666666;rounded=0;whiteSpace=wrap;html=1;" value="" vertex="1">
+          <mxGeometry x="442" y="120" width="16" height="495" as="geometry" />
+        </mxCell>
+        <mxCell id="sv" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" value="Sistem Validasi" vertex="1">
+          <mxGeometry x="600" y="80" width="100" height="595" as="geometry" />
+        </mxCell>
+        <mxCell id="act_sv" parent="1" style="fillColor=#f5f5f5;strokeColor=#666666;rounded=0;whiteSpace=wrap;html=1;" value="" vertex="1">
+          <mxGeometry x="642" y="120" width="16" height="495" as="geometry" />
+        </mxCell>
+        <mxCell id="db" parent="1" style="shape=umlLifeline;participant=cylinder;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" value="Database (User)" vertex="1">
+          <mxGeometry x="800" y="80" width="100" height="595" as="geometry" />
+        </mxCell>
+        <mxCell id="act_db" parent="1" style="fillColor=#f5f5f5;strokeColor=#666666;rounded=0;whiteSpace=wrap;html=1;" value="" vertex="1">
+          <mxGeometry x="842" y="120" width="16" height="495" as="geometry" />
+        </mxCell>
+        <mxCell id="msg_1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;edgeStyle=none;exitX=0.5;exitY=0.101;entryX=0.5;entryY=0.101;" value="1: Membuka Halaman Kelola User" edge="1" source="a" target="uv">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="msg_2" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;edgeStyle=none;exitX=0.5;exitY=0.176;entryX=0.5;entryY=0.176;" value="2: Mengisi form data user &amp; klik "Simpan"" edge="1" source="a" target="fa">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="msg_3" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;edgeStyle=none;exitX=0.5;exitY=0.252;entryX=0.5;entryY=0.252;" value="3: POST /api/users (nim_nip, name, role, email)" edge="1" source="fa" target="sv">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="msg_4" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;edgeStyle=none;exitX=0.5;exitY=0.328;entryX=0.5;entryY=0.328;" value="4: User.findOne({ nim_nip })" edge="1" source="sv" target="db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="msg_5" parent="1" style="html=1;verticalAlign=bottom;endArrow=dashed;endFill=0;edgeStyle=none;exitX=0.5;exitY=0.403;entryX=0.5;entryY=0.403;" value="5: Kembalikan data pencarian" edge="1" source="db" target="sv">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="msg_6" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.5;exitY=0.479;entryX=0.5;entryY=0.479 + 0.03;" value="6: Enkripsi password default (bcrypt.hash)" edge="1" source="sv" target="sv">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="msg_7" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;edgeStyle=none;exitX=0.5;exitY=0.555;entryX=0.5;entryY=0.555;" value="7: User.create() &amp; simpan data" edge="1" source="sv" target="db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="msg_8" parent="1" style="html=1;verticalAlign=bottom;endArrow=dashed;endFill=0;edgeStyle=none;exitX=0.5;exitY=0.630;entryX=0.5;entryY=0.630;" value="8: Konfirmasi sukses simpan" edge="1" source="db" target="sv">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="msg_9" parent="1" style="html=1;verticalAlign=bottom;endArrow=dashed;endFill=0;edgeStyle=none;exitX=0.5;exitY=0.706;entryX=0.5;entryY=0.706;" value="9: Return HTTP 201: User Created" edge="1" source="sv" target="fa">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="msg_10" parent="1" style="html=1;verticalAlign=bottom;endArrow=dashed;endFill=0;edgeStyle=none;exitX=0.5;exitY=0.782;entryX=0.5;entryY=0.782;" value="10: Tutup form modal" edge="1" source="fa" target="uv">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="msg_11" parent="1" style="html=1;verticalAlign=bottom;endArrow=dashed;endFill=0;edgeStyle=none;exitX=0.5;exitY=0.857;entryX=0.5;entryY=0.857;" value="11: Tampilkan toast sukses &amp; perbarui tabel" edge="1" source="uv" target="a">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

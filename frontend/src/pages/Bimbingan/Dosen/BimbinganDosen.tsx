@@ -50,6 +50,12 @@ import { FeedbackAlert } from '@/components/FeedbackAlert'
 import { getApiErrorMessage } from '@/lib/errorMessage'
 import { downloadWisudaFile, previewWisudaFile } from '@/services/wisudaService'
 import { type DokumenWisuda, type FileWisuda, type User as AuthUser } from '@/services/authService'
+import {
+    downloadPengajuanSeminarFile,
+    getPengajuanSeminar,
+    previewPengajuanSeminarFile,
+    type PengajuanSeminar,
+} from '@/services/pengajuanSeminarService'
 
 // Menu items
 const menuItems = [
@@ -68,6 +74,8 @@ type FeedbackFieldErrors = {
     feedbackFile?: string
 }
 
+type FeedbackStatus = 'revisi' | 'acc' | 'lanjut_bab' | 'acc_sempro'
+
 type MahasiswaDetail = Pick<AuthUser, '_id' | 'name' | 'nim_nip' | 'prodi' | 'currentProgress' | 'judulTA' | 'statusMahasiswa' | 'dokumenWisuda'>
 type WisudaFileLike = Partial<FileWisuda> | null | undefined
 
@@ -79,6 +87,57 @@ const getDisplayedProgress = (mahasiswa?: MahasiswaDetail | null) => {
     if (!mahasiswa) return '-'
     if (isFinalStage(mahasiswa.statusMahasiswa)) return 'Selesai'
     return mahasiswa.currentProgress || 'BAB I'
+}
+
+const getSeminarTarget = (statusMahasiswa?: string) => {
+    const seminarHasilStatuses = ['bimbingan_lanjut', 'menunggu_semhas', 'revisi_semhas']
+
+    if (seminarHasilStatuses.includes(statusMahasiswa || '')) {
+        return {
+            label: 'Seminar Hasil',
+            accLabel: 'ACC Seminar Hasil',
+            description: 'Mahasiswa disetujui untuk mengajukan Seminar Hasil'
+        }
+    }
+
+    return {
+        label: 'Seminar Proposal',
+        accLabel: 'ACC Seminar Proposal',
+        description: 'Mahasiswa disetujui untuk mengajukan Seminar Proposal'
+    }
+}
+
+const getFeedbackOptions = (
+    statusMahasiswa: string | undefined,
+    currentProgress: string | undefined,
+    relation: string | undefined,
+    bimbinganCount: number,
+    minBimbingan: number
+) => {
+    const status = statusMahasiswa || 'pra_sempro'
+    const isPenguji = relation === 'penguji_1' || relation === 'penguji_2'
+    const options: FeedbackStatus[] = ['revisi', 'acc']
+
+    if (isPenguji || ['revisi_sempro', 'revisi_semhas', 'revisi_sidang'].includes(status)) {
+        return options
+    }
+
+    const blocksSemproBoundary = ['pra_sempro', 'menunggu_sempro'].includes(status) && currentProgress === 'BAB III'
+    const blocksSemhasBoundary = ['bimbingan_lanjut', 'menunggu_semhas'].includes(status) && currentProgress === 'BAB V'
+    const canMoveToNextBab = !blocksSemproBoundary && !blocksSemhasBoundary
+    if (canMoveToNextBab && currentProgress !== 'BAB VI' && currentProgress !== 'Selesai') {
+        options.push('lanjut_bab')
+    }
+
+    const isSeminarProposalPhase = ['pra_sempro', 'menunggu_sempro'].includes(status)
+    const isSeminarHasilPhase = ['bimbingan_lanjut', 'menunggu_semhas'].includes(status)
+    const canAccSeminar = (isSeminarProposalPhase || isSeminarHasilPhase) && bimbinganCount >= minBimbingan
+
+    if (canAccSeminar) {
+        options.push('acc_sempro')
+    }
+
+    return options
 }
 
 const hasWisudaFile = (file?: WisudaFileLike) => Boolean(file?.filePath || file?.fileName)
@@ -103,6 +162,24 @@ const getWisudaStatusBadge = (status?: DokumenWisuda['statusVerifikasi']) => {
     }
 }
 
+const getPengajuanStatusBadge = (status?: string) => {
+    switch (status) {
+        case 'disetujui':
+            return <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-0">Disetujui</Badge>
+        case 'menunggu_verifikasi':
+            return <Badge className="bg-yellow-100 text-yellow-700 hover:bg-yellow-100 border-0">Menunggu Verifikasi</Badge>
+        case 'ditolak':
+            return <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border-0">Ditolak</Badge>
+        default:
+            return <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 border-0">Belum Upload</Badge>
+    }
+}
+
+const getPengajuanLabel = (jenis?: string) => {
+    if (jenis === 'seminar_hasil') return 'Seminar Hasil'
+    return 'Seminar Proposal'
+}
+
 export const BimbinganDosen = () => {
     const { mahasiswaId } = useParams()
     const navigate = useNavigate()
@@ -122,6 +199,8 @@ export const BimbinganDosen = () => {
     const [minBimbinganSempro, setMinBimbinganSempro] = useState(5)
     const [mahasiswaDetail, setMahasiswaDetail] = useState<MahasiswaDetail | null>(null)
     const [wisudaError, setWisudaError] = useState<string | null>(null)
+    const [pengajuanSeminar, setPengajuanSeminar] = useState<PengajuanSeminar[]>([])
+    const [pengajuanError, setPengajuanError] = useState<string | null>(null)
     const [bimbinganData, setBimbinganData] = useState<{
         id: string
         mahasiswa: MahasiswaDetail
@@ -132,6 +211,7 @@ export const BimbinganDosen = () => {
         catatan: string
         status: string
         createdAt: string
+        dosenType?: string
         kategoriBimbingan?: string
     } | null>(null)
     // State for bimbingan history
@@ -146,19 +226,36 @@ export const BimbinganDosen = () => {
         feedback: string
         feedbackDate: string
         createdAt: string
+        dosenType?: string
         kategoriBimbingan?: string
     }>>([]);
     const [expandedHistory, setExpandedHistory] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     const displayMahasiswa = mahasiswaDetail || bimbinganData?.mahasiswa || null
+    const seminarTarget = getSeminarTarget(displayMahasiswa?.statusMahasiswa)
+    const feedbackOptions = getFeedbackOptions(
+        displayMahasiswa?.statusMahasiswa,
+        displayMahasiswa?.currentProgress,
+        bimbinganData?.dosenType,
+        bimbinganHistory.length,
+        minBimbinganSempro
+    )
     const showWisudaCard = Boolean(displayMahasiswa && (isFinalStage(displayMahasiswa.statusMahasiswa) || hasAnyWisudaFile(displayMahasiswa.dokumenWisuda)))
+    const showPengajuanCard = pengajuanSeminar.length > 0
     const wisudaDocuments = displayMahasiswa?.dokumenWisuda ? [
         { key: 'skripsiFull', label: 'Skripsi Lengkap', file: displayMahasiswa.dokumenWisuda.skripsiFull },
         { key: 'pptSkripsi', label: 'PPT Presentasi Skripsi', file: displayMahasiswa.dokumenWisuda.pptSkripsi },
         { key: 'halamanPengesahan', label: 'Halaman Pengesahan', file: displayMahasiswa.dokumenWisuda.halamanPengesahan },
         { key: 'formBimbingan', label: 'Form/Logbook Bimbingan', file: displayMahasiswa.dokumenWisuda.formBimbingan },
     ] : []
+
+    useEffect(() => {
+        if (status && !feedbackOptions.includes(status as FeedbackStatus)) {
+            setStatus('')
+            setFieldErrors((current) => ({ ...current, status: undefined }))
+        }
+    }, [feedbackOptions, status])
 
     // Fetch bimbingan data
     useEffect(() => {
@@ -169,19 +266,22 @@ export const BimbinganDosen = () => {
                 setIsLoading(true)
                 setLoadError(null)
                 setWisudaError(null)
+                setPengajuanError(null)
                 // Fetch ALL bimbingan for this mahasiswa (no limit - for history)
-                const [response, mahasiswaResponse] = await Promise.all([
+                const [response, mahasiswaResponse, pengajuanResponse] = await Promise.all([
                     api.get(`/bimbingan`, {
                         params: {
                             mahasiswaId: mahasiswaId
                         }
                     }),
-                    api.get(`/users/${mahasiswaId}`)
+                    api.get(`/users/${mahasiswaId}`),
+                    getPengajuanSeminar({ mahasiswaId, limit: 10 })
                 ])
 
                 const bimbinganList = response.data.data
                 const mahasiswaFromApi = mahasiswaResponse.data.data as MahasiswaDetail
                 setMahasiswaDetail(mahasiswaFromApi)
+                setPengajuanSeminar(pengajuanResponse.data || [])
                 console.log('Bimbingan API Response:', bimbinganList)
 
                 try {
@@ -212,6 +312,7 @@ export const BimbinganDosen = () => {
                         catatan: data.catatan || '',
                         status: data.status,
                         createdAt: new Date(data.createdAt).toLocaleString('id-ID'),
+                        dosenType: data.dosenType,
                         kategoriBimbingan: data.kategoriBimbingan
                     })
 
@@ -238,6 +339,7 @@ export const BimbinganDosen = () => {
                         feedback: item.feedback || '',
                         feedbackDate: item.feedbackDate ? new Date(item.feedbackDate).toLocaleString('id-ID') : '-',
                         createdAt: new Date(item.createdAt).toLocaleString('id-ID'),
+                        dosenType: item.dosenType,
                         kategoriBimbingan: item.kategoriBimbingan
                     }));
                     setBimbinganHistory(history);
@@ -359,6 +461,31 @@ export const BimbinganDosen = () => {
         }
     }
 
+    const handlePreviewPengajuanFile = async (pengajuan: PengajuanSeminar) => {
+        if (!pengajuan.filePath) return
+
+        try {
+            setPengajuanError(null)
+            await previewPengajuanSeminarFile(pengajuan.filePath)
+        } catch (error) {
+            setPengajuanError(getApiErrorMessage(error, 'Gagal membuka berkas pengajuan seminar. Silakan coba lagi.'))
+        }
+    }
+
+    const handleDownloadPengajuanFile = async (pengajuan: PengajuanSeminar) => {
+        if (!pengajuan.filePath) return
+
+        try {
+            setPengajuanError(null)
+            await downloadPengajuanSeminarFile(
+                pengajuan.filePath,
+                pengajuan.fileOriginalName || pengajuan.fileName || 'pengajuan-seminar.pdf'
+            )
+        } catch (error) {
+            setPengajuanError(getApiErrorMessage(error, 'Gagal mengunduh berkas pengajuan seminar. Silakan coba lagi.'))
+        }
+    }
+
     const getKategoriBadge = (kategori?: string) => {
         if (!kategori || kategori === 'bimbingan_dospem') return null;
         const config: Record<string, { label: string; className: string }> = {
@@ -386,13 +513,12 @@ export const BimbinganDosen = () => {
 
     const validateFeedbackForm = () => {
         const nextErrors: FeedbackFieldErrors = {}
-        const allowedStatuses = ['revisi', 'acc', 'lanjut_bab', 'acc_sempro']
         const cleanFeedback = feedback.trim()
 
         if (!status) {
             nextErrors.status = 'Status bimbingan wajib dipilih.'
-        } else if (!allowedStatuses.includes(status)) {
-            nextErrors.status = 'Status bimbingan tidak valid.'
+        } else if (!feedbackOptions.includes(status as FeedbackStatus)) {
+            nextErrors.status = 'Status bimbingan tidak sesuai dengan tahap mahasiswa saat ini.'
         }
 
         if (!cleanFeedback) {
@@ -751,6 +877,80 @@ export const BimbinganDosen = () => {
                             </div>
                         </motion.div>
 
+                        {showPengajuanCard && (
+                            <motion.div variants={itemVariants} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-5">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                                            <FileText className="w-5 h-5 text-white" />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-lg font-bold text-gray-800">Berkas Pengajuan Seminar</h3>
+                                            <p className="text-sm text-gray-500">Softcopy pengajuan seminar yang diunggah mahasiswa.</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <FeedbackAlert message={pengajuanError} onClose={() => setPengajuanError(null)} className="mb-4" />
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {pengajuanSeminar.map((item) => (
+                                        <div key={item._id} className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                                            <div className="flex items-start gap-3">
+                                                <FileText className={`w-8 h-8 flex-shrink-0 ${item.filePath ? 'text-red-500' : 'text-gray-300'}`} />
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <p className="text-sm font-bold text-gray-800">{getPengajuanLabel(item.jenisPengajuan)}</p>
+                                                        {getPengajuanStatusBadge(item.statusVerifikasi)}
+                                                    </div>
+                                                    {item.filePath ? (
+                                                        <>
+                                                            <p className="mt-1 truncate text-sm font-medium text-gray-700" title={item.fileOriginalName || item.fileName || ''}>
+                                                                {item.fileOriginalName || item.fileName}
+                                                            </p>
+                                                            <p className="text-xs text-gray-400">{item.fileSize || '-'}</p>
+                                                        </>
+                                                    ) : (
+                                                        <p className="mt-1 text-sm text-gray-400">Belum ada file diunggah</p>
+                                                    )}
+                                                    {item.catatanAdmin && (
+                                                        <p className="mt-2 rounded-lg bg-white px-3 py-2 text-xs text-gray-600 border border-gray-100">
+                                                            Catatan admin: {item.catatanAdmin}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {item.filePath && (
+                                                <div className="mt-4 flex flex-wrap gap-2">
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => handlePreviewPengajuanFile(item)}
+                                                        className="rounded-lg border-blue-100 text-blue-600 hover:bg-blue-50"
+                                                    >
+                                                        <Eye className="w-4 h-4 mr-1.5" />
+                                                        Preview
+                                                    </Button>
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => handleDownloadPengajuanFile(item)}
+                                                        className="rounded-lg border-green-100 text-green-600 hover:bg-green-50"
+                                                    >
+                                                        <Download className="w-4 h-4 mr-1.5" />
+                                                        Download
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </motion.div>
+                        )}
+
                         {showWisudaCard && (
                             <motion.div variants={itemVariants} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-5">
@@ -853,7 +1053,7 @@ export const BimbinganDosen = () => {
                                             {bimbinganData?.status === 'revisi' && 'Revisi'}
                                             {bimbinganData?.status === 'acc' && 'ACC ✓'}
                                             {bimbinganData?.status === 'lanjut_bab' && 'Lanjut BAB ✓'}
-                                            {bimbinganData?.status === 'acc_sempro' && 'ACC Maju Sempro ✓'}
+                                            {bimbinganData?.status === 'acc_sempro' && `${seminarTarget.accLabel} ✓`}
                                             {!bimbinganData?.status && 'Loading...'}
                                         </h3>
                                         {getKategoriBadge(bimbinganData?.kategoriBimbingan)}
@@ -938,32 +1138,38 @@ export const BimbinganDosen = () => {
                                                 <SelectValue placeholder="Pilih status..." />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="revisi">
-                                                    <div className="flex items-center gap-2">
-                                                        <XCircle className="w-4 h-4 text-red-500" />
-                                                        <span>Revisi - Perlu diperbaiki</span>
-                                                    </div>
-                                                </SelectItem>
-                                                <SelectItem value="acc">
-                                                    <div className="flex items-center gap-2">
-                                                        <CheckCircle className="w-4 h-4 text-green-500" />
-                                                        <span>ACC - Disetujui</span>
-                                                    </div>
-                                                </SelectItem>
-                                                <SelectItem value="lanjut_bab">
-                                                    <div className="flex items-center gap-2">
-                                                        <ChevronRight className="w-4 h-4 text-blue-500" />
-                                                        <span>Lanjut BAB - Silakan lanjut ke bab berikutnya</span>
-                                                    </div>
-                                                </SelectItem>
-                                                <SelectItem value="acc_sempro" disabled={bimbinganHistory.length < minBimbinganSempro}>
-                                                    <div className="flex items-center gap-2">
-                                                        <GraduationCap className="w-4 h-4 text-purple-500" />
-                                                        <span>
-                                                            ACC Maju Sempro - {bimbinganHistory.length >= minBimbinganSempro ? 'Disetujui maju sidang' : `minimal ${minBimbinganSempro}x bimbingan`}
-                                                        </span>
-                                                    </div>
-                                                </SelectItem>
+                                                {feedbackOptions.includes('revisi') && (
+                                                    <SelectItem value="revisi">
+                                                        <div className="flex items-center gap-2">
+                                                            <XCircle className="w-4 h-4 text-red-500" />
+                                                            <span>Revisi - Perlu diperbaiki</span>
+                                                        </div>
+                                                    </SelectItem>
+                                                )}
+                                                {feedbackOptions.includes('acc') && (
+                                                    <SelectItem value="acc">
+                                                        <div className="flex items-center gap-2">
+                                                            <CheckCircle className="w-4 h-4 text-green-500" />
+                                                            <span>ACC - Disetujui</span>
+                                                        </div>
+                                                    </SelectItem>
+                                                )}
+                                                {feedbackOptions.includes('lanjut_bab') && (
+                                                    <SelectItem value="lanjut_bab">
+                                                        <div className="flex items-center gap-2">
+                                                            <ChevronRight className="w-4 h-4 text-blue-500" />
+                                                            <span>Lanjut BAB - Silakan lanjut ke bab berikutnya</span>
+                                                        </div>
+                                                    </SelectItem>
+                                                )}
+                                                {feedbackOptions.includes('acc_sempro') && (
+                                                    <SelectItem value="acc_sempro">
+                                                        <div className="flex items-center gap-2">
+                                                            <GraduationCap className="w-4 h-4 text-purple-500" />
+                                                            <span>{seminarTarget.accLabel} - Disetujui mengajukan {seminarTarget.label}</span>
+                                                        </div>
+                                                    </SelectItem>
+                                                )}
                                             </SelectContent>
                                         </Select>
                                         {fieldErrors.status && (
@@ -992,7 +1198,7 @@ export const BimbinganDosen = () => {
                                                 }`}>
                                                 {status === 'revisi' ? 'Mahasiswa akan diminta untuk merevisi' :
                                                     status === 'acc' ? 'Dokumen akan disetujui' :
-                                                        status === 'acc_sempro' ? 'Mahasiswa disetujui untuk maju Seminar Proposal' :
+                                                        status === 'acc_sempro' ? seminarTarget.description :
                                                             'Mahasiswa bisa lanjut ke BAB berikutnya'}
                                             </span>
                                         </motion.div>
@@ -1209,7 +1415,7 @@ export const BimbinganDosen = () => {
                                                         {item.status === 'menunggu' ? 'Menunggu' :
                                                             item.status === 'revisi' ? 'Revisi' :
                                                                 item.status === 'acc' ? 'ACC' :
-                                                                    item.status === 'acc_sempro' ? 'ACC Sempro' : 'Lanjut BAB'}
+                                                                    item.status === 'acc_sempro' ? seminarTarget.accLabel : 'Lanjut BAB'}
                                                     </Badge>
                                                     <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${expandedHistory === item.id ? 'rotate-180' : ''
                                                         }`} />

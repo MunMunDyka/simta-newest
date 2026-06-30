@@ -1,0 +1,121 @@
+<mxfile host="Electron">
+  <diagram id="d1" name="Gambar 4.10b: Activity Diagram Upload dan Verifikasi Berkas Wisuda (Stage 7)">
+    <mxGraphModel dx="911" dy="767" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="900" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="swim_border" connectable="0" parent="1" style="fillColor=none;strokeColor=#666666;strokeWidth=1;childLayout=none;" value="" vertex="1">
+          <mxGeometry height="1140" width="780" x="50" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="swim_h_left" connectable="0" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontStyle=1;align=center;verticalAlign=middle;fillColor=#f5f5f5;strokeColor=#666666;fontSize=14;" value="USER (MAHASISWA / ADMIN)" vertex="1">
+          <mxGeometry height="40" width="260" x="50" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="swim_h_mid" connectable="0" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontStyle=1;align=center;verticalAlign=middle;fillColor=#f5f5f5;strokeColor=#666666;fontSize=14;" value="Sistem" vertex="1">
+          <mxGeometry height="40" width="260" x="310" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="swim_h_right" connectable="0" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fontStyle=1;align=center;verticalAlign=middle;fillColor=#f5f5f5;strokeColor=#666666;fontSize=14;" value="Database" vertex="1">
+          <mxGeometry height="40" width="260" x="570" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="swim_sep1" connectable="0" parent="1" style="fillColor=none;strokeColor=#666666;dashed=1;strokeWidth=1;" value="" vertex="1">
+          <mxGeometry height="1100" width="1" x="310" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="swim_sep2" connectable="0" parent="1" style="fillColor=none;strokeColor=#666666;dashed=1;strokeWidth=1;" value="" vertex="1">
+          <mxGeometry height="1100" width="1" x="570" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="start" parent="1" style="ellipse;html=1;fillColor=#000000;strokeColor=none;" value="" vertex="1">
+          <mxGeometry height="30" width="30" x="165" y="135" as="geometry" />
+        </mxCell>
+        <mxCell id="sys1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf" value="Menampilkan Halaman Persiapan Wisuda" vertex="1">
+          <mxGeometry height="60" width="200" x="340" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="act_upload" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf" value="Mengunggah 4 Berkas PDF Kelulusan Wajib" vertex="1">
+          <mxGeometry height="60" width="200" x="80" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="sys_check" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf" value="Memeriksa Kelengkapan Berkas" vertex="1">
+          <mxGeometry height="60" width="200" x="340" y="390" as="geometry" />
+        </mxCell>
+        <mxCell id="dec_complete" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656" value="Apakah 4 Berkas Lengkap?" vertex="1">
+          <mxGeometry height="90" width="130" x="375" y="490" as="geometry" />
+        </mxCell>
+        <mxCell id="db_save" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf" value="Menyimpan Berkas &amp; Ubah Status Menunggu Verifikasi" vertex="1">
+          <mxGeometry height="60" width="200" x="600" y="595" as="geometry" />
+        </mxCell>
+        <mxCell id="sys_list" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf" value="Menampilkan Daftar Verifikasi Wisuda di Admin" vertex="1">
+          <mxGeometry height="60" width="200" x="330" y="697.5" as="geometry" />
+        </mxCell>
+        <mxCell id="act_inspect" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf" value="Memeriksa Kelayakan Dokumen (Admin)" vertex="1">
+          <mxGeometry height="60" width="200" x="80" y="785" as="geometry" />
+        </mxCell>
+        <mxCell id="mzCmR41jsOuueJlETLQQ-1" edge="1" parent="1" source="dec_approve" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="act_upload">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="60" y="910" />
+              <mxPoint x="60" y="360" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="mzCmR41jsOuueJlETLQQ-4" connectable="0" parent="mzCmR41jsOuueJlETLQQ-1" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Tidak" vertex="1">
+          <mxGeometry relative="1" x="-0.9068" y="2" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dec_approve" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656" value="Apakah Dokumen Disetujui?" vertex="1">
+          <mxGeometry height="80" width="120" x="380" y="870" as="geometry" />
+        </mxCell>
+        <mxCell id="db_approve" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf" value="Update Status Wisuda &amp; Kelulusan Selesai" vertex="1">
+          <mxGeometry height="60" width="200" x="620" y="880" as="geometry" />
+        </mxCell>
+        <mxCell id="sys_end" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf" value="Menampilkan Status Peninjauan Terkini" vertex="1">
+          <mxGeometry height="60" width="200" x="340" y="1020" as="geometry" />
+        </mxCell>
+        <mxCell id="end" parent="1" style="ellipse;html=1;shape=endState;fillColor=#000000;strokeColor=#000000;" value="" vertex="1">
+          <mxGeometry height="30" width="30" x="425" y="1150" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="start" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeWidth=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="sys1" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="sys1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeWidth=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="act_upload" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="act_upload" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeWidth=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="sys_check" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="sys_check" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeWidth=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="dec_complete" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="dec_complete" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeWidth=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="act_upload" value="Tidak">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="dec_complete" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeWidth=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="db_save" value="Ya">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="1" source="db_save" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeWidth=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="sys_list" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" edge="1" parent="1" source="sys_list" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeWidth=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="act_inspect" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" edge="1" parent="1" source="act_inspect" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeWidth=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="dec_approve" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" edge="1" parent="1" source="dec_approve" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeWidth=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="db_approve" value="Ya">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e12" edge="1" parent="1" source="db_approve" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeWidth=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="sys_end" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="720" y="1050" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e14" edge="1" parent="1" source="sys_end" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeWidth=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="440" y="1150" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

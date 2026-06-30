@@ -1,0 +1,59 @@
+# Draf Penjelasan Diagram Bab IV SIMTA
+
+Dokumen ini berisi draf penjelasan naratif untuk **8 Activity Diagram (Gambar 4.3 s.d. Gambar 4.10)** dan **8 Sequence Diagram (Gambar 4.11 s.d. Gambar 4.18)**. Narasi ditulis menggunakan bahasa akademik Indonesia yang formal dan alami, selaras dengan logika sistem SIMTA saat ini (termasuk validasi bentrok, sinkronisasi data, dan email notifikasi otomatis).
+
+---
+
+## I. PENJELASAN ACTIVITY DIAGRAM (Gambar 4.3 - Gambar 4.10)
+
+1).	**Activity Diagram Autentikasi Pengguna (Login)**
+Pengguna melakukan proses login dengan memasukkan NIM/NIP dan password pada Halaman Login. Sistem melakukan validasi kredensial ke basis data Users. Jika kredensial tidak cocok, sistem akan menolak akses dan menampilkan pesan error. Jika kredensial cocok, sistem melakukan pemeriksaan lanjutan terhadap status akun pengguna (apakah aktif atau nonaktif). Jika akun berstatus nonaktif, sistem akan membatalkan login dan menampilkan notifikasi akun nonaktif. Jika akun aktif, sistem akan mengidentifikasi peran (role) pengguna serta hak aksesnya, lalu mengarahkannya ke dashboard utama yang sesuai seperti yang dapat dilihat pada Gambar 4.3.
+
+2).	**Activity Diagram Pengelolaan Data Pengguna (Admin)**
+Administrator mengelola data pengguna dengan mengisi formulir tambah pengguna baru yang mencakup NIM/NIP, nama, email, dan peran pada menu Kelola User. Sistem melakukan validasi ke basis data untuk memastikan Nomor Induk (NIM/NIP) yang dimasukkan belum terdaftar sebelumnya. Jika terdaftar, sistem akan menampilkan pesan error duplikasi data. Jika data valid dan unik, sistem akan mengenkripsi sandi default menggunakan bcrypt sebelum menyimpannya ke basis data, lalu menampilkan pesan sukses serta memperbarui tabel daftar pengguna seperti yang dapat dilihat pada Gambar 4.4.
+
+3).	**Activity Diagram Penentuan Dosen Pembimbing (Admin)**
+Administrator menetapkan relasi akademik dengan menentukan dosen pembimbing untuk mahasiswa pada menu Plotting Dospem. Administrator memilih mahasiswa target serta menentukan Dosen Pembimbing 1 dan Dosen Pembimbing 2. Sistem melakukan validasi di basis data untuk memastikan peran target berstatus mahasiswa aktif dan pembimbing berstatus dosen aktif. Selanjutnya, sistem melakukan validasi untuk memastikan Dosen Pembimbing 1 tidak sama dengan Dosen Pembimbing 2. Jika valid, sistem akan memperbarui field relasi pembimbing mahasiswa di basis data dan menampilkan notifikasi sukses plotting seperti yang dapat dilihat pada Gambar 4.5.
+
+4).	**Activity Diagram Pengelolaan Jadwal Sidang (Admin)**
+Administrator membuat jadwal sidang tugas akhir dengan mengisi form jadwal yang mencakup identitas mahasiswa, waktu pelaksanaan, ruangan, dan dosen penguji. Sistem mengirim data tersebut untuk divalidasi ke basis data. Sistem memeriksa ketersediaan ruangan dan slot waktu untuk menghindari bentrok, serta memastikan dosen penguji yang ditunjuk tidak merangkap peran sebagai dosen pembimbing dari mahasiswa bersangkutan. Jika valid, sistem menyimpan jadwal sidang, melakukan sinkronisasi data penguji ke record mahasiswa, memperbarui status akademik mahasiswa, mengirimkan email notifikasi otomatis, dan menampilkan pesan sukses di layar seperti yang dapat dilihat pada Gambar 4.6.
+
+5).	**Activity Diagram Pengajuan Bimbingan (Mahasiswa)**
+Mahasiswa melakukan pengajuan bimbingan dengan mengunggah dokumen skripsi (format PDF) kepada dosen yang dituju. Sistem melakukan serangkaian validasi sebelum penyimpanan: memastikan format berkas sesuai, memverifikasi status afiliasi dosen, dan melakukan pengecekan antrean (concurrency check). Sistem akan menolak pengajuan baru apabila masih terdapat dokumen dengan status "Menunggu" pada dosen yang sama. Dokumen yang lolos validasi akan disimpan dengan mekanisme penomoran versi otomatis (auto-versioning) untuk merekam riwayat revisi seperti yang dapat dilihat pada Gambar 4.7.
+
+6).	**Activity Diagram Dosen Review Bimbingan**
+Dosen (Pembimbing atau Penguji) melakukan review terhadap pengajuan dokumen mahasiswa yang masuk ke menu Review Bimbingan. Dosen memilih dokumen untuk dimuat dalam mode baca (PDF) beserta form evaluasi, lalu memasukkan catatan perbaikan dan menentukan status persetujuan. Jika status yang dipilih adalah "ACC Sempro", sistem memvalidasi total sesi bimbingan mahasiswa di basis data; jika jumlah bimbingan kurang dari 5 kali, sistem menolak penyimpanan dan menampilkan pesan error. Jika memenuhi syarat, sistem menyimpan catatan review, memperbarui status dokumen, dan jika statusnya "Lanjut Bab", sistem otomatis menaikkan progres akademik mahasiswa ke bab berikutnya di basis data serta mengirimkan email notifikasi otomatis berisi umpan balik ke mahasiswa seperti yang dapat dilihat pada Gambar 4.8.
+
+7).	**Activity Diagram Diskusi Reply Komentar**
+Pengguna (Mahasiswa atau Dosen) mengirimkan pesan balasan diskusi dengan membuka halaman detail riwayat bimbingan. Sistem memuat thread diskusi dan form komentar balasan. Pengguna memasukkan pesan dan menekan tombol kirim. Sistem memvalidasi hak akses di basis data untuk memastikan pengguna tersebut terlibat langsung dalam dokumen bimbingan terkait. Jika tidak terlibat, sistem menolak akses. Jika terverifikasi sebagai pihak terkait, sistem menyimpan pesan komentar balasan ke basis data, lalu memperbarui tampilan thread secara real-time seperti yang dapat dilihat pada Gambar 4.9.
+
+8).	**Activity Diagram Lihat Jadwal Sidang**
+Pengguna mengakses informasi jadwal pelaksanaan sidang pada menu Jadwal Sidang. Sistem mengidentifikasi peran aktif dari pengguna yang masuk. Jika pengguna bertindak sebagai Admin, sistem mengambil seluruh jadwal sidang dari basis data. Jika pengguna adalah Dosen, sistem menyaring dan mengambil jadwal sidang di mana dosen tersebut terdaftar sebagai Penguji 1 atau Penguji 2. Jika pengguna adalah Mahasiswa, sistem mengambil jadwal sidang pribadinya. Sistem kemudian menampilkan daftar data jadwal tersebut dalam bentuk tabel informasi di layar seperti yang dapat dilihat pada Gambar 4.10.
+
+---
+
+## II. PENJELASAN SEQUENCE DIAGRAM (Gambar 4.11 - Gambar 4.18)
+
+1).	**Sequence Diagram Autentikasi Pengguna (Login)**
+Interaksi dimulai saat Pengguna mengakses halaman masuk melalui LoginView, yang kemudian merender form kredensial. Pengguna memasukkan NIM/NIP dan password yang kemudian diteruskan oleh LoginView ke authController. Controller melakukan pencarian record di model User. Jika data ditemukan, controller memverifikasi password terenkripsi dan memeriksa status keaktifan akun. Apabila kredensial salah atau akun berstatus nonaktif, controller mengembalikan respon kegagalan ke LoginView untuk menampilkan pesan kesalahan. Jika valid, controller mengirimkan token sesi dan data peran pengguna kembali ke LoginView untuk mengarahkan pengguna ke dashboard utama seperti yang dapat dilihat pada Gambar 4.11.
+
+2).	**Sequence Diagram Admin Kelola Data User**
+Proses diawali ketika Admin membuka halaman manajemen pengguna pada ManajemenUserView. Admin memasukkan data pengguna baru dan menekan simpan, yang memicu ManajemenUserView mengirimkan request ke userController. Controller melakukan query ke model User untuk memeriksa apakah NIM/NIP sudah terdaftar. Jika sudah terdaftar, controller mengirim pesan error ke ManajemenUserView. Jika belum terdaftar, controller mengenkripsi password default dan memerintahkan model User untuk menyimpan record baru. Setelah mendapatkan konfirmasi sukses dari basis data, controller mengirim pesan sukses ke ManajemenUserView untuk merender notifikasi keberhasilan di layar seperti yang dapat dilihat pada Gambar 4.12.
+
+3).	**Sequence Diagram Admin Plotting Dosen Pembimbing**
+Proses dimulai saat Admin membuka PlottingDospemView yang menampilkan form penentuan dosen pembimbing. Admin memilih mahasiswa target dan dosen pembimbing 1 & 2, lalu mengirimkannya ke userController. Controller memvalidasi agar Dosen Pembimbing 1 tidak sama dengan Dosen Pembimbing 2. Jika terdeteksi sama, controller mengembalikan pesan kesalahan ke PlottingDospemView. Jika berbeda, controller memerintahkan model User untuk memperbarui field dospem_1 dan dospem_2 pada record mahasiswa bersangkutan. Setelah basis data merespon sukses, controller meneruskan status keberhasilan ke PlottingDospemView untuk menampilkan pesan sukses di layar seperti yang dapat dilihat pada Gambar 4.13.
+
+4).	**Sequence Diagram Admin Kelola Jadwal Sidang**
+Interaksi diawali ketika Admin memasukkan detail jadwal sidang baru melalui KelolaJadwalView. Controller jadwalController menerima data tersebut dan melakukan query ketersediaan ruangan ke model Jadwal. Controller juga memverifikasi apakah dosen penguji merangkap sebagai dospem di model User. Jika terjadi bentrok ruangan atau konflik peran dosen, controller mengirimkan respon kegagalan ke KelolaJadwalView. Jika valid, controller menyimpan jadwal sidang ke model Jadwal, melakukan sinkronisasi data penguji dan update status akademik di model User, serta memicu emailService untuk mengirim email notifikasi otomatis sebelum mengirimkan respon sukses ke KelolaJadwalView seperti yang dapat dilihat pada Gambar 4.14.
+
+5).	**Sequence Diagram Mahasiswa Upload Bimbingan**
+Proses pengajuan bimbingan dimulai saat Mahasiswa membuka form bimbingan pada BimbinganView. Mahasiswa mengunggah berkas PDF bimbingan atau revisi, yang diteruskan ke bimbinganController. Controller memeriksa data mahasiswa di model User dan memeriksa antrean dokumen di model Bimbingan. Jika ditemukan ada dokumen berstatus "Menunggu Review" pada dosen tujuan, controller membatalkan unggahan dan mengirim pesan error ke BimbinganView. Jika antrean kosong, controller menyimpan berkas baru & membuat versi otomatis di model Bimbingan, lalu mengirimkan konfirmasi sukses ke BimbinganView seperti yang dapat dilihat pada Gambar 4.15.
+
+6).	**Sequence Diagram Dosen Review Bimbingan**
+Proses review bimbingan dimulai saat Dosen mengakses ReviewView dan memasukkan feedback serta status persetujuan baru. Data ini dikirim ke bimbinganController. Controller memuat data dokumen dari model Bimbingan. Jika status yang dipilih adalah "ACC Sempro", controller memvalidasi total sesi bimbingan di model Bimbingan; jika kurang dari 5, pengulasan dibatalkan dengan pesan error. Jika valid, controller memperbarui umpan balik di model Bimbingan. Apabila status disetujui "Lanjut Bab", controller memanggil model User untuk menaikkan progres bab mahasiswa sebelum emailService mengirim notifikasi otomatis ke mahasiswa dan menampilkan sukses di ReviewView seperti yang dapat dilihat pada Gambar 4.16.
+
+7).	**Sequence Diagram Diskusi Reply Komentar**
+Interaksi dimulai saat Pengguna menulis balasan komentar baru pada DetailBimbinganView. Data dikirim ke bimbinganController, yang kemudian melakukan kueri dokumen ke model Bimbingan untuk memverifikasi keterlibatan Pengguna (apakah sebagai pemilik bimbingan atau dosen pembimbing/penguji yang bersangkutan). Jika tidak terlibat, controller menolak akses dan mengirim pesan error. Jika terverifikasi terlibat, controller menyimpan pesan baru ke model Reply. Setelah basis data mengonfirmasi penyimpanan sukses, controller menginstruksikan DetailBimbinganView untuk memuat komentar baru secara real-time di UI seperti yang dapat dilihat pada Gambar 4.17.
+
+8).	**Sequence Diagram Lihat Jadwal Sidang**
+Proses peninjauan jadwal sidang dimulai saat Pengguna membuka JadwalSidangView. Halaman mengirim request kueri jadwal ke jadwalController. Controller memeriksa peran aktif pengguna dari token sesi. Controller kemudian mengirimkan kueri spesifik ke model Jadwal: mengambil seluruh jadwal jika user adalah Admin, menyaring jadwal sebagai penguji jika Dosen, atau mengambil jadwal pribadi jika Mahasiswa. Model Jadwal mengembalikan daftar data jadwal sidang ke controller, yang kemudian dikirimkan kembali ke JadwalSidangView untuk ditampilkan dalam bentuk tabel informasi seperti yang dapat dilihat pada Gambar 4.18.

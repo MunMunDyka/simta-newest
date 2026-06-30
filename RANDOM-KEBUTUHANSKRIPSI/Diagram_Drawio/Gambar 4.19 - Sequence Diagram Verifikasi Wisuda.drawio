@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mxfile host="Electron" version="22.1.2">
+  <diagram id="d1" name="Gambar 4.19: Sequence Diagram Upload dan Verifikasi Berkas Wisuda (Stage 7)">
+    <mxGraphModel dx="1200" dy="1200" grid="1" gridSize="10" pageWidth="950" pageHeight="1200">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1" value="Gambar 4.19: Sequence Diagram Upload dan Verifikasi Berkas Wisuda (Stage 7)" vertex="1" connectable="0">
+          <mxGeometry x="175" y="20" width="600" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="m" parent="1" style="shape=umlLifeline;participant=umlActor;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontStyle=1" value="Mahasiswa" vertex="1">
+          <mxGeometry x="0" y="80" width="100" height="1000" as="geometry" />
+        </mxCell>
+        <mxCell id="a" parent="1" style="shape=umlLifeline;participant=umlActor;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;fontStyle=1" value="Admin" vertex="1">
+          <mxGeometry x="160" y="80" width="100" height="1000" as="geometry" />
+        </mxCell>
+        <mxCell id="mv" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" value="DashboardMahasiswa" vertex="1">
+          <mxGeometry x="320" y="80" width="100" height="1000" as="geometry" />
+        </mxCell>
+        <mxCell id="act_mv" parent="1" style="fillColor=#f5f5f5;strokeColor=#666666;rounded=0;whiteSpace=wrap;html=1;" value="" vertex="1">
+          <mxGeometry x="362" y="120" width="16" height="900" as="geometry" />
+        </mxCell>
+        <mxCell id="av" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" value="VerifikasiWisudaView" vertex="1">
+          <mxGeometry x="480" y="80" width="100" height="1000" as="geometry" />
+        </mxCell>
+        <mxCell id="act_av" parent="1" style="fillColor=#f5f5f5;strokeColor=#666666;rounded=0;whiteSpace=wrap;html=1;" value="" vertex="1">
+          <mxGeometry x="522" y="120" width="16" height="900" as="geometry" />
+        </mxCell>
+        <mxCell id="sv" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" value="Sistem Validasi" vertex="1">
+          <mxGeometry x="640" y="80" width="100" height="1000" as="geometry" />
+        </mxCell>
+        <mxCell id="act_sv" parent="1" style="fillColor=#f5f5f5;strokeColor=#666666;rounded=0;whiteSpace=wrap;html=1;" value="" vertex="1">
+          <mxGeometry x="682" y="120" width="16" height="900" as="geometry" />
+        </mxCell>
+        <mxCell id="db" parent="1" style="shape=umlLifeline;participant=cylinder;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#000000;" value="Database (User)" vertex="1">
+          <mxGeometry x="800" y="80" width="100" height="1000" as="geometry" />
+        </mxCell>
+        <mxCell id="act_db" parent="1" style="fillColor=#f5f5f5;strokeColor=#666666;rounded=0;whiteSpace=wrap;html=1;" value="" vertex="1">
+          <mxGeometry x="842" y="120" width="16" height="900" as="geometry" />
+        </mxCell>
+        <mxCell id="msg_1" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;edgeStyle=none;exitX=0.5;exitY=0.060;entryX=0.5;entryY=0.060;" value="1: Membuka Widget Wisuda (Status persiapan_wisuda)" edge="1" source="m" target="mv">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="msg_2" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;edgeStyle=none;exitX=0.5;exitY=0.105;entryX=0.5;entryY=0.105;" value="2: Mengunggah 4 berkas PDF wisuda wajib &amp; klik "Kirim"" edge="1" source="m" target="mv">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="msg_3" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;edgeStyle=none;exitX=0.5;exitY=0.150;entryX=0.5;entryY=0.150;" value="3: POST /api/users/upload-wisuda (Files: skripsi, ppt, pengesahan, logbook)" edge="1" source="mv" target="sv">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="msg_4" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;edgeStyle=orthogonalEdgeStyle;rounded=0;exitX=0.5;exitY=0.195;entryX=0.5;entryY=0.195 + 0.03;" value="4: Validasi kelengkapan 4 file PDF" edge="1" source="sv" target="sv">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="msg_5" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;edgeStyle=none;exitX=0.5;exitY=0.240;entryX=0.5;entryY=0.240;" value="5: Update dokumenWisuda &amp; statusVerifikasi = 'menunggu_verifikasi'" edge="1" source="sv" target="db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="msg_6" parent="1" style="html=1;verticalAlign=bottom;endArrow=dashed;endFill=0;edgeStyle=none;exitX=0.5;exitY=0.285;entryX=0.5;entryY=0.285;" value="6: Konfirmasi data wisuda terupdate" edge="1" source="db" target="sv">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="msg_7" parent="1" style="html=1;verticalAlign=bottom;endArrow=dashed;endFill=0;edgeStyle=none;exitX=0.5;exitY=0.330;entryX=0.5;entryY=0.330;" value="7: Return HTTP 200: Upload wisuda berhasil" edge="1" source="sv" target="mv">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="msg_8" parent="1" style="html=1;verticalAlign=bottom;endArrow=dashed;endFill=0;edgeStyle=none;exitX=0.5;exitY=0.375;entryX=0.5;entryY=0.375;" value="8: Tampilkan indikator menunggu verifikasi admin" edge="1" source="mv" target="m">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="msg_9" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;edgeStyle=none;exitX=0.5;exitY=0.420;entryX=0.5;entryY=0.420;" value="9: Membuka Menu Verifikasi Wisuda" edge="1" source="a" target="av">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="msg_10" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;edgeStyle=none;exitX=0.5;exitY=0.465;entryX=0.5;entryY=0.465;" value="10: GET /api/users?role=mahasiswa&amp;statusVerifikasi=menunggu_verifikasi" edge="1" source="av" target="sv">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="msg_11" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;edgeStyle=none;exitX=0.5;exitY=0.510;entryX=0.5;entryY=0.510;" value="11: User.find({ statusVerifikasi: 'menunggu_verifikasi' })" edge="1" source="sv" target="db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="msg_12" parent="1" style="html=1;verticalAlign=bottom;endArrow=dashed;endFill=0;edgeStyle=none;exitX=0.5;exitY=0.555;entryX=0.5;entryY=0.555;" value="12: Mengembalikan daftar mahasiswa menunggu verifikasi" edge="1" source="db" target="sv">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="msg_13" parent="1" style="html=1;verticalAlign=bottom;endArrow=dashed;endFill=0;edgeStyle=none;exitX=0.5;exitY=0.600;entryX=0.5;entryY=0.600;" value="13: Return HTTP 200: Daftar Verifikasi" edge="1" source="sv" target="av">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="msg_14" parent="1" style="html=1;verticalAlign=bottom;endArrow=dashed;endFill=0;edgeStyle=none;exitX=0.5;exitY=0.645;entryX=0.5;entryY=0.645;" value="14: Tampilkan daftar tabel mahasiswa wisuda" edge="1" source="av" target="a">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="msg_15" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;edgeStyle=none;exitX=0.5;exitY=0.690;entryX=0.5;entryY=0.690;" value="15: Klik "Setujui" &amp; Konfirmasi" edge="1" source="a" target="av">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="msg_16" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;edgeStyle=none;exitX=0.5;exitY=0.735;entryX=0.5;entryY=0.735;" value="16: PUT /api/users/:id/verifikasi-wisuda (status: 'disetujui')" edge="1" source="av" target="sv">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="msg_17" parent="1" style="html=1;verticalAlign=bottom;endArrow=block;edgeStyle=none;exitX=0.5;exitY=0.780;entryX=0.5;entryY=0.780;" value="17: Update statusVerifikasi = 'disetujui', statusMahasiswa = 'selesai'" edge="1" source="sv" target="db">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="msg_18" parent="1" style="html=1;verticalAlign=bottom;endArrow=dashed;endFill=0;edgeStyle=none;exitX=0.5;exitY=0.825;entryX=0.5;entryY=0.825;" value="18: Konfirmasi kelulusan wisuda disimpan" edge="1" source="db" target="sv">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="msg_19" parent="1" style="html=1;verticalAlign=bottom;endArrow=dashed;endFill=0;edgeStyle=none;exitX=0.5;exitY=0.870;entryX=0.5;entryY=0.870;" value="19: Return HTTP 200: Wisuda Disetujui" edge="1" source="sv" target="av">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="msg_20" parent="1" style="html=1;verticalAlign=bottom;endArrow=dashed;endFill=0;edgeStyle=none;exitX=0.5;exitY=0.915;entryX=0.5;entryY=0.915;" value="20: Tampilkan pesan sukses &amp; hilangkan dari daftar" edge="1" source="av" target="a">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

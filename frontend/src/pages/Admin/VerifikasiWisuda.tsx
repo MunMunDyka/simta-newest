@@ -27,6 +27,7 @@ import { FeedbackAlert } from '@/components/FeedbackAlert'
 import { getApiErrorMessage } from '@/lib/errorMessage'
 import { downloadWisudaFile, previewWisudaFile, verifikasiWisuda } from '@/services/wisudaService'
 import { type FileWisuda, type User as UserType } from '@/services/authService'
+import { PengajuanSeminarPanel } from './PengajuanSeminarPanel'
 
 // Sidebar config matching other Admin pages
 const menuItems = [
@@ -38,7 +39,7 @@ const managementItems = [
     { label: 'Manajemen Dosen', icon: GraduationCap, path: '/admin/plotting' },
     { label: 'Kelola Bimbingan', icon: FileText, path: '/admin/bimbingan' },
     { label: 'Kelola Jadwal', icon: Calendar, path: '/admin/jadwal' },
-    { label: 'Verifikasi Wisuda', icon: CheckSquare, active: true, path: '/admin/wisuda' },
+    { label: 'Verifikasi Dokumen', icon: CheckSquare, active: true, path: '/admin/wisuda' },
 ]
 
 const reportItems = [
@@ -58,6 +59,7 @@ export const VerifikasiWisuda = () => {
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [successMessage, setSuccessMessage] = useState<string | null>(null)
+    const [activeTab, setActiveTab] = useState<'pengajuan' | 'wisuda'>('pengajuan')
 
     // Verification Form State
     const [showModal, setShowModal] = useState(false)
@@ -103,8 +105,16 @@ export const VerifikasiWisuda = () => {
     }, [search, statusFilter])
 
     useEffect(() => {
-        fetchStudents()
-    }, [fetchStudents])
+        if (activeTab === 'wisuda') {
+            fetchStudents()
+        }
+    }, [activeTab, fetchStudents])
+
+    const handleTabChange = (tab: 'pengajuan' | 'wisuda') => {
+        setActiveTab(tab)
+        setError(null)
+        setSuccessMessage(null)
+    }
 
     const handleSearchSubmit = (e: React.FormEvent) => {
         e.preventDefault()
@@ -294,7 +304,7 @@ export const VerifikasiWisuda = () => {
             {/* Main Content */}
             <div className="flex-1 flex flex-col">
                 <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-6">
-                    <h2 className="text-xl font-bold text-gray-800">Verifikasi Dokumen Wisuda</h2>
+                    <h2 className="text-xl font-bold text-gray-800">Verifikasi Dokumen Mahasiswa</h2>
                     <div className="flex items-center gap-4">
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -325,7 +335,36 @@ export const VerifikasiWisuda = () => {
                             <FeedbackAlert message={successMessage} type="success" onClose={() => setSuccessMessage(null)} />
                         )}
 
+                        <motion.div variants={itemVariants} className="bg-white rounded-2xl p-2 shadow-sm border border-gray-100 inline-flex gap-2">
+                            <button
+                                type="button"
+                                onClick={() => handleTabChange('pengajuan')}
+                                className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
+                                    activeTab === 'pengajuan'
+                                        ? 'bg-orange-500 text-white shadow-sm hover:bg-orange-600'
+                                        : 'text-gray-600 hover:bg-gray-50'
+                                }`}
+                            >
+                                Pengajuan Seminar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleTabChange('wisuda')}
+                                className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
+                                    activeTab === 'wisuda'
+                                        ? 'bg-orange-500 text-white shadow-sm hover:bg-orange-600'
+                                        : 'text-gray-600 hover:bg-gray-50'
+                                }`}
+                            >
+                                Dokumen Wisuda
+                            </button>
+                        </motion.div>
+
+                        {activeTab === 'pengajuan' && <PengajuanSeminarPanel />}
+
                         {/* Top Filters & Search */}
+                        {activeTab === 'wisuda' && (
+                        <>
                         <motion.div variants={itemVariants} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 items-center justify-between">
                             <div className="flex flex-wrap gap-2">
                                 <Button
@@ -447,6 +486,8 @@ export const VerifikasiWisuda = () => {
                                 </Table>
                             )}
                         </motion.div>
+                        </>
+                        )}
                     </motion.div>
                 </main>
             </div>

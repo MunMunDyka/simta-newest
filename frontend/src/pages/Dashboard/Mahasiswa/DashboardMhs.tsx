@@ -26,6 +26,7 @@ import {
     User,
     TrendingUp,
     GraduationCap,
+    FileText,
     FileEdit,
     CheckCircle,
     XCircle,
@@ -43,6 +44,13 @@ import { FeedbackAlert } from '@/components/FeedbackAlert'
 import { getApiErrorMessage } from '@/lib/errorMessage'
 import { downloadWisudaFile, uploadWisuda } from '@/services/wisudaService'
 import type { DokumenWisuda, FileWisuda } from '@/services/authService'
+import {
+    downloadPengajuanSeminarFile,
+    getPengajuanSeminar,
+    uploadPengajuanSeminar,
+    type JenisPengajuanSeminar,
+    type PengajuanSeminar,
+} from '@/services/pengajuanSeminarService'
 
 // Types
 interface DosenInfo {
@@ -155,6 +163,11 @@ export const DashboardMhs = () => {
     const [isUploadingWisuda, setIsUploadingWisuda] = useState(false)
     const [uploadWisudaError, setUploadWisudaError] = useState<string | null>(null)
     const [uploadWisudaSuccess, setUploadWisudaSuccess] = useState<string | null>(null)
+    const [pengajuanSeminar, setPengajuanSeminar] = useState<PengajuanSeminar[]>([])
+    const [softcopyFile, setSoftcopyFile] = useState<File | null>(null)
+    const [isUploadingSoftcopy, setIsUploadingSoftcopy] = useState(false)
+    const [uploadSoftcopyError, setUploadSoftcopyError] = useState<string | null>(null)
+    const [uploadSoftcopySuccess, setUploadSoftcopySuccess] = useState<string | null>(null)
 
     const fetchData = async (showLoading = true) => {
         try {
@@ -207,6 +220,13 @@ export const DashboardMhs = () => {
                 setSemproStatus(semproResponse.data.data)
             } catch {
                 console.log('Failed to fetch sempro status')
+            }
+
+            try {
+                const pengajuanResponse = await getPengajuanSeminar({ limit: 10 })
+                setPengajuanSeminar(pengajuanResponse.data || [])
+            } catch {
+                console.log('Failed to fetch pengajuan seminar')
             }
         } catch (error) {
             console.error('Failed to fetch data:', error)
@@ -294,6 +314,94 @@ export const DashboardMhs = () => {
             await downloadWisudaFile(file.filePath, file.fileOriginalName || file.fileName)
         } catch (err: unknown) {
             setUploadWisudaError(getApiErrorMessage(err, 'Gagal mengunduh dokumen wisuda. Silakan login ulang atau coba lagi.'))
+        }
+    }
+
+    const getCurrentPengajuanJenis = (): JenisPengajuanSeminar | null => {
+        if (mahasiswaData?.statusMahasiswa === 'menunggu_sempro') return 'seminar_proposal'
+        if (mahasiswaData?.statusMahasiswa === 'menunggu_semhas') return 'seminar_hasil'
+        return null
+    }
+
+    const currentPengajuanJenis = getCurrentPengajuanJenis()
+    const currentPengajuan = pengajuanSeminar.find((item) => item.jenisPengajuan === currentPengajuanJenis)
+    const currentPengajuanLabel = currentPengajuanJenis === 'seminar_hasil'
+        ? 'Seminar Hasil'
+        : 'Seminar Proposal'
+    const currentPengajuanBabLabel = currentPengajuanJenis === 'seminar_hasil'
+        ? 'BAB I-V'
+        : 'BAB I-III'
+
+    const handleSoftcopyFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0] || null
+
+        if (!file) {
+            setSoftcopyFile(null)
+            return
+        }
+
+        setUploadSoftcopySuccess(null)
+
+        if (!isPdfFile(file)) {
+            setSoftcopyFile(null)
+            event.target.value = ''
+            setUploadSoftcopyError('Hanya file PDF yang diperbolehkan untuk berkas pengajuan seminar')
+            return
+        }
+
+        setUploadSoftcopyError(null)
+        setSoftcopyFile(file)
+    }
+
+    const handleUploadSoftcopy = async (e: React.FormEvent) => {
+        e.preventDefault()
+
+        if (!currentPengajuanJenis) {
+            setUploadSoftcopyError('Tahap pengajuan seminar belum tersedia untuk status mahasiswa saat ini')
+            return
+        }
+
+        if (!softcopyFile) {
+            setUploadSoftcopyError('Pilih file softcopy PDF terlebih dahulu')
+            return
+        }
+
+        if (!isPdfFile(softcopyFile)) {
+            setUploadSoftcopyError('Hanya file PDF yang diperbolehkan untuk berkas pengajuan seminar')
+            return
+        }
+
+        setIsUploadingSoftcopy(true)
+        setUploadSoftcopyError(null)
+        setUploadSoftcopySuccess(null)
+
+        try {
+            const formData = new FormData()
+            formData.append('softcopy', softcopyFile)
+            const response = await uploadPengajuanSeminar(currentPengajuanJenis, formData)
+            if (response.success) {
+                setUploadSoftcopySuccess(`Berkas pengajuan ${currentPengajuanLabel} berhasil diunggah`)
+                setSoftcopyFile(null)
+                fetchData(false)
+            }
+        } catch (err: unknown) {
+            setUploadSoftcopyError(getApiErrorMessage(err, 'Gagal mengunggah berkas pengajuan seminar.'))
+        } finally {
+            setIsUploadingSoftcopy(false)
+        }
+    }
+
+    const handleDownloadSoftcopy = async () => {
+        if (!currentPengajuan?.filePath) return
+
+        try {
+            setUploadSoftcopyError(null)
+            await downloadPengajuanSeminarFile(
+                currentPengajuan.filePath,
+                currentPengajuan.fileOriginalName || currentPengajuan.fileName || undefined
+            )
+        } catch (err: unknown) {
+            setUploadSoftcopyError(getApiErrorMessage(err, 'Gagal mengunduh berkas pengajuan seminar.'))
         }
     }
 
@@ -705,6 +813,125 @@ export const DashboardMhs = () => {
                             </motion.div>
                         </motion.div>
 
+
+                        {/* ===== WISUDA CARD ===== */}
+                        {mahasiswaData && currentPengajuanJenis && (
+                            <motion.div
+                                variants={itemVariants}
+                                className={`rounded-2xl p-6 shadow-sm border ${
+                                    currentPengajuan?.statusVerifikasi === 'disetujui'
+                                        ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200'
+                                        : currentPengajuan?.statusVerifikasi === 'ditolak'
+                                        ? 'bg-gradient-to-r from-red-50 to-rose-50 border-red-200'
+                                        : 'bg-white border-gray-100'
+                                }`}
+                            >
+                                <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center shadow-sm border border-blue-200">
+                                            <FileText className="w-5 h-5 text-blue-600" />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-lg font-bold text-gray-800">Berkas Pengajuan {currentPengajuanLabel}</h3>
+                                            <p className="text-xs text-gray-500">Unggah softcopy {currentPengajuanBabLabel} dalam format PDF sebelum admin membuat jadwal.</p>
+                                        </div>
+                                    </div>
+
+                                    {currentPengajuan?.statusVerifikasi === 'disetujui' && (
+                                        <Badge className="md:ml-auto bg-green-600 hover:bg-green-700 text-white font-semibold flex items-center gap-1.5 py-1 px-3.5 rounded-full text-xs shadow-sm w-fit">
+                                            <CheckCircle2 className="w-4 h-4" />
+                                            Disetujui Admin
+                                        </Badge>
+                                    )}
+                                    {currentPengajuan?.statusVerifikasi === 'menunggu_verifikasi' && (
+                                        <Badge className="md:ml-auto bg-yellow-500 hover:bg-yellow-600 text-white font-semibold flex items-center gap-1.5 py-1 px-3.5 rounded-full text-xs w-fit">
+                                            <Clock className="w-4 h-4" />
+                                            Menunggu Verifikasi
+                                        </Badge>
+                                    )}
+                                    {currentPengajuan?.statusVerifikasi === 'ditolak' && (
+                                        <Badge className="md:ml-auto bg-red-600 hover:bg-red-700 text-white font-semibold flex items-center gap-1.5 py-1 px-3.5 rounded-full text-xs w-fit">
+                                            <XCircle className="w-4 h-4" />
+                                            Perlu Perbaikan
+                                        </Badge>
+                                    )}
+                                </div>
+
+                                {uploadSoftcopyError && (
+                                    <FeedbackAlert message={uploadSoftcopyError} onClose={() => setUploadSoftcopyError(null)} className="mb-4" />
+                                )}
+                                {uploadSoftcopySuccess && (
+                                    <FeedbackAlert message={uploadSoftcopySuccess} type="success" onClose={() => setUploadSoftcopySuccess(null)} className="mb-4" />
+                                )}
+
+                                {currentPengajuan?.statusVerifikasi === 'ditolak' && currentPengajuan.catatanAdmin && (
+                                    <div className="mb-5 p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 text-sm">
+                                        <span className="font-bold flex items-center gap-1.5 mb-1">
+                                            <AlertTriangle className="w-4 h-4" />
+                                            Catatan Admin
+                                        </span>
+                                        {currentPengajuan.catatanAdmin}
+                                    </div>
+                                )}
+
+                                <form onSubmit={handleUploadSoftcopy} className="space-y-4">
+                                    <div className="p-4 rounded-xl border border-gray-200 bg-white">
+                                        <label className="block text-sm font-bold text-gray-700 mb-2">
+                                            Softcopy TA {currentPengajuanBabLabel} (PDF)
+                                        </label>
+                                        {currentPengajuan?.fileName ? (
+                                            <div className="flex items-center justify-between gap-3 text-xs bg-gray-50 p-2.5 rounded-lg border border-gray-200 mb-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={handleDownloadSoftcopy}
+                                                    className="font-semibold text-blue-600 hover:underline truncate text-left"
+                                                >
+                                                    {currentPengajuan.fileOriginalName || currentPengajuan.fileName}
+                                                </button>
+                                                <span className="text-gray-400 font-medium shrink-0">{currentPengajuan.fileSize}</span>
+                                            </div>
+                                        ) : (
+                                            <p className="text-xs text-gray-400 italic mb-2">Belum ada file diunggah</p>
+                                        )}
+
+                                        {currentPengajuan?.statusVerifikasi !== 'disetujui' && (
+                                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                                                <input
+                                                    type="file"
+                                                    accept=".pdf"
+                                                    id="softcopyPengajuanInput"
+                                                    className="hidden"
+                                                    onChange={handleSoftcopyFileChange}
+                                                />
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => document.getElementById('softcopyPengajuanInput')?.click()}
+                                                    className="text-xs flex items-center gap-1.5 h-8 border-gray-300 hover:bg-gray-50"
+                                                >
+                                                    <Upload className="w-3.5 h-3.5 text-gray-500" />
+                                                    Pilih File
+                                                </Button>
+                                                {softcopyFile && <span className="text-xs text-green-600 truncate font-semibold">{softcopyFile.name}</span>}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {currentPengajuan?.statusVerifikasi !== 'disetujui' && (
+                                        <div className="pt-2 flex justify-end">
+                                            <Button
+                                                type="submit"
+                                                disabled={isUploadingSoftcopy || !softcopyFile}
+                                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2 rounded-xl transition-all shadow-md shadow-blue-500/20"
+                                            >
+                                                {isUploadingSoftcopy ? 'Mengunggah...' : 'Unggah Softcopy'}
+                                            </Button>
+                                        </div>
+                                    )}
+                                </form>
+                            </motion.div>
+                        )}
 
                         {/* ===== WISUDA CARD ===== */}
                         {mahasiswaData && ['persiapan_wisuda', 'selesai'].includes(mahasiswaData.statusMahasiswa || '') && (

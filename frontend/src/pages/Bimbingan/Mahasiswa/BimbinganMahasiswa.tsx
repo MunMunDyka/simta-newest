@@ -7,6 +7,13 @@ import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
+import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
@@ -39,6 +46,7 @@ import * as bimbinganService from '@/services/bimbinganService'
 import type { Bimbingan } from '@/services/bimbinganService'
 
 type UploadFieldErrors = {
+    bab?: string
     judul?: string
     dosenType?: string
     file?: string
@@ -55,11 +63,33 @@ const aktivitasItems = [
     { label: 'Jadwal Sidang', icon: Calendar, path: '/jadwal-sidang' },
 ]
 
+const babOptions = ['BAB I', 'BAB II', 'BAB III', 'BAB IV', 'BAB V', 'BAB VI'] as const
+type BabOption = typeof babOptions[number]
+
+const semproLimitedStatuses = ['pra_sempro', 'menunggu_sempro', 'revisi_sempro']
+
+const getAllowedBabOptions = (statusMahasiswa?: string): BabOption[] => {
+    if (semproLimitedStatuses.includes(statusMahasiswa || 'pra_sempro')) {
+        return [...babOptions.slice(0, 3)]
+    }
+
+    return [...babOptions]
+}
+
+const getInitialBab = (currentProgress?: string, statusMahasiswa?: string): BabOption => {
+    const allowed = getAllowedBabOptions(statusMahasiswa)
+    return allowed.includes(currentProgress as BabOption)
+        ? currentProgress as BabOption
+        : allowed[0]
+}
+
 export const BimbinganMahasiswa = () => {
     const dispatch = useAppDispatch()
     const navigate = useNavigate()
     const [searchParams] = useSearchParams()
     const { user } = useAppSelector((state) => state.auth)
+    const allowedBabOptions = getAllowedBabOptions(user?.statusMahasiswa)
+    const allowedBabKey = allowedBabOptions.join('|')
 
     // Check if in revision phase
     const isRevisionPhase = ['revisi_sempro', 'revisi_semhas', 'revisi_sidang'].includes(user?.statusMahasiswa || 'pra_sempro')
@@ -75,6 +105,7 @@ export const BimbinganMahasiswa = () => {
         tabFromUrl || (isRevisionPhase ? 'penguji1' : 'dospem1')
     )
 
+    const [selectedBab, setSelectedBab] = useState<BabOption>(() => getInitialBab(user?.currentProgress, user?.statusMahasiswa))
     const [judulBimbingan, setJudulBimbingan] = useState('')
     const [catatan, setCatatan] = useState('')
     const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -146,9 +177,17 @@ export const BimbinganMahasiswa = () => {
     const shouldShowUploadForm = (!hasHistory || isUploadFormOpen) && !isFormDisabled
 
     useEffect(() => {
+        const allowed = allowedBabKey.split('|') as BabOption[]
+        if (!allowed.includes(selectedBab)) {
+            setSelectedBab(allowed[0])
+        }
+    }, [allowedBabKey, selectedBab])
+
+    useEffect(() => {
         setExpandedId(null)
         setReplyText('')
         setIsUploadFormOpen(false)
+        setSelectedBab(getInitialBab(user?.currentProgress, user?.statusMahasiswa))
         setJudulBimbingan('')
         setCatatan('')
         setSelectedFile(null)
@@ -206,13 +245,18 @@ export const BimbinganMahasiswa = () => {
     const validateUploadForm = () => {
         const nextErrors: UploadFieldErrors = {}
         const judul = judulBimbingan.trim()
+        const finalJudul = `${selectedBab} - ${judul}`
         const currentDosenType = getDosenTypeFromSubTab(activeSubTab)
+
+        if (!allowedBabOptions.includes(selectedBab)) {
+            nextErrors.bab = 'BAB tidak sesuai dengan tahap bimbingan saat ini.'
+        }
 
         if (!judul) {
             nextErrors.judul = 'Judul bimbingan wajib diisi.'
         } else if (judul.length < 5) {
             nextErrors.judul = 'Judul bimbingan minimal 5 karakter.'
-        } else if (judul.length > 200) {
+        } else if (finalJudul.length > 200) {
             nextErrors.judul = 'Judul bimbingan maksimal 200 karakter.'
         }
 
@@ -233,6 +277,8 @@ export const BimbinganMahasiswa = () => {
         setFieldErrors(nextErrors)
         return Object.keys(nextErrors).length === 0
     }
+
+    const buildJudulBimbingan = () => `${selectedBab} - ${judulBimbingan.trim()}`
 
     const mapBackendValidationErrors = (errors: Array<{ field?: string; message?: string }> = []) => {
         const nextErrors: UploadFieldErrors = {}
@@ -265,7 +311,7 @@ export const BimbinganMahasiswa = () => {
             const fileToUpload = selectedFile as File
 
             await bimbinganService.createBimbingan({
-                judul: judulBimbingan.trim(),
+                judul: buildJudulBimbingan(),
                 dosenType: getDosenTypeFromSubTab(activeSubTab) as any,
                 catatan: catatan.trim() || undefined,
                 file: fileToUpload
@@ -633,21 +679,49 @@ export const BimbinganMahasiswa = () => {
 
                             <div className="space-y-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Judul Bimbingan</label>
-                                    <Input
-                                        placeholder="Contoh: Revisi BAB III - Metodologi Penelitian"
-                                        value={judulBimbingan}
-                                        onChange={(e) => {
-                                            setJudulBimbingan(e.target.value)
-                                            setFieldErrors((current) => ({ ...current, judul: undefined }))
-                                        }}
-                                        disabled={isFormDisabled}
-                                        className={`rounded-xl ${fieldErrors.judul ? 'border-red-300 bg-red-50 focus-visible:ring-red-200' : ''}`}
-                                    />
-                                    {fieldErrors.judul && (
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Topik Bimbingan</label>
+                                    <div
+                                        className={`flex h-11 items-center overflow-hidden rounded-xl border bg-white shadow-xs transition-[color,box-shadow] focus-within:border-blue-400 focus-within:ring-[3px] focus-within:ring-blue-100 ${
+                                            fieldErrors.bab || fieldErrors.judul
+                                                ? 'border-red-300 bg-red-50 focus-within:border-red-300 focus-within:ring-red-100'
+                                                : 'border-input'
+                                        } ${isFormDisabled ? 'bg-gray-50 opacity-70' : ''}`}
+                                    >
+                                        <div className="w-32 shrink-0 border-r border-gray-200">
+                                            <Select
+                                                value={selectedBab}
+                                                onValueChange={(value) => {
+                                                    setSelectedBab(value as BabOption)
+                                                    setFieldErrors((current) => ({ ...current, bab: undefined, judul: undefined }))
+                                                }}
+                                                disabled={isFormDisabled}
+                                            >
+                                                <SelectTrigger className="h-11 w-full rounded-none border-0 bg-transparent px-3 shadow-none focus-visible:border-transparent focus-visible:ring-0">
+                                                    <SelectValue placeholder="Pilih BAB" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {allowedBabOptions.map((bab) => (
+                                                        <SelectItem key={bab} value={bab}>{bab}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+
+                                        <Input
+                                            placeholder="Contoh: Metodologi Penelitian"
+                                            value={judulBimbingan}
+                                            onChange={(e) => {
+                                                setJudulBimbingan(e.target.value)
+                                                setFieldErrors((current) => ({ ...current, judul: undefined }))
+                                            }}
+                                            disabled={isFormDisabled}
+                                            className="h-11 flex-1 rounded-none border-0 bg-transparent shadow-none focus-visible:border-transparent focus-visible:ring-0"
+                                        />
+                                    </div>
+                                    {(fieldErrors.bab || fieldErrors.judul) && (
                                         <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-red-600">
                                             <AlertCircle className="h-3.5 w-3.5" />
-                                            {fieldErrors.judul}
+                                            {fieldErrors.bab || fieldErrors.judul}
                                         </p>
                                     )}
                                 </div>

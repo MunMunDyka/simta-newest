@@ -608,3 +608,57 @@ Catatan ini ditambahkan tanpa menghapus bagian lama. Tujuannya meluruskan bagian
 *   Validasi:
     *   `npx.cmd eslint src/pages/Dashboard/Mahasiswa/DashboardMhs.tsx src/pages/Admin/VerifikasiWisuda.tsx` berhasil tanpa error.
     *   `npm.cmd run build` berhasil; hanya tersisa warning ukuran chunk besar dari Vite/Rolldown.
+
+### 10.9 Pengajuan Softcopy Seminar dan Verifikasi Dokumen Mahasiswa
+*   Ditambahkan modul backend `PengajuanSeminar` untuk menyimpan softcopy pengajuan Seminar Proposal dan Seminar Hasil.
+*   Endpoint baru:
+    *   `GET /api/pengajuan-seminar` untuk list pengajuan sesuai role.
+    *   `POST /api/pengajuan-seminar/:jenisPengajuan/upload` untuk upload PDF mahasiswa.
+    *   `PUT /api/pengajuan-seminar/:id/verifikasi` untuk verifikasi admin.
+    *   `GET /api/pengajuan-seminar/download/:fileName` untuk download/preview file dengan token.
+*   Alur aktif: **ACC Seminar sesuai fase mahasiswa -> Upload Softcopy -> Verifikasi Admin -> Buat Jadwal**.
+*   Dashboard mahasiswa menampilkan kartu **Berkas Pengajuan Seminar Proposal** saat `statusMahasiswa = menunggu_sempro`, dan **Berkas Pengajuan Seminar Hasil** saat `statusMahasiswa = menunggu_semhas`.
+*   Upload softcopy mahasiswa dibatasi PDF dan maksimal 25MB dari backend; UI juga menampilkan alert jika file bukan PDF.
+*   Menu admin `/admin/wisuda` diganti secara UI menjadi **Verifikasi Dokumen Mahasiswa** dan dipisah tab:
+    *   **Pengajuan Seminar** untuk verifikasi softcopy Seminar Proposal/Seminar Hasil.
+    *   **Dokumen Wisuda** untuk verifikasi dokumen kelulusan/wisuda lama.
+*   Backend `POST /api/jadwal` sekarang menolak pembuatan jadwal `sidang_proposal` dan `sidang_semhas` jika pengajuan seminar terkait belum `disetujui` admin.
+*   Sidang akhir tidak dijadikan flow internal baru pada SIMTA; sesuai keputusan saat ini, sidang akhir berada di ranah akademik eksternal dan SIMTA hanya melanjutkan ke berkas wisuda setelah status mahasiswa masuk `persiapan_wisuda`.
+*   Halaman detail bimbingan dosen menampilkan kartu read-only **Berkas Pengajuan Seminar** agar dosen dapat melihat softcopy yang diunggah mahasiswa.
+*   Validasi:
+    *   `node --check backend/models/PengajuanSeminar.js` berhasil.
+    *   `node --check backend/controller/pengajuanSeminarController.js` berhasil.
+    *   `node --check backend/router/pengajuanSeminarRoutes.js` berhasil.
+    *   `node --check backend/controller/jadwalController.js` berhasil.
+    *   `npm.cmd run build` di frontend berhasil; hanya tersisa warning ukuran chunk besar dari Vite/Rolldown.
+
+### 10.10 Seed Data Uji Pengajuan Seminar
+*   Ditambahkan script `backend/scripts/seedPengajuanSeminarFlowData.js` dan shortcut `npm run seed:pengajuan-seminar-flow`.
+*   Script bersifat non-destruktif terhadap user/jadwal: tidak membuat mahasiswa/dosen baru, tidak menghapus data lama, dan hanya upsert data `PengajuanSeminar` serta file PDF dummy di `backend/uploads/pengajuan-seminar`.
+*   Mode default hanya memilih mahasiswa existing dengan status `menunggu_sempro`/`menunggu_semhas`.
+*   Mode `--prepare-statuses` dapat menaikkan mahasiswa existing yang valid dari:
+    *   `pra_sempro` -> `menunggu_sempro`
+    *   `bimbingan_lanjut` -> `menunggu_semhas`
+*   Eksekusi berhasil dengan command:
+    *   `npm.cmd run seed:pengajuan-seminar-flow -- --prepare-statuses`
+*   Data uji yang dibuat:
+    *   Adittya Danang Setiawan (`2221013`) -> Seminar Proposal `menunggu_verifikasi`.
+    *   Charles (`2221015`) -> Seminar Proposal `disetujui`.
+    *   Hudiya Aksan Hawary (`2221009`) -> Seminar Hasil `menunggu_verifikasi`.
+    *   Intan Iqlima (`2221011`) -> Seminar Hasil `disetujui`.
+*   Mahasiswa/dosen yang dipilih adalah data existing dan dospem yang terhubung juga user dosen existing aktif.
+
+### 10.11 Koreksi Seed Pengajuan Seminar - Riwayat ACC Sidang
+*   Script `backend/scripts/seedPengajuanSeminarFlowData.js` diperbaiki agar data dummy softcopy tidak berdiri sendiri.
+*   Setiap mahasiswa seed pengajuan seminar sekarang dipastikan memiliki riwayat bimbingan dospem yang sesuai alur utama:
+    *   Minimal 5 bimbingan pada `dospem_1`.
+    *   Minimal 5 bimbingan pada `dospem_2`.
+    *   Riwayat terbaru masing-masing dospem berstatus `acc_sempro` sebagai representasi **ACC Sidang / ACC Seminar**.
+*   Untuk data seed Seminar Hasil, script juga memastikan ada riwayat jadwal `sidang_proposal` berstatus `selesai` sebagai bukti mahasiswa sudah melewati Seminar Proposal.
+*   Eksekusi ulang berhasil dengan command:
+    *   `npm.cmd run seed:pengajuan-seminar-flow -- --prepare-statuses`
+*   Validasi DB setelah repair:
+    *   Adittya Danang Setiawan (`2221013`): `menunggu_sempro`, Dospem 1 total 5 latest `acc_sempro`, Dospem 2 total 5 latest `acc_sempro`.
+    *   Charles (`2221015`): `menunggu_sempro`, Dospem 1 total 5 latest `acc_sempro`, Dospem 2 total 5 latest `acc_sempro`.
+    *   Hudiya Aksan Hawary (`2221009`): `menunggu_semhas`, Dospem 1 total 5 latest `acc_sempro`, Dospem 2 total 5 latest `acc_sempro`, jadwal Seminar Proposal `selesai/lulus`.
+    *   Intan Iqlima (`2221011`): `menunggu_semhas`, Dospem 1 total 7 latest `acc_sempro`, Dospem 2 total 5 latest `acc_sempro`, jadwal Seminar Proposal `selesai/lulus_revisi`.

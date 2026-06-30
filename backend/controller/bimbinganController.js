@@ -359,6 +359,22 @@ const giveFeedback = asyncHandler(async (req, res) => {
         }
     }
 
+    if (status === 'lanjut_bab') {
+        const mahasiswa = await User.findById(bimbingan.mahasiswa);
+        const blockedBeforeSempro = mahasiswa?.currentProgress === 'BAB III' &&
+            (!mahasiswa.statusMahasiswa || ['pra_sempro', 'menunggu_sempro'].includes(mahasiswa.statusMahasiswa));
+        const blockedBeforeSemhas = mahasiswa?.currentProgress === 'BAB V' &&
+            ['bimbingan_lanjut', 'menunggu_semhas'].includes(mahasiswa.statusMahasiswa);
+
+        if (blockedBeforeSempro) {
+            throw ApiError.badRequest('Mahasiswa sudah berada di BAB III. Gunakan ACC Seminar Proposal jika syarat bimbingan sudah terpenuhi.');
+        }
+
+        if (blockedBeforeSemhas) {
+            throw ApiError.badRequest('Mahasiswa sudah berada di BAB V. Gunakan ACC Seminar Hasil jika syarat bimbingan sudah terpenuhi.');
+        }
+    }
+
     // Update bimbingan with feedback
     bimbingan.status = status;
     bimbingan.feedback = feedback;

@@ -12,6 +12,7 @@
 
 const Jadwal = require('../models/Jadwal');
 const User = require('../models/User');
+const PengajuanSeminar = require('../models/PengajuanSeminar');
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess, sendPaginated, sendCreated } = require('../utils/responseHelper');
@@ -25,6 +26,11 @@ const getJenisJadwalDisplay = (jenis) => {
         sidang_skripsi: 'Sidang Akhir'
     };
     return display[jenis] || jenis;
+};
+
+const requiredPengajuanByJadwal = {
+    sidang_proposal: 'seminar_proposal',
+    sidang_semhas: 'seminar_hasil'
 };
 
 /**
@@ -133,6 +139,22 @@ const create = asyncHandler(async (req, res) => {
     const mahasiswaUser = await User.findById(mahasiswa);
     if (!mahasiswaUser || mahasiswaUser.role !== 'mahasiswa') {
         throw ApiError.badRequest('Mahasiswa tidak valid');
+    }
+
+    const requiredPengajuan = requiredPengajuanByJadwal[jenisJadwal];
+    if (requiredPengajuan) {
+        const approvedPengajuan = await PengajuanSeminar.findOne({
+            mahasiswa,
+            jenisPengajuan: requiredPengajuan,
+            statusVerifikasi: 'disetujui'
+        });
+
+        if (!approvedPengajuan) {
+            throw ApiError.badRequest(
+                `Berkas pengajuan ${getJenisJadwalDisplay(jenisJadwal)} belum disetujui admin. ` +
+                'Mahasiswa harus upload softcopy dan menunggu verifikasi sebelum jadwal dibuat.'
+            );
+        }
     }
 
     // Force immutable examiners if already assigned to the student in a previous exam phase
