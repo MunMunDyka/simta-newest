@@ -1,0 +1,20 @@
+# Keep deployment repo focused on the app source.
+# Skripsi drafts, diagrams, exports, and extracted assets stay local only.
+RANDOM-KEBUTUHANSKRIPSI/
+wireframe/
+tools/
+
+# Generated / accidental root-level working files
+ASI_*.md
+ASI_*.drawio
+BLACKBOX_*.md
+DEPLOYMENT_GUIDE.md
+extracted_schedules.json
+inspect_tables.py
+
+# Local/editor/generated files
+.DS_Store
+Thumbs.db
+*.tmp
+*.log
+*.bkp
