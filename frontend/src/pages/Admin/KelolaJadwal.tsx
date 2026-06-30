@@ -66,6 +66,7 @@ import {
     AlertCircle,
     X,
     GraduationCap,
+    Link as LinkIcon,
 } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
@@ -163,7 +164,7 @@ const getJenisJadwalLabel = (val: string) => {
     switch (val) {
         case 'sidang_proposal': return 'Sidang Proposal'
         case 'sidang_semhas': return 'Seminar Hasil'
-        case 'sidang_skripsi': return 'Sidang Skripsi'
+        case 'sidang_skripsi': return 'Sidang Akhir Akademik'
         default: return val
     }
 }
@@ -220,6 +221,9 @@ export const KelolaJadwal = () => {
     const [ruangan, setRuangan] = useState('')
     const [penguji1, setPenguji1] = useState('')
     const [penguji2, setPenguji2] = useState('')
+    const [academicSidangLink, setAcademicSidangLink] = useState('')
+    const [academicLinkLabel, setAcademicLinkLabel] = useState('Daftar Sidang Akhir melalui Akademik')
+    const [isSavingAcademicLink, setIsSavingAcademicLink] = useState(false)
 
     useEffect(() => {
         if (!selectedMahasiswa) {
@@ -279,6 +283,7 @@ export const KelolaJadwal = () => {
     useEffect(() => {
         fetchJadwal()
         fetchUsers()
+        fetchAcademicSidangLink()
     }, [])
 
     const fetchJadwal = async () => {
@@ -311,6 +316,38 @@ export const KelolaJadwal = () => {
         } catch (error) {
             console.error('Failed to fetch users:', error)
             setLoadError(getApiErrorMessage(error, 'Gagal memuat daftar mahasiswa/dosen untuk jadwal. Silakan refresh halaman.'))
+        }
+    }
+
+    const fetchAcademicSidangLink = async () => {
+        try {
+            const response = await api.get('/jadwal/academic-link')
+            setAcademicSidangLink(response.data.data?.url || '')
+            setAcademicLinkLabel(response.data.data?.label || 'Daftar Sidang Akhir melalui Akademik')
+        } catch (error) {
+            console.error('Failed to fetch academic sidang link:', error)
+        }
+    }
+
+    const handleSaveAcademicSidangLink = async () => {
+        if (academicSidangLink.trim() && !/^https?:\/\/.+/i.test(academicSidangLink.trim())) {
+            alert('Link akademik harus diawali dengan http:// atau https://')
+            return
+        }
+
+        setIsSavingAcademicLink(true)
+        try {
+            await api.put('/jadwal/academic-link', {
+                url: academicSidangLink.trim(),
+                label: academicLinkLabel.trim() || 'Daftar Sidang Akhir melalui Akademik'
+            })
+            alert('Link pendaftaran Sidang Akhir Akademik berhasil disimpan')
+            fetchAcademicSidangLink()
+        } catch (error: unknown) {
+            const err = error as { response?: { data?: { message?: string } } }
+            alert(err.response?.data?.message || 'Gagal menyimpan link akademik')
+        } finally {
+            setIsSavingAcademicLink(false)
         }
     }
 
@@ -924,6 +961,55 @@ export const KelolaJadwal = () => {
                             ))}
                         </motion.div>
 
+                        <motion.div
+                            variants={itemVariants}
+                            className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100"
+                        >
+                            <div className="flex flex-col lg:flex-row lg:items-end gap-4">
+                                <div className="flex items-start gap-3 lg:w-72">
+                                    <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center">
+                                        <LinkIcon className="w-5 h-5 text-blue-600" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-gray-800">Link Pendaftaran Sidang Akhir dari Akademik</h3>
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            Simpan link dari akademik untuk diberikan ke mahasiswa setelah Seminar Hasil selesai.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-[1fr_1.5fr] gap-3 flex-1">
+                                    <div>
+                                        <Label className="text-xs font-semibold text-gray-500">Label Tombol</Label>
+                                        <Input
+                                            value={academicLinkLabel}
+                                            onChange={(e) => setAcademicLinkLabel(e.target.value)}
+                                            placeholder="Daftar Sidang Akhir melalui Akademik"
+                                            className="mt-1"
+                                        />
+                                    </div>
+                                    <div>
+                                    <Label className="text-xs font-semibold text-gray-500">URL Pendaftaran dari Akademik</Label>
+                                        <Input
+                                            value={academicSidangLink}
+                                            onChange={(e) => setAcademicSidangLink(e.target.value)}
+                                            placeholder="https://..."
+                                            className="mt-1"
+                                        />
+                                    </div>
+                                </div>
+
+                                <Button
+                                    type="button"
+                                    onClick={handleSaveAcademicSidangLink}
+                                    disabled={isSavingAcademicLink}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+                                >
+                                    {isSavingAcademicLink ? 'Menyimpan...' : 'Simpan Link'}
+                                </Button>
+                            </div>
+                        </motion.div>
+
                         {/* Table Section */}
                         <motion.div variants={itemVariants} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                             {/* Table Header */}
@@ -1284,7 +1370,7 @@ export const KelolaJadwal = () => {
                                 <SelectContent>
                                     <SelectItem value="sidang_proposal">Sidang Proposal</SelectItem>
                                     <SelectItem value="sidang_semhas">Seminar Hasil</SelectItem>
-                                    <SelectItem value="sidang_skripsi">Sidang Skripsi</SelectItem>
+                                    <SelectItem value="sidang_skripsi">Sidang Akhir Akademik</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -1715,14 +1801,24 @@ export const KelolaJadwal = () => {
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             <CheckCircle className="w-5 h-5 text-green-500" />
-                            Selesaikan Sidang
+                            {selesaiJadwal?.jenisJadwal === 'sidang_skripsi'
+                                ? 'Konfirmasi Sidang Akhir Akademik'
+                                : 'Selesaikan Sidang'}
                         </DialogTitle>
                         <DialogDescription>
-                            Isi hasil sidang untuk {selesaiJadwal?.mahasiswa?.name}
+                            {selesaiJadwal?.jenisJadwal === 'sidang_skripsi'
+                                ? `Konfirmasi hasil Sidang Akhir dari akademik untuk ${selesaiJadwal?.mahasiswa?.name}. Jika dinyatakan lulus, mahasiswa akan masuk fase berkas kelulusan/wisuda.`
+                                : `Isi hasil sidang untuk ${selesaiJadwal?.mahasiswa?.name}`}
                         </DialogDescription>
                     </DialogHeader>
 
                     <div className="space-y-4 mt-4">
+                        {selesaiJadwal?.jenisJadwal === 'sidang_skripsi' && (
+                            <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+                                Jadwal ini berasal dari proses akademik di luar SIMTA. SIMTA hanya mencatat jadwal dan hasil akhir berdasarkan konfirmasi admin.
+                            </div>
+                        )}
+
                         {/* Hasil Sidang */}
                         <div>
                             <Label className="text-sm font-medium">Hasil Sidang *</Label>
@@ -1798,7 +1894,9 @@ export const KelolaJadwal = () => {
                                 ) : (
                                     <>
                                         <CheckCircle className="w-4 h-4 mr-2" />
-                                        Selesaikan Sidang
+                                        {selesaiJadwal?.jenisJadwal === 'sidang_skripsi'
+                                            ? 'Konfirmasi Selesai'
+                                            : 'Selesaikan Sidang'}
                                     </>
                                 )}
                             </Button>

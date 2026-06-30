@@ -99,10 +99,10 @@ const userSchema = new Schema({
             'bimbingan_lanjut',  // Telah lulus revisi sempro, lanjut bimbingan dospem BAB IV-V
             'menunggu_semhas',   // Sedang menunggu jadwal ujian semhas
             'revisi_semhas',     // Pasca semhas, wajib bimbingan revisi ke penguji
-            'bimbingan_akhir',   // Telah lulus revisi semhas, lanjut bimbingan dospem bab akhir
-            'menunggu_sidang',   // Sedang menunggu jadwal ujian sidang akhir
-            'revisi_sidang',     // Pasca sidang, bimbingan revisi laporan akhir ke penguji
-            'persiapan_wisuda',  // Tahap persiapan wisuda (upload berkas & verifikasi admin)
+            'bimbingan_akhir',   // Telah selesai Seminar Hasil, menunggu proses Sidang Akhir Akademik
+            'menunggu_sidang',   // Jadwal Sidang Akhir Akademik sudah dicatat admin
+            'revisi_sidang',     // Legacy: pasca sidang internal, tidak dipakai pada flow akademik eksternal baru
+            'persiapan_wisuda',  // Selesai Sidang Akhir Akademik, masuk tahap upload berkas wisuda/kelulusan
             'selesai'            // Telah lulus semua sidang, revisi penguji, dan berkas wisuda disetujui admin
         ],
         default: 'pra_sempro'

@@ -413,7 +413,7 @@ export const BimbinganMahasiswa = () => {
                 return 'completed';
             }
             if (step === 'sidang') {
-                if (['menunggu_sidang'].includes(status)) return 'active';
+                if (['bimbingan_akhir', 'menunggu_sidang'].includes(status)) return 'active';
                 if (status === 'revisi_sidang') return 'revision';
                 if (['persiapan_wisuda', 'selesai'].includes(status)) return 'completed';
                 return 'upcoming';
@@ -424,7 +424,7 @@ export const BimbinganMahasiswa = () => {
         const steps = [
             { key: 'sempro', label: 'Seminar Proposal', desc: ['revisi_sempro'].includes(status) ? 'Revisi Penguji' : ['menunggu_sempro'].includes(status) ? 'Menunggu Jadwal' : 'Bimbingan Dospem' },
             { key: 'semhas', label: 'Seminar Hasil', desc: ['revisi_semhas'].includes(status) ? 'Revisi Penguji' : ['menunggu_semhas'].includes(status) ? 'Menunggu Jadwal' : 'Bimbingan Dospem' },
-            { key: 'sidang', label: 'Sidang Akhir', desc: ['revisi_sidang'].includes(status) ? 'Revisi Penguji' : ['menunggu_sidang'].includes(status) ? 'Menunggu Jadwal' : ['persiapan_wisuda', 'selesai'].includes(status) ? 'Selesai' : 'Bimbingan Dospem' }
+            { key: 'sidang', label: 'Sidang Akhir', desc: ['revisi_sidang'].includes(status) ? 'Revisi Penguji' : ['bimbingan_akhir'].includes(status) ? 'Daftar via Akademik' : ['menunggu_sidang'].includes(status) ? 'Jadwal dari Akademik' : ['persiapan_wisuda', 'selesai'].includes(status) ? 'Selesai' : 'Menunggu Semhas' }
         ];
 
         return (
@@ -818,6 +818,28 @@ export const BimbinganMahasiswa = () => {
     const hasCurrentPenguji = typeof currentPenguji === 'object' ? Boolean((currentPenguji as any)?._id) : Boolean(currentPenguji);
 
     const renderContent = () => {
+        const isAcademicSidangPhase = ['bimbingan_akhir', 'menunggu_sidang'].includes(user?.statusMahasiswa || '');
+        if (isAcademicSidangPhase) {
+            return (
+                <motion.div
+                    key="academic_sidang_locked"
+                    initial="hidden"
+                    animate="visible"
+                    variants={itemVariants}
+                    className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center flex flex-col items-center justify-center"
+                >
+                    <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center mb-4">
+                        <Clock className="w-8 h-8 text-blue-500" />
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-800 mb-2">Bimbingan SIMTA Telah Selesai</h3>
+                    <p className="text-sm text-gray-500 max-w-md">
+                        Seminar Hasil telah selesai. Tidak ada bimbingan lanjutan di SIMTA untuk tahap ini.
+                        Silakan buka <strong>Dashboard</strong> untuk mengakses link pendaftaran Sidang Akhir dari akademik dan menunggu pembaruan dari admin.
+                    </p>
+                </motion.div>
+            );
+        }
+
         const isGraduated = ['persiapan_wisuda', 'selesai'].includes(user?.statusMahasiswa || '');
         if (isGraduated) {
             return (

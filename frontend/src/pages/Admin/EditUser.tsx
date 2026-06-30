@@ -571,10 +571,10 @@ export const EditUser = () => {
                                                         <SelectItem value="bimbingan_lanjut">Bimbingan Lanjut (BAB IV-V)</SelectItem>
                                                         <SelectItem value="menunggu_semhas">Menunggu Semhas</SelectItem>
                                                         <SelectItem value="revisi_semhas">Revisi Semhas</SelectItem>
-                                                        <SelectItem value="bimbingan_akhir">Bimbingan Akhir (BAB VI)</SelectItem>
-                                                        <SelectItem value="menunggu_sidang">Menunggu Sidang Akhir</SelectItem>
+                                                        <SelectItem value="bimbingan_akhir">Menunggu Sidang Akhir Akademik</SelectItem>
+                                                        <SelectItem value="menunggu_sidang">Jadwal Sidang Akhir Akademik</SelectItem>
                                                         <SelectItem value="revisi_sidang">Revisi Sidang Akhir</SelectItem>
-                                                        <SelectItem value="persiapan_wisuda">Persiapan Wisuda</SelectItem>
+                                                        <SelectItem value="persiapan_wisuda">Selesai Sidang - Berkas Wisuda</SelectItem>
                                                         <SelectItem value="selesai">Selesai</SelectItem>
                                                     </SelectContent>
                                                 </Select>

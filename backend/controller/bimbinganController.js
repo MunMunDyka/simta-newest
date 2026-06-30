@@ -192,12 +192,12 @@ const create = asyncHandler(async (req, res) => {
     const mahasiswaFull = await User.findById(mahasiswa._id);
     const studentStatus = mahasiswaFull?.statusMahasiswa || 'pra_sempro';
     const REVISION_STATUSES = ['revisi_sempro', 'revisi_semhas', 'revisi_sidang'];
-    const DOSPEM_STATUSES = ['pra_sempro', 'bimbingan_lanjut', 'bimbingan_akhir'];
+    const DOSPEM_STATUSES = ['pra_sempro', 'bimbingan_lanjut'];
 
-    if (['persiapan_wisuda', 'selesai'].includes(studentStatus)) {
+    if (['bimbingan_akhir', 'menunggu_sidang', 'persiapan_wisuda', 'selesai'].includes(studentStatus)) {
         if (file) fs.unlinkSync(file.path);
         throw ApiError.badRequest(
-            'Seluruh rangkaian bimbingan Anda telah selesai. Anda tidak dapat mengirim bimbingan baru.'
+            'Tahap bimbingan di SIMTA telah selesai. Proses Sidang Akhir dilanjutkan melalui akademik.'
         );
     }
 
@@ -463,7 +463,7 @@ const giveFeedback = asyncHandler(async (req, res) => {
     // When a dospem gives 'acc_sempro' on a bimbingan, check if BOTH dospem have given 'acc_sempro'
     if (status === 'acc_sempro' && (bimbingan.dosenType === 'dospem_1' || bimbingan.dosenType === 'dospem_2')) {
         const mahasiswa = await User.findById(bimbingan.mahasiswa);
-        if (mahasiswa && ['pra_sempro', 'bimbingan_lanjut', 'bimbingan_akhir'].includes(mahasiswa.statusMahasiswa)) {
+        if (mahasiswa && ['pra_sempro', 'bimbingan_lanjut'].includes(mahasiswa.statusMahasiswa)) {
             // Find the latest bimbingan for the OTHER dospem
             const otherDospemType = bimbingan.dosenType === 'dospem_1' ? 'dospem_2' : 'dospem_1';
             const otherDospemLatest = await Bimbingan.findOne({
@@ -487,25 +487,10 @@ const giveFeedback = asyncHandler(async (req, res) => {
                         isValid = false;
                     }
                 }
-                // For bimbingan_akhir, check if the other dospem's ACC is after the semhas exam was completed
-                else if (mahasiswa.statusMahasiswa === 'bimbingan_akhir') {
-                    const Jadwal = require('../models/Jadwal');
-                    const lastSemhas = await Jadwal.findOne({
-                        mahasiswa: bimbingan.mahasiswa,
-                        jenisJadwal: 'sidang_semhas',
-                        status: 'selesai'
-                    }).sort({ updatedAt: -1 });
-
-                    if (lastSemhas && otherDospemLatest.createdAt <= lastSemhas.updatedAt) {
-                        isValid = false;
-                    }
-                }
-
                 if (isValid) {
                     const statusTransitions = {
                         'pra_sempro': 'menunggu_sempro',
-                        'bimbingan_lanjut': 'menunggu_semhas',
-                        'bimbingan_akhir': 'menunggu_sidang'
+                        'bimbingan_lanjut': 'menunggu_semhas'
                     };
                     const nextStatus = statusTransitions[mahasiswa.statusMahasiswa];
                     if (nextStatus) {

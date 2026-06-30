@@ -13,6 +13,7 @@
 const Jadwal = require('../models/Jadwal');
 const User = require('../models/User');
 const PengajuanSeminar = require('../models/PengajuanSeminar');
+const SystemSetting = require('../models/SystemSetting');
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess, sendPaginated, sendCreated } = require('../utils/responseHelper');
@@ -32,6 +33,42 @@ const requiredPengajuanByJadwal = {
     sidang_proposal: 'seminar_proposal',
     sidang_semhas: 'seminar_hasil'
 };
+
+const ACADEMIC_SIDANG_LINK_KEY = 'academic_sidang_akhir_link';
+
+const getAcademicSidangLink = asyncHandler(async (req, res) => {
+    const setting = await SystemSetting.findOne({ key: ACADEMIC_SIDANG_LINK_KEY }).lean();
+
+    sendSuccess(res, 200, 'Link pendaftaran sidang akhir akademik berhasil diambil', {
+        url: setting?.value?.url || '',
+        label: setting?.value?.label || 'Daftar Sidang Akhir melalui Akademik',
+        updatedAt: setting?.updatedAt || null
+    });
+});
+
+const updateAcademicSidangLink = asyncHandler(async (req, res) => {
+    const { url, label } = req.body;
+    const normalizedUrl = typeof url === 'string' ? url.trim() : '';
+
+    if (normalizedUrl && !/^https?:\/\/.+/i.test(normalizedUrl)) {
+        throw ApiError.badRequest('Link akademik harus diawali dengan http:// atau https://');
+    }
+
+    const setting = await SystemSetting.findOneAndUpdate(
+        { key: ACADEMIC_SIDANG_LINK_KEY },
+        {
+            value: {
+                url: normalizedUrl,
+                label: label?.trim() || 'Daftar Sidang Akhir melalui Akademik'
+            },
+            label: 'Link Pendaftaran Sidang Akhir Akademik',
+            description: 'Link eksternal akademik untuk mahasiswa yang sudah menyelesaikan Seminar Hasil.'
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    sendSuccess(res, 200, 'Link pendaftaran sidang akhir akademik berhasil diperbarui', setting.value);
+});
 
 /**
  * @desc    Get all jadwal with filtering
@@ -157,6 +194,12 @@ const create = asyncHandler(async (req, res) => {
         }
     }
 
+    if (jenisJadwal === 'sidang_skripsi' && !['bimbingan_akhir', 'menunggu_sidang'].includes(mahasiswaUser.statusMahasiswa)) {
+        throw ApiError.badRequest(
+            'Jadwal Sidang Akhir hanya dapat dicatat setelah mahasiswa menyelesaikan Seminar Hasil.'
+        );
+    }
+
     // Force immutable examiners if already assigned to the student in a previous exam phase
     if (mahasiswaUser.penguji_1 || mahasiswaUser.penguji_2) {
         penguji = [mahasiswaUser.penguji_1, mahasiswaUser.penguji_2].filter(Boolean);
@@ -173,6 +216,13 @@ const create = asyncHandler(async (req, res) => {
         if (dosenList.length !== penguji.length) {
             throw ApiError.badRequest('Satu atau lebih penguji bukan dosen yang valid');
         }
+    }
+
+    if (jenisJadwal === 'sidang_skripsi' && mahasiswaUser.statusMahasiswa === 'bimbingan_akhir') {
+        await User.findByIdAndUpdate(mahasiswa, {
+            statusMahasiswa: 'menunggu_sidang',
+            currentProgress: 'BAB VI'
+        });
     }
 
     // Validate that penguji is not dospem_1 or dospem_2 of the student
@@ -468,12 +518,15 @@ const update = asyncHandler(async (req, res) => {
             const statusMap = {
                 'sidang_proposal': 'revisi_sempro',
                 'sidang_semhas': 'revisi_semhas',
-                'sidang_skripsi': 'revisi_sidang'
+                'sidang_skripsi': 'persiapan_wisuda'
             };
 
             const nextStatus = statusMap[jadwal.jenisJadwal];
             if (nextStatus) {
                 student.statusMahasiswa = nextStatus;
+                if (nextStatus === 'persiapan_wisuda') {
+                    student.currentProgress = 'Selesai';
+                }
 
                 // Assign penguji_1 and penguji_2 from the exam panel
                 if (jadwal.penguji && jadwal.penguji.length >= 1) {
@@ -487,7 +540,8 @@ const update = asyncHandler(async (req, res) => {
                 console.log(`🎓 Student status updated: ${student.name} -> ${nextStatus}, penguji assigned`);
             }
 
-            // If hasil is 'lulus' (not 'lulus_revisi'), student skips revision and goes straight to next guidance phase
+            // If hasil is 'lulus' (not 'lulus_revisi'), student skips revision and goes straight to next guidance phase.
+            // Sidang Akhir is handled by Akademik; once admin marks it completed in SIMTA, open wisuda documents.
             if (jadwal.hasil === 'lulus') {
                 const directTransition = {
                     'sidang_proposal': 'bimbingan_lanjut',
@@ -700,5 +754,7 @@ module.exports = {
     getUpcoming,
     getStatistics,
     getPengujiWorkload,
-    clearAll
+    clearAll,
+    getAcademicSidangLink,
+    updateAcademicSidangLink
 };

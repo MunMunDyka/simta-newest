@@ -94,10 +94,10 @@ const getStatusMahasiswaLabel = (status: string | undefined) => {
         case 'bimbingan_lanjut': return 'Bimbingan Lanjut (BAB IV-V)'
         case 'menunggu_semhas': return 'Menunggu Semhas'
         case 'revisi_semhas': return 'Revisi Semhas'
-        case 'bimbingan_akhir': return 'Bimbingan Akhir (BAB VI)'
-        case 'menunggu_sidang': return 'Menunggu Sidang Akhir'
+        case 'bimbingan_akhir': return 'Menunggu Sidang Akhir Akademik'
+        case 'menunggu_sidang': return 'Jadwal Sidang Akhir Akademik'
         case 'revisi_sidang': return 'Revisi Sidang Akhir'
-        case 'persiapan_wisuda': return 'Persiapan Wisuda'
+        case 'persiapan_wisuda': return 'Selesai Sidang - Berkas Wisuda'
         case 'selesai': return 'Selesai'
         default: return 'Pra-Sempro'
     }

@@ -36,6 +36,7 @@ import {
     Award,
     Upload,
     AlertTriangle,
+    ExternalLink,
 } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
@@ -168,6 +169,8 @@ export const DashboardMhs = () => {
     const [isUploadingSoftcopy, setIsUploadingSoftcopy] = useState(false)
     const [uploadSoftcopyError, setUploadSoftcopyError] = useState<string | null>(null)
     const [uploadSoftcopySuccess, setUploadSoftcopySuccess] = useState<string | null>(null)
+    const [academicSidangLink, setAcademicSidangLink] = useState('')
+    const [academicSidangLabel, setAcademicSidangLabel] = useState('Daftar Sidang Akhir melalui Akademik')
 
     const fetchData = async (showLoading = true) => {
         try {
@@ -227,6 +230,14 @@ export const DashboardMhs = () => {
                 setPengajuanSeminar(pengajuanResponse.data || [])
             } catch {
                 console.log('Failed to fetch pengajuan seminar')
+            }
+
+            try {
+                const academicLinkResponse = await api.get('/jadwal/academic-link')
+                setAcademicSidangLink(academicLinkResponse.data.data?.url || '')
+                setAcademicSidangLabel(academicLinkResponse.data.data?.label || 'Daftar Sidang Akhir melalui Akademik')
+            } catch {
+                console.log('Failed to fetch academic sidang link')
             }
         } catch (error) {
             console.error('Failed to fetch data:', error)
@@ -502,6 +513,7 @@ export const DashboardMhs = () => {
     }
 
     const isRevisionPhase = ['revisi_sempro', 'revisi_semhas', 'revisi_sidang'].includes(mahasiswaData?.statusMahasiswa || 'pra_sempro')
+    const isAcademicSidangPhase = ['bimbingan_akhir', 'menunggu_sidang'].includes(mahasiswaData?.statusMahasiswa || '')
 
     // Loading state
     if (isLoading) {
@@ -933,6 +945,45 @@ export const DashboardMhs = () => {
                             </motion.div>
                         )}
 
+                        {mahasiswaData && isAcademicSidangPhase && (
+                            <motion.div
+                                variants={itemVariants}
+                                className="rounded-2xl p-6 shadow-sm border bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200"
+                            >
+                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                                    <div className="flex items-start gap-3">
+                                        <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center shadow-sm border border-blue-200">
+                                            <GraduationCap className="w-5 h-5 text-blue-700" />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-lg font-bold text-gray-800">Pendaftaran Sidang Akhir Akademik</h3>
+                                            <p className="text-sm text-gray-600 mt-1">
+                                                Seminar Hasil Anda telah selesai. Admin membagikan link pendaftaran Sidang Akhir dari akademik melalui SIMTA.
+                                            </p>
+                                            <p className="text-xs text-gray-500 mt-2">
+                                                Setelah jadwal dan hasil Sidang Akhir diterima dari akademik, admin akan menginput jadwal dan mengonfirmasi hasilnya agar berkas wisuda dapat diunggah.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {academicSidangLink ? (
+                                        <Button
+                                            type="button"
+                                            onClick={() => window.open(academicSidangLink, '_blank', 'noopener,noreferrer')}
+                                            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl flex items-center gap-2"
+                                        >
+                                            <ExternalLink className="w-4 h-4" />
+                                            {academicSidangLabel}
+                                        </Button>
+                                    ) : (
+                                        <Badge className="bg-yellow-100 text-yellow-700 hover:bg-yellow-100 font-semibold rounded-full">
+                                            Menunggu link dari admin
+                                        </Badge>
+                                    )}
+                                </div>
+                            </motion.div>
+                        )}
+
                         {/* ===== WISUDA CARD ===== */}
                         {mahasiswaData && ['persiapan_wisuda', 'selesai'].includes(mahasiswaData.statusMahasiswa || '') && (
                             <motion.div
@@ -950,8 +1001,8 @@ export const DashboardMhs = () => {
                                         <Award className="w-5 h-5 text-orange-600" />
                                     </div>
                                     <div>
-                                        <h3 className="text-lg font-bold text-gray-800">Persiapan Wisuda</h3>
-                                        <p className="text-xs text-gray-500">Unggah berkas administrasi kelulusan akhir Anda (Format PDF, Maksimal 25MB)</p>
+                                        <h3 className="text-lg font-bold text-gray-800">Selesai Sidang Akhir - Berkas Wisuda</h3>
+                                        <p className="text-xs text-gray-500">Unggah berkas administrasi kelulusan/wisuda Anda (Format PDF, Maksimal 25MB)</p>
                                     </div>
 
                                     {mahasiswaData.dokumenWisuda?.statusVerifikasi === 'disetujui' && (
@@ -1176,7 +1227,7 @@ export const DashboardMhs = () => {
                         )}
 
                         {/* ===== STATUS BIMBINGAN CARD (Only show when NOT in persiapan_wisuda / selesai) ===== */}
-                        {semproStatus && mahasiswaData && !['persiapan_wisuda', 'selesai'].includes(mahasiswaData.statusMahasiswa || '') && (
+                        {semproStatus && mahasiswaData && !['bimbingan_akhir', 'menunggu_sidang', 'persiapan_wisuda', 'selesai'].includes(mahasiswaData.statusMahasiswa || '') && (
                             <motion.div
                                 variants={itemVariants}
                                 className={`rounded-2xl p-6 shadow-sm border ${semproStatus.isReady
@@ -1331,7 +1382,7 @@ export const DashboardMhs = () => {
                         )}
 
                         {/* Quick Actions (Only show when NOT in persiapan_wisuda / selesai) */}
-                        {mahasiswaData && !['persiapan_wisuda', 'selesai'].includes(mahasiswaData.statusMahasiswa || '') && (
+                        {mahasiswaData && !['bimbingan_akhir', 'menunggu_sidang', 'persiapan_wisuda', 'selesai'].includes(mahasiswaData.statusMahasiswa || '') && (
                             <motion.div
                                 variants={itemVariants}
                                 className="bg-gradient-to-r from-blue-500 via-blue-600 to-gray-600 rounded-2xl p-6 shadow-lg"

@@ -60,6 +60,27 @@ router.get(
 );
 
 /**
+ * @route   GET /api/jadwal/academic-link
+ * @desc    Get academic sidang akhir registration link
+ * @access  Private
+ */
+router.get(
+    '/academic-link',
+    jadwalController.getAcademicSidangLink
+);
+
+/**
+ * @route   PUT /api/jadwal/academic-link
+ * @desc    Update academic sidang akhir registration link
+ * @access  Admin
+ */
+router.put(
+    '/academic-link',
+    roleMiddleware(['admin']),
+    jadwalController.updateAcademicSidangLink
+);
+
+/**
  * @route   GET /api/jadwal
  * @desc    Get all jadwal (filtered by role)
  * @access  Private
