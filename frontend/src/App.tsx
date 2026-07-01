@@ -14,6 +14,7 @@ import './App.css'
   
 // Pages
 import { Login } from './pages/Login/Login'
+import { ResetPassword } from './pages/Login/ResetPassword'
 import { DashboardDosen } from './pages/Dashboard/Dosen/DashboardDosen'
 import { DashboardMhs } from './pages/Dashboard/Mahasiswa/DashboardMhs'
 import { DashboardAdmin } from './pages/Admin/DashboardAdmin'
@@ -77,6 +78,7 @@ function App() {
     <Routes>
       {/* Public Route - Login */}
       <Route path="/" element={<LoginRoute />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
 
       {/* Mahasiswa Routes */}
       <Route

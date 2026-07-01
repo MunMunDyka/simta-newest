@@ -45,7 +45,6 @@ export interface User {
     penguji_2?: string | { _id: string; name: string; nim_nip: string };
     status: 'aktif' | 'nonaktif';
     avatar?: string;
-    whatsapp?: string;
     initials?: string;
     canAccessAdmin?: boolean;
     activeRole?: 'mahasiswa' | 'dosen' | 'admin';
@@ -66,6 +65,16 @@ export interface LoginResponse {
 
 export interface ChangePasswordRequest {
     currentPassword: string;
+    newPassword: string;
+    confirmPassword: string;
+}
+
+export interface ForgotPasswordRequest {
+    identifier: string;
+}
+
+export interface ResetPasswordRequest {
+    token: string;
     newPassword: string;
     confirmPassword: string;
 }
@@ -111,5 +120,21 @@ export const refreshToken = async (token: string): Promise<ApiResponse<{ accessT
  */
 export const changePassword = async (data: ChangePasswordRequest): Promise<ApiResponse<{ accessToken: string; refreshToken: string }>> => {
     const response = await api.put<ApiResponse<{ accessToken: string; refreshToken: string }>>('/auth/change-password', data);
+    return response.data;
+};
+
+/**
+ * Request password reset link
+ */
+export const forgotPassword = async (data: ForgotPasswordRequest): Promise<ApiResponse<null>> => {
+    const response = await api.post<ApiResponse<null>>('/auth/forgot-password', data);
+    return response.data;
+};
+
+/**
+ * Reset password using token from email
+ */
+export const resetPassword = async (data: ResetPasswordRequest): Promise<ApiResponse<null>> => {
+    const response = await api.post<ApiResponse<null>>('/auth/reset-password', data);
     return response.data;
 };

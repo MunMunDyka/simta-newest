@@ -47,7 +47,6 @@ import {
     FileText,
     ArrowLeft,
     Mail,
-    Phone,
     GraduationCap,
     Eye,
     EyeOff,
@@ -78,7 +77,6 @@ interface DosenData {
     email: string
     status: 'aktif' | 'nonaktif'
     avatar?: string
-    whatsapp?: string
     plainPassword?: string
     canAccessAdmin?: boolean
 }
@@ -592,10 +590,6 @@ export const ManajemenUserDosen = () => {
                                             <div className="flex items-center gap-2 text-gray-600">
                                                 <Mail className="w-4 h-4" />
                                                 <span className="text-sm">{dosen.email}</span>
-                                            </div>
-                                            <div className="flex items-center gap-2 text-gray-600">
-                                                <Phone className="w-4 h-4" />
-                                                <span className="text-sm">{dosen.whatsapp || '-'}</span>
                                             </div>
                                         </div>
 

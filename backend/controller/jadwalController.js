@@ -17,7 +17,6 @@ const SystemSetting = require('../models/SystemSetting');
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess, sendPaginated, sendCreated } = require('../utils/responseHelper');
-const { notifyJadwalSidang } = require('../services/whatsappService');
 const { notifyJadwalSidangEmail } = require('../services/emailService');
 
 const getJenisJadwalDisplay = (jenis) => {
@@ -304,8 +303,8 @@ const create = asyncHandler(async (req, res) => {
     }
 
     await jadwal.populate([
-        { path: 'mahasiswa', select: 'name nim_nip prodi whatsapp email' },
-        { path: 'penguji', select: 'name nim_nip whatsapp email' },
+        { path: 'mahasiswa', select: 'name nim_nip prodi email' },
+        { path: 'penguji', select: 'name nim_nip email' },
         { path: 'createdBy', select: 'name' }
     ]);
 
@@ -319,24 +318,6 @@ const create = asyncHandler(async (req, res) => {
         day: 'numeric'
     });
     const waktuFormatted = `${jadwal.waktuMulai} - ${jadwal.waktuSelesai || 'selesai'} WIB`;
-
-    // Send WhatsApp notification to mahasiswa (non-blocking)
-    if (jadwal.mahasiswa.whatsapp) {
-        notifyJadwalSidang(
-            jadwal.mahasiswa.whatsapp,
-            jadwal.mahasiswa.name,
-            'mahasiswa',
-            tanggalFormatted,
-            waktuFormatted,
-            jadwal.ruangan || '-'
-        ).then(result => {
-            if (result.success) {
-                console.log(`📱 WhatsApp sent to mahasiswa: ${jadwal.mahasiswa.name}`);
-            } else {
-                console.log(`⚠️ WhatsApp not sent to mahasiswa: ${result.reason || result.error}`);
-            }
-        }).catch(err => console.error('WhatsApp error:', err));
-    }
 
     // Send email notification to mahasiswa (non-blocking)
     if (jadwal.mahasiswa.email) {
@@ -356,26 +337,9 @@ const create = asyncHandler(async (req, res) => {
         }).catch(err => console.error('Email error:', err));
     }
 
-    // Send WhatsApp notification to all penguji (non-blocking)
+    // Send email notification to all penguji (non-blocking)
     if (jadwal.penguji && jadwal.penguji.length > 0) {
         jadwal.penguji.forEach(dosen => {
-            if (dosen.whatsapp) {
-                notifyJadwalSidang(
-                    dosen.whatsapp,
-                    jadwal.mahasiswa.name,
-                    'penguji',
-                    tanggalFormatted,
-                    waktuFormatted,
-                    jadwal.ruangan || '-'
-                ).then(result => {
-                    if (result.success) {
-                        console.log(`📱 WhatsApp sent to penguji: ${dosen.name}`);
-                    } else {
-                        console.log(`⚠️ WhatsApp not sent to penguji ${dosen.name}: ${result.reason || result.error}`);
-                    }
-                }).catch(err => console.error('WhatsApp error:', err));
-            }
-
             if (dosen.email) {
                 notifyJadwalSidangEmail(
                     dosen.email,

@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Eye, EyeOff, GraduationCap, AlertCircle } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { login, clearError } from '@/store/slices/authSlice'
+import { forgotPassword } from '@/services/authService'
 
 export const Login = () => {
     const dispatch = useAppDispatch()
@@ -19,6 +20,10 @@ export const Login = () => {
     const [password, setPassword] = useState('')
     const [rememberMe, setRememberMe] = useState(false)
     const [localError, setLocalError] = useState<string | null>(null)
+    const [isForgotMode, setIsForgotMode] = useState(false)
+    const [resetIdentifier, setResetIdentifier] = useState('')
+    const [resetMessage, setResetMessage] = useState<string | null>(null)
+    const [isSendingResetLink, setIsSendingResetLink] = useState(false)
     const displayError = localError || error
     const errorBoxRef = useRef<HTMLDivElement | null>(null)
     const errorTextRef = useRef<HTMLParagraphElement | null>(null)
@@ -112,6 +117,29 @@ export const Login = () => {
         } catch (err) {
             const message = typeof err === 'string' ? err : 'Login gagal. Periksa kembali username dan password.'
             showLoginError(message)
+        }
+    }
+
+    const handleForgotPassword = async (e: React.FormEvent) => {
+        e.preventDefault()
+        hideLoginError()
+        setResetMessage(null)
+        dispatch(clearError())
+
+        if (!resetIdentifier.trim()) {
+            showLoginError('Username atau email wajib diisi.')
+            return
+        }
+
+        setIsSendingResetLink(true)
+        try {
+            const response = await forgotPassword({ identifier: resetIdentifier.trim() })
+            setResetMessage(response.message || 'Link reset password telah dikirim ke email akun Anda.')
+        } catch (err: any) {
+            const validationMessage = err.response?.data?.errors?.find((item: { message?: string }) => item.message)?.message
+            showLoginError(validationMessage || err.response?.data?.message || 'Gagal mengirim link reset password.')
+        } finally {
+            setIsSendingResetLink(false)
         }
     }
 
@@ -289,7 +317,7 @@ export const Login = () => {
 
                     {/* Login Form */}
                     <motion.form
-                        onSubmit={handleSubmit}
+                        onSubmit={isForgotMode ? handleForgotPassword : handleSubmit}
                         className="space-y-6"
                     >
                         {/* Error Message */}
@@ -306,6 +334,69 @@ export const Login = () => {
                                 {displayError || ''}
                             </p>
                         </div>
+
+                        {resetMessage && (
+                            <motion.div
+                                variants={itemVariants}
+                                className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm font-medium text-green-700"
+                                role="status"
+                            >
+                                {resetMessage}
+                            </motion.div>
+                        )}
+
+                        {isForgotMode ? (
+                            <>
+                                <motion.div variants={itemVariants} className="space-y-2">
+                                    <Label
+                                        htmlFor="resetIdentifier"
+                                        className="text-sm font-medium text-gray-600"
+                                    >
+                                        Username atau Email
+                                    </Label>
+                                    <Input
+                                        id="resetIdentifier"
+                                        type="text"
+                                        placeholder="Masukkan username atau email akun"
+                                        value={resetIdentifier}
+                                        onChange={(e) => {
+                                            setResetIdentifier(e.target.value)
+                                            hideLoginError()
+                                            setResetMessage(null)
+                                        }}
+                                        className="h-12 px-4 bg-white border-gray-200 focus:border-blue-500 focus:ring-blue-500/20 transition-all duration-300 rounded-xl shadow-sm hover:border-gray-300"
+                                    />
+                                    <p className="text-xs text-gray-500">
+                                        Link reset password akan dikirim ke email yang terdaftar pada akun SIMTA.
+                                    </p>
+                                </motion.div>
+
+                                <motion.div variants={itemVariants}>
+                                    <Button
+                                        type="submit"
+                                        disabled={isSendingResetLink}
+                                        className="w-full h-12 bg-gradient-to-r from-blue-500 via-blue-600 to-gray-600 hover:from-blue-600 hover:via-blue-700 hover:to-gray-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/30 transition-all duration-300 disabled:opacity-70 cursor-pointer"
+                                    >
+                                        {isSendingResetLink ? 'Mengirim link...' : 'Kirim Link Reset Password'}
+                                    </Button>
+                                </motion.div>
+
+                                <motion.button
+                                    variants={itemVariants}
+                                    type="button"
+                                    onClick={() => {
+                                        setIsForgotMode(false)
+                                        setResetMessage(null)
+                                        hideLoginError()
+                                    }}
+                                    className="w-full text-sm text-gray-500 hover:text-blue-600 font-medium transition-colors"
+                                    whileHover={{ x: -2 }}
+                                >
+                                    Kembali ke Login
+                                </motion.button>
+                            </>
+                        ) : (
+                            <>
 
                         {/* Username Field */}
                         <motion.div variants={itemVariants} className="space-y-2">
@@ -402,7 +493,13 @@ export const Login = () => {
                             </div>
                             <motion.button
                                 type="button"
-                                onClick={() => alert('Silakan hubungi Admin untuk reset password Anda.\n\nEmail: admin@iteba.ac.id')}
+                                onClick={() => {
+                                    setResetIdentifier(username)
+                                    setResetMessage(null)
+                                    hideLoginError()
+                                    dispatch(clearError())
+                                    setIsForgotMode(true)
+                                }}
                                 className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
                                 whileHover={{ x: 2 }}
                             >
@@ -453,6 +550,8 @@ export const Login = () => {
                                 </Button>
                             </motion.div>
                         </motion.div>
+                            </>
+                        )}
                     </motion.form>
 
                     {/* Footer */}

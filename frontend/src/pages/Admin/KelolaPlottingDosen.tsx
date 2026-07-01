@@ -47,7 +47,6 @@ interface DosenWorkload {
     email: string
     status: 'aktif' | 'nonaktif'
     avatar?: string
-    whatsapp?: string
     workload: {
         pembimbing1: number
         pembimbing2: number

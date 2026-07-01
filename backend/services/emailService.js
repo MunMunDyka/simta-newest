@@ -499,9 +499,45 @@ ${config.appUrl}`;
     return sendEmail({ to: email, subject, text, html });
 };
 
+const sendPasswordResetEmail = async (email, nama, resetUrl, expiresInMinutes = 10) => {
+    const subject = 'SIMTA - Reset Password';
+    const text = `SIMTA - Reset Password
+
+Halo ${nama || 'Pengguna SIMTA'},
+
+Kami menerima permintaan reset password untuk akun SIMTA Anda.
+
+Klik link berikut untuk membuat password baru:
+${resetUrl}
+
+Link ini berlaku selama ${expiresInMinutes} menit.
+
+Jika Anda tidak meminta reset password, abaikan email ini.`;
+
+    const html = `
+<!doctype html>
+<html>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,Helvetica,sans-serif;color:#0f172a;">
+    <div style="max-width:560px;margin:0 auto;padding:28px 16px;">
+        <div style="background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;padding:28px;box-shadow:0 8px 24px rgba(15,23,42,0.06);">
+            <p style="margin:0 0 8px;color:#2563eb;font-size:13px;font-weight:700;letter-spacing:.04em;">SIMTA</p>
+            <h1 style="margin:0 0 12px;color:#0f172a;font-size:22px;line-height:1.35;">Reset Password</h1>
+            <p style="margin:0 0 20px;color:#334155;font-size:15px;line-height:1.6;">Halo ${escapeHtml(nama || 'Pengguna SIMTA')}, kami menerima permintaan reset password untuk akun SIMTA Anda.</p>
+            <a href="${escapeHtml(resetUrl)}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;padding:12px 18px;border-radius:10px;">Buat Password Baru</a>
+            <p style="margin:18px 0 0;color:#64748b;font-size:13px;line-height:1.6;">Link ini berlaku selama ${escapeHtml(expiresInMinutes)} menit. Jika Anda tidak meminta reset password, abaikan email ini.<br>
+            Jika tombol tidak bisa dibuka, salin link ini: <a href="${escapeHtml(resetUrl)}" style="color:#2563eb;">${escapeHtml(resetUrl)}</a></p>
+        </div>
+    </div>
+</body>
+</html>`;
+
+    return sendEmail({ to: email, subject, text, html });
+};
+
 module.exports = {
     sendEmail,
     notifyDosenBimbinganBaruEmail,
     notifyMahasiswaFeedbackEmail,
-    notifyJadwalSidangEmail
+    notifyJadwalSidangEmail,
+    sendPasswordResetEmail
 };

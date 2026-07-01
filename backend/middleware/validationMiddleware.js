@@ -69,6 +69,39 @@ const changePasswordValidation = [
         })
 ];
 
+/**
+ * Forgot password validation
+ */
+const forgotPasswordValidation = [
+    body('identifier')
+        .notEmpty().withMessage('Username atau email wajib diisi')
+        .isLength({ min: 5, max: 100 }).withMessage('Username atau email harus 5-100 karakter')
+        .trim()
+];
+
+/**
+ * Reset password validation
+ */
+const resetPasswordValidation = [
+    body('token')
+        .notEmpty().withMessage('Token reset password wajib disertakan')
+        .isLength({ min: 32 }).withMessage('Token reset password tidak valid'),
+
+    body('newPassword')
+        .notEmpty().withMessage('Password baru wajib diisi')
+        .isLength({ min: 6 }).withMessage('Password baru minimal 6 karakter')
+        .matches(/\d/).withMessage('Password baru harus mengandung minimal 1 angka'),
+
+    body('confirmPassword')
+        .notEmpty().withMessage('Konfirmasi password wajib diisi')
+        .custom((value, { req }) => {
+            if (value !== req.body.newPassword) {
+                throw new Error('Konfirmasi password tidak cocok');
+            }
+            return true;
+        })
+];
+
 // ===== User Validation Rules =====
 
 /**
@@ -378,6 +411,8 @@ module.exports = {
     // Auth
     loginValidation,
     changePasswordValidation,
+    forgotPasswordValidation,
+    resetPasswordValidation,
     // User
     createUserValidation,
     updateUserValidation,

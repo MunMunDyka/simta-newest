@@ -69,6 +69,8 @@ router.get('/', (req, res) => {
                     'POST /api/auth/logout': 'Logout (requires auth)',
                     'GET /api/auth/me': 'Get current user (requires auth)',
                     'POST /api/auth/refresh': 'Refresh access token',
+                    'POST /api/auth/forgot-password': 'Send password reset link to registered email',
+                    'POST /api/auth/reset-password': 'Reset password using token from email',
                     'PUT /api/auth/change-password': 'Change password (requires auth)'
                 },
                 users: {

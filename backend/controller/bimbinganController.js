@@ -18,7 +18,6 @@ const SystemSetting = require('../models/SystemSetting');
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess, sendPaginated, sendCreated } = require('../utils/responseHelper');
-const { notifyDosenBimbinganBaru, notifyMahasiswaFeedback } = require('../services/whatsappService');
 const { notifyDosenBimbinganBaruEmail, notifyMahasiswaFeedbackEmail } = require('../services/emailService');
 
 const DEFAULT_MIN_BIMBINGAN_SEMPRO = parseInt(process.env.MIN_BIMBINGAN_SEMPRO, 10) || 5;
@@ -280,24 +279,9 @@ const create = asyncHandler(async (req, res) => {
     });
 
     // Populate for response
-    await bimbingan.populate('dosen', 'name nim_nip whatsapp email');
+    await bimbingan.populate('dosen', 'name nim_nip email');
 
     console.log(`📤 Bimbingan submitted: ${mahasiswa.name} -> ${bimbingan.dosen.name} (${version})`);
-
-    // Send WhatsApp notification to dosen (non-blocking)
-    if (bimbingan.dosen.whatsapp) {
-        notifyDosenBimbinganBaru(bimbingan.dosen.whatsapp, mahasiswa.name, catatan)
-            .then(result => {
-                if (result.success) {
-                    console.log(`📱 WhatsApp sent to dosen: ${bimbingan.dosen.name}`);
-                } else {
-                    console.log(`⚠️ WhatsApp not sent: ${result.reason || result.error}`);
-                }
-            })
-            .catch(err => console.error('WhatsApp error:', err));
-    } else {
-        console.log(`⚠️ Dosen ${bimbingan.dosen.name} doesn't have WhatsApp number`);
-    }
 
     // Send email notification to dosen (non-blocking)
     if (bimbingan.dosen.email) {
@@ -507,31 +491,9 @@ const giveFeedback = asyncHandler(async (req, res) => {
         }
     }
 
-    await bimbingan.populate('mahasiswa dosen', 'name nim_nip whatsapp email');
+    await bimbingan.populate('mahasiswa dosen', 'name nim_nip email');
 
     console.log(`💬 Feedback given: ${req.user.name} -> ${bimbingan.mahasiswa.name} (${status})`);
-
-    // Send WhatsApp notification to mahasiswa (non-blocking)
-    if (bimbingan.mahasiswa.whatsapp) {
-        const statusText = status === 'acc'
-            ? 'ACC'
-            : status === 'revisi'
-                ? 'Revisi'
-                : status === 'acc_sempro'
-                    ? 'ACC Maju Sempro'
-                    : 'Lanjut Bab';
-        notifyMahasiswaFeedback(bimbingan.mahasiswa.whatsapp, req.user.name, statusText, feedback)
-            .then(result => {
-                if (result.success) {
-                    console.log(`📱 WhatsApp sent to mahasiswa: ${bimbingan.mahasiswa.name}`);
-                } else {
-                    console.log(`⚠️ WhatsApp not sent: ${result.reason || result.error}`);
-                }
-            })
-            .catch(err => console.error('WhatsApp error:', err));
-    } else {
-        console.log(`⚠️ Mahasiswa ${bimbingan.mahasiswa.name} doesn't have WhatsApp number`);
-    }
 
     // Send email notification to mahasiswa (non-blocking)
     if (bimbingan.mahasiswa.email) {

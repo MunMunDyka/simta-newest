@@ -152,6 +152,18 @@ const userSchema = new Schema({
         default: null
     },
 
+    resetPasswordToken: {
+        type: String,
+        select: false,
+        default: null
+    },
+
+    resetPasswordExpires: {
+        type: Date,
+        select: false,
+        default: null
+    },
+
     // ===== Dokumen Wisuda (Mahasiswa only) =====
     dokumenWisuda: {
         skripsiFull: {

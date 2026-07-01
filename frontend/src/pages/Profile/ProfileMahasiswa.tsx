@@ -22,13 +22,13 @@ import {
     FileEdit,
     Camera,
     Mail,
-    Phone,
     Lock,
     Save,
     GraduationCap,
 } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout, setUser } from '@/store/slices/authSlice'
+import { changePassword } from '@/services/authService'
 
 // Menu items
 const menuItems = [
@@ -51,14 +51,14 @@ export const ProfileMahasiswa = () => {
 
     const [nama, setNama] = useState('')
     const [email, setEmail] = useState('')
-    const [whatsapp, setWhatsapp] = useState('')
     const [nim, setNim] = useState('')
     const [prodi, setProdi] = useState('')
     const [passwordLama, setPasswordLama] = useState('')
     const [passwordBaru, setPasswordBaru] = useState('')
     const [konfirmasiPassword, setKonfirmasiPassword] = useState('')
-    const [activeSection, setActiveSection] = useState<'info' | 'password' | 'whatsapp'>('info')
+    const [activeSection, setActiveSection] = useState<'info' | 'password'>('info')
     const [isLoading, setIsLoading] = useState(false)
+    const [isUpdatingPassword, setIsUpdatingPassword] = useState(false)
 
     // Fetch user data on mount
     useEffect(() => {
@@ -67,8 +67,6 @@ export const ProfileMahasiswa = () => {
             setEmail(user.email || '')
             setNim(user.nim_nip || '')
             setProdi(user.prodi || 'Program Studi')
-            // Load whatsapp from user data
-            setWhatsapp((user as any).whatsapp || '')
         }
     }, [user])
 
@@ -125,33 +123,47 @@ export const ProfileMahasiswa = () => {
         }
     }
 
-    const handleUpdatePassword = () => {
+    const handleUpdatePassword = async () => {
+        if (!passwordLama || !passwordBaru || !konfirmasiPassword) {
+            alert('Password lama, password baru, dan konfirmasi password wajib diisi!')
+            return
+        }
+
+        if (passwordBaru.length < 6) {
+            alert('Password baru minimal 6 karakter!')
+            return
+        }
+
+        if (!/\d/.test(passwordBaru)) {
+            alert('Password baru harus mengandung minimal 1 angka!')
+            return
+        }
+
         if (passwordBaru !== konfirmasiPassword) {
             alert('Password baru tidak cocok!')
             return
         }
-        console.log('Updating password')
-        alert('Password berhasil diubah!')
-        setPasswordLama('')
-        setPasswordBaru('')
-        setKonfirmasiPassword('')
-    }
 
-    const handleUpdateWhatsapp = async () => {
-        if (!whatsapp) {
-            alert('Nomor WhatsApp tidak boleh kosong!')
-            return
-        }
-
-        setIsLoading(true)
+        setIsUpdatingPassword(true)
         try {
-            await api.put('/users/profile', { whatsapp })
-            alert('Nomor WhatsApp berhasil diperbarui!')
+            const response = await changePassword({
+                currentPassword: passwordLama,
+                newPassword: passwordBaru,
+                confirmPassword: konfirmasiPassword,
+            })
+
+            localStorage.setItem('accessToken', response.data.accessToken)
+            localStorage.setItem('refreshToken', response.data.refreshToken)
+
+            alert(response.message || 'Password berhasil diubah!')
+            setPasswordLama('')
+            setPasswordBaru('')
+            setKonfirmasiPassword('')
         } catch (error: any) {
-            console.error('Error updating WhatsApp:', error)
-            alert(error.response?.data?.message || 'Gagal memperbarui nomor WhatsApp')
+            const validationMessage = error.response?.data?.errors?.find((item: { message?: string }) => item.message)?.message
+            alert(validationMessage || error.response?.data?.message || 'Gagal mengubah password')
         } finally {
-            setIsLoading(false)
+            setIsUpdatingPassword(false)
         }
     }
 
@@ -346,13 +358,6 @@ export const ProfileMahasiswa = () => {
                                         >
                                             Simpan Sandi Baru
                                         </motion.button>
-                                        <motion.button
-                                            onClick={() => setActiveSection('whatsapp')}
-                                            className={`w-full text-left px-4 py-3 rounded-xl font-medium transition-all ${activeSection === 'whatsapp' ? 'bg-blue-50 text-blue-600 border border-blue-200' : 'text-gray-600 hover:bg-gray-50'}`}
-                                            whileHover={{ x: 4 }}
-                                        >
-                                            Update WhatsApp Number
-                                        </motion.button>
                                     </div>
                                 </div>
                             </motion.div>
@@ -460,41 +465,9 @@ export const ProfileMahasiswa = () => {
                                             </div>
 
                                             <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
-                                                <Button onClick={handleUpdatePassword} className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl h-12">
+                                                <Button onClick={handleUpdatePassword} disabled={isUpdatingPassword} className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl h-12 disabled:opacity-50">
                                                     <Lock className="w-5 h-5 mr-2" />
-                                                    Update Password
-                                                </Button>
-                                            </motion.div>
-                                        </motion.div>
-                                    )}
-
-                                    {/* WhatsApp Section */}
-                                    {activeSection === 'whatsapp' && (
-                                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
-                                            <h3 className="text-lg font-bold text-gray-800 mb-4">Update WhatsApp Number</h3>
-
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                    No WhatsApp <span className="text-red-500">*</span>
-                                                </label>
-                                                <div className="relative">
-                                                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                                    <Input
-                                                        value={whatsapp}
-                                                        onChange={(e) => setWhatsapp(e.target.value)}
-                                                        className="pl-10 rounded-xl h-12"
-                                                        placeholder="Contoh: 081234567890"
-                                                    />
-                                                </div>
-                                                <p className="text-xs text-gray-400 mt-2">
-                                                    * Nomor ini akan digunakan untuk notifikasi bimbingan
-                                                </p>
-                                            </div>
-
-                                            <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
-                                                <Button onClick={handleUpdateWhatsapp} disabled={isLoading} className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-xl h-12 disabled:opacity-50">
-                                                    <Phone className="w-5 h-5 mr-2" />
-                                                    {isLoading ? 'Menyimpan...' : 'Update WhatsApp'}
+                                                    {isUpdatingPassword ? 'Menyimpan...' : 'Update Password'}
                                                 </Button>
                                             </motion.div>
                                         </motion.div>

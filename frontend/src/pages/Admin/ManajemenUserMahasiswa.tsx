@@ -33,7 +33,6 @@ import {
     ArrowLeft,
     GraduationCap,
     Mail,
-    Phone,
     MapPin,
     BookOpen,
     Key,
@@ -82,7 +81,6 @@ interface MahasiswaData {
     }
     status: 'aktif' | 'nonaktif'
     avatar?: string
-    whatsapp?: string
 }
 
 // Helpers for Status Akademik Mahasiswa
@@ -434,10 +432,6 @@ export const ManajemenUserMahasiswa = () => {
                                             <div className="flex items-center gap-2 text-gray-600">
                                                 <Mail className="w-4 h-4" />
                                                 <span className="text-sm">{mahasiswa.email}</span>
-                                            </div>
-                                            <div className="flex items-center gap-2 text-gray-600">
-                                                <Phone className="w-4 h-4" />
-                                                <span className="text-sm">{mahasiswa.whatsapp || '-'}</span>
                                             </div>
                                             <div className="flex items-center gap-2 text-gray-600">
                                                 <MapPin className="w-4 h-4" />

@@ -8,11 +8,20 @@
 
 'use strict';
 
+const crypto = require('crypto');
 const User = require('../models/User');
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess } = require('../utils/responseHelper');
 const { generateTokenPair, verifyRefreshToken } = require('../utils/tokenHelper');
+const { sendPasswordResetEmail } = require('../services/emailService');
+
+const PASSWORD_RESET_EXPIRES_MINUTES = Number(process.env.PASSWORD_RESET_EXPIRES_MINUTES || 10);
+
+const hashResetToken = (token) => crypto
+    .createHash('sha256')
+    .update(token)
+    .digest('hex');
 
 /**
  * @desc    Login user
@@ -190,10 +199,93 @@ const changePassword = asyncHandler(async (req, res) => {
     });
 });
 
+/**
+ * @desc    Request password reset link
+ * @route   POST /api/auth/forgot-password
+ * @access  Public
+ */
+const forgotPassword = asyncHandler(async (req, res) => {
+    const { identifier } = req.body;
+    const normalizedIdentifier = String(identifier || '').trim().toLowerCase();
+    const successMessage = 'Jika akun ditemukan dan memiliki email terdaftar, link reset password telah dikirim ke email akun Anda.';
+
+    const user = await User.findOne({
+        $or: [
+            { nim_nip: String(identifier || '').trim() },
+            { email: normalizedIdentifier }
+        ],
+        status: 'aktif'
+    }).select('+resetPasswordToken +resetPasswordExpires');
+
+    if (!user || !user.email) {
+        return sendSuccess(res, 200, successMessage, null);
+    }
+
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    user.resetPasswordToken = hashResetToken(rawToken);
+    user.resetPasswordExpires = new Date(Date.now() + PASSWORD_RESET_EXPIRES_MINUTES * 60 * 1000);
+    await user.save();
+
+    const appUrl = (process.env.APP_URL || process.env.FRONTEND_URL || 'http://localhost:5173')
+        .split(',')[0]
+        .trim()
+        .replace(/\/$/, '');
+    const resetUrl = `${appUrl}/reset-password?token=${rawToken}`;
+
+    const emailResult = await sendPasswordResetEmail(
+        user.email,
+        user.name,
+        resetUrl,
+        PASSWORD_RESET_EXPIRES_MINUTES
+    );
+
+    if (!emailResult.success) {
+        user.resetPasswordToken = null;
+        user.resetPasswordExpires = null;
+        await user.save();
+        throw ApiError.serviceUnavailable('Gagal mengirim email reset password. Coba lagi nanti atau hubungi Admin.');
+    }
+
+    sendSuccess(res, 200, successMessage, null);
+});
+
+/**
+ * @desc    Reset password using reset token
+ * @route   POST /api/auth/reset-password
+ * @access  Public
+ */
+const resetPassword = asyncHandler(async (req, res) => {
+    const { token, newPassword } = req.body;
+    const tokenHash = hashResetToken(token);
+
+    const user = await User.findOne({
+        resetPasswordToken: tokenHash,
+        resetPasswordExpires: { $gt: new Date() }
+    }).select('+password +resetPasswordToken +resetPasswordExpires');
+
+    if (!user) {
+        throw ApiError.badRequest('Link reset password tidak valid atau sudah kedaluwarsa.');
+    }
+
+    const isSamePassword = await user.comparePassword(newPassword);
+    if (isSamePassword) {
+        throw ApiError.badRequest('Password baru tidak boleh sama dengan password saat ini.');
+    }
+
+    user.password = newPassword;
+    user.resetPasswordToken = null;
+    user.resetPasswordExpires = null;
+    await user.save();
+
+    sendSuccess(res, 200, 'Password berhasil diubah. Silakan login dengan password baru.', null);
+});
+
 module.exports = {
     login,
     getMe,
     refreshToken,
     logout,
-    changePassword
+    changePassword,
+    forgotPassword,
+    resetPassword
 };

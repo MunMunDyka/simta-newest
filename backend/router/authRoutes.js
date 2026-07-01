@@ -18,6 +18,8 @@ const authMiddleware = require('../middleware/authMiddleware');
 const {
     loginValidation,
     changePasswordValidation,
+    forgotPasswordValidation,
+    resetPasswordValidation,
     handleValidationErrors
 } = require('../middleware/validationMiddleware');
 
@@ -63,6 +65,30 @@ router.get(
 router.post(
     '/refresh',
     authController.refreshToken
+);
+
+/**
+ * @route   POST /api/auth/forgot-password
+ * @desc    Send password reset link to registered email
+ * @access  Public
+ */
+router.post(
+    '/forgot-password',
+    forgotPasswordValidation,
+    handleValidationErrors,
+    authController.forgotPassword
+);
+
+/**
+ * @route   POST /api/auth/reset-password
+ * @desc    Reset password using token from email
+ * @access  Public
+ */
+router.post(
+    '/reset-password',
+    resetPasswordValidation,
+    handleValidationErrors,
+    authController.resetPassword
 );
 
 /**

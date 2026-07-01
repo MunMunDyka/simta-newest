@@ -222,7 +222,7 @@ const update = asyncHandler(async (req, res) => {
 
     if (isAdmin) {
         // Admin can update all fields except password (use change-password)
-        allowedFields = ['name', 'email', 'prodi', 'semester', 'judulTA', 'currentProgress', 'statusMahasiswa', 'penguji_1', 'penguji_2', 'status', 'avatar', 'whatsapp', 'canAccessAdmin'];
+        allowedFields = ['name', 'email', 'prodi', 'semester', 'judulTA', 'currentProgress', 'statusMahasiswa', 'penguji_1', 'penguji_2', 'status', 'avatar', 'canAccessAdmin'];
     } else {
         // Self can only update limited fields
         allowedFields = ['email', 'avatar'];
@@ -584,7 +584,7 @@ const uploadAvatar = asyncHandler(async (req, res) => {
  */
 const updateProfile = asyncHandler(async (req, res) => {
     const userId = req.user._id;
-    const { name, email, whatsapp } = req.body;
+    const { name, email } = req.body;
 
     const user = await User.findById(userId);
     if (!user) {
@@ -594,7 +594,6 @@ const updateProfile = asyncHandler(async (req, res) => {
     // Update allowed fields
     if (name) user.name = name;
     if (email) user.email = email;
-    if (whatsapp !== undefined) user.whatsapp = whatsapp;
 
     await user.save();
 
@@ -638,7 +637,7 @@ const resetPassword = asyncHandler(async (req, res) => {
  */
 const getDosenWorkloads = asyncHandler(async (req, res) => {
     const lecturers = await User.find({ role: 'dosen' })
-        .select('name nim_nip prodi status avatar whatsapp email')
+        .select('name nim_nip prodi status avatar email')
         .lean();
     
     // Fetch active student user assignments

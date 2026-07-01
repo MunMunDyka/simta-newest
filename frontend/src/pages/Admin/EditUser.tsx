@@ -30,7 +30,6 @@ import {
     FileText,
     ArrowLeft,
     Save,
-    Phone,
     Mail,
     GraduationCap,
     Briefcase,
@@ -55,7 +54,6 @@ interface UserData {
     semester?: string
     status: 'aktif' | 'nonaktif'
     avatar?: string
-    whatsapp?: string
     dospem_1?: { _id: string; name: string }
     dospem_2?: { _id: string; name: string }
     penguji_1?: string | { _id: string; name: string }
@@ -101,7 +99,6 @@ export const EditUser = () => {
     // Form state
     const [name, setName] = useState('')
     const [email, setEmail] = useState('')
-    const [whatsapp, setWhatsapp] = useState('')
     const [prodi, setProdi] = useState('')
     const [semester, setSemester] = useState('')
     const [judulTA, setJudulTA] = useState('')
@@ -126,7 +123,6 @@ export const EditUser = () => {
             // Populate form
             setName(data.name || '')
             setEmail(data.email || '')
-            setWhatsapp(data.whatsapp || '')
             setProdi(data.prodi || '')
             setSemester(data.semester || '')
             setJudulTA(data.judulTA || '')
@@ -172,7 +168,6 @@ export const EditUser = () => {
             const updateData: Record<string, unknown> = {
                 name,
                 email,
-                whatsapp,
                 status,
             }
 
@@ -455,22 +450,6 @@ export const EditUser = () => {
                                                 placeholder="Masukkan email"
                                             />
                                         </div>
-                                    </div>
-
-                                    {/* WhatsApp */}
-                                    <div className="space-y-2">
-                                        <Label htmlFor="whatsapp">Nomor WhatsApp</Label>
-                                        <div className="relative">
-                                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                            <Input
-                                                id="whatsapp"
-                                                value={whatsapp}
-                                                onChange={(e) => setWhatsapp(e.target.value)}
-                                                className="pl-10"
-                                                placeholder="Contoh: 081234567890"
-                                            />
-                                        </div>
-                                        <p className="text-xs text-gray-400">* Untuk notifikasi WhatsApp</p>
                                     </div>
 
                                     {/* Status */}
