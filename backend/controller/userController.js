@@ -20,6 +20,8 @@ const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess, sendPaginated, sendCreated } = require('../utils/responseHelper');
 
 const wisudaFileFields = ['skripsiFull', 'pptSkripsi', 'halamanPengesahan', 'formBimbingan'];
+const REVISION_DEADLINE_STATUSES = ['tidak_aktif', 'aktif', 'lewat', 'selesai'];
+const REVISION_DEADLINE_TYPES = ['revisi_sempro', 'revisi_semhas'];
 
 const getRefId = (value) => {
     if (!value) return null;
@@ -51,6 +53,18 @@ const findMahasiswaByWisudaFileName = async (fileName) => {
     };
 
     return User.findOne(query).select('role name dospem_1 dospem_2 penguji_1 penguji_2');
+};
+
+const getRevisionDeadlineStatus = (deadline, requestedStatus) => {
+    if (requestedStatus === 'selesai' || requestedStatus === 'tidak_aktif' || requestedStatus === 'lewat') {
+        return requestedStatus;
+    }
+
+    if (!deadline) {
+        return 'tidak_aktif';
+    }
+
+    return new Date(deadline).getTime() < Date.now() ? 'lewat' : 'aktif';
 };
 
 /**
@@ -243,6 +257,88 @@ const update = asyncHandler(async (req, res) => {
     console.log(`✏️ User updated: ${user.name} by ${req.user.name}`);
 
     sendSuccess(res, 200, 'User berhasil diupdate', user.toPublicJSON());
+});
+
+/**
+ * @desc    Update revision deadline for mahasiswa
+ * @route   PUT /api/users/:id/revisi-deadline
+ * @access  Admin
+ */
+const updateRevisiDeadline = asyncHandler(async (req, res) => {
+    const mahasiswa = await User.findById(req.params.id);
+
+    if (!mahasiswa) {
+        throw ApiError.notFound(`Mahasiswa dengan ID '${req.params.id}' tidak ditemukan`);
+    }
+
+    if (mahasiswa.role !== 'mahasiswa') {
+        throw ApiError.badRequest('Deadline revisi hanya dapat diatur untuk mahasiswa');
+    }
+
+    const { jenis, tanggalMulai, deadline, status, catatan } = req.body;
+    const nextStatus = status || getRevisionDeadlineStatus(deadline, status);
+
+    if (!REVISION_DEADLINE_STATUSES.includes(nextStatus)) {
+        throw ApiError.badRequest('Status deadline harus: tidak_aktif, aktif, lewat, atau selesai');
+    }
+
+    if (nextStatus === 'tidak_aktif') {
+        mahasiswa.revisiDeadline = {
+            jenis: null,
+            tanggalMulai: null,
+            deadline: null,
+            status: 'tidak_aktif',
+            isLocked: false,
+            unlockedBy: req.user._id,
+            unlockedAt: new Date(),
+            catatan: catatan || null
+        };
+    } else if (nextStatus === 'selesai') {
+        mahasiswa.revisiDeadline = {
+            jenis: REVISION_DEADLINE_TYPES.includes(jenis) ? jenis : mahasiswa.revisiDeadline?.jenis || null,
+            tanggalMulai: tanggalMulai && !Number.isNaN(new Date(tanggalMulai).getTime())
+                ? new Date(tanggalMulai)
+                : mahasiswa.revisiDeadline?.tanggalMulai || null,
+            deadline: deadline && !Number.isNaN(new Date(deadline).getTime())
+                ? new Date(deadline)
+                : mahasiswa.revisiDeadline?.deadline || null,
+            status: 'selesai',
+            isLocked: false,
+            unlockedBy: req.user._id,
+            unlockedAt: new Date(),
+            catatan: catatan || 'Revisi telah selesai.'
+        };
+    } else {
+        if (!REVISION_DEADLINE_TYPES.includes(jenis)) {
+            throw ApiError.badRequest('Jenis revisi harus Revisi Sempro atau Revisi Semhas');
+        }
+
+        if (!deadline || Number.isNaN(new Date(deadline).getTime())) {
+            throw ApiError.badRequest('Deadline revisi wajib diisi dengan tanggal yang valid');
+        }
+
+        const normalizedDeadline = new Date(deadline);
+        const normalizedStart = tanggalMulai && !Number.isNaN(new Date(tanggalMulai).getTime())
+            ? new Date(tanggalMulai)
+            : mahasiswa.revisiDeadline?.tanggalMulai || new Date();
+        const computedStatus = getRevisionDeadlineStatus(normalizedDeadline, nextStatus);
+
+        mahasiswa.revisiDeadline = {
+            jenis,
+            tanggalMulai: normalizedStart,
+            deadline: normalizedDeadline,
+            status: computedStatus,
+            isLocked: computedStatus === 'lewat',
+            unlockedBy: computedStatus === 'aktif' ? req.user._id : mahasiswa.revisiDeadline?.unlockedBy || null,
+            unlockedAt: computedStatus === 'aktif' ? new Date() : mahasiswa.revisiDeadline?.unlockedAt || null,
+            catatan: catatan || null
+        };
+    }
+
+    await mahasiswa.save();
+    await mahasiswa.populate('dospem_1 dospem_2 penguji_1 penguji_2', 'name nim_nip email');
+
+    sendSuccess(res, 200, 'Deadline revisi berhasil diperbarui', mahasiswa.toPublicJSON());
 });
 
 /**
@@ -800,6 +896,7 @@ module.exports = {
     getById,
     create,
     update,
+    updateRevisiDeadline,
     remove,
     hardDelete,
     assignDospem,

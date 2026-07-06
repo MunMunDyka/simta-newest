@@ -83,6 +83,23 @@ const getInitialBab = (currentProgress?: string, statusMahasiswa?: string): BabO
         : allowed[0]
 }
 
+const formatDeadlineDate = (date?: string | null) => {
+    if (!date) return '-'
+    return new Date(date).toLocaleDateString('id-ID', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric'
+    })
+}
+
+const getDaysLeft = (date?: string | null) => {
+    if (!date) return null
+    const deadline = new Date(date).getTime()
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    return Math.ceil((deadline - today.getTime()) / (1000 * 60 * 60 * 24))
+}
+
 export const BimbinganMahasiswa = () => {
     const dispatch = useAppDispatch()
     const navigate = useNavigate()
@@ -93,6 +110,17 @@ export const BimbinganMahasiswa = () => {
 
     // Check if in revision phase
     const isRevisionPhase = ['revisi_sempro', 'revisi_semhas', 'revisi_sidang'].includes(user?.statusMahasiswa || 'pra_sempro')
+    const isDeadlineRevisionPhase = ['revisi_sempro', 'revisi_semhas'].includes(user?.statusMahasiswa || '')
+    const deadlineDaysLeft = getDaysLeft(user?.revisiDeadline?.deadline)
+    const isRevisionDeadlineExpired = isDeadlineRevisionPhase &&
+        user?.revisiDeadline?.deadline &&
+        deadlineDaysLeft !== null &&
+        deadlineDaysLeft < 0
+    const isRevisionDeadlineLocked = Boolean(
+        isDeadlineRevisionPhase &&
+        user?.revisiDeadline?.status !== 'selesai' &&
+        (user?.revisiDeadline?.isLocked || user?.revisiDeadline?.status === 'lewat' || isRevisionDeadlineExpired)
+    )
 
     // Sub-navigation tabs: Pembimbing vs. Penguji
     const [activeCategory, setActiveCategory] = useState<'pembimbing' | 'penguji'>(
@@ -172,7 +200,7 @@ export const BimbinganMahasiswa = () => {
     const currentDosenType = getDosenTypeFromSubTab(activeSubTab)
     const currentHistory = bimbinganList.filter((item) => item.dosenType === currentDosenType)
     const latestStatus = currentHistory[0]?.status
-    const isFormDisabled = latestStatus === 'menunggu'
+    const isFormDisabled = latestStatus === 'menunggu' || (activeCategory === 'penguji' && isRevisionDeadlineLocked)
     const hasHistory = currentHistory.length > 0
     const shouldShowUploadForm = (!hasHistory || isUploadFormOpen) && !isFormDisabled
 
@@ -262,6 +290,10 @@ export const BimbinganMahasiswa = () => {
 
         if (!currentDosenType) {
             nextErrors.dosenType = 'Pilih dosen terlebih dahulu.'
+        }
+
+        if (activeCategory === 'penguji' && isRevisionDeadlineLocked) {
+            nextErrors.dosenType = 'Batas waktu revisi telah berakhir. Silakan hubungi Dosen Penguji untuk perpanjang.'
         }
 
         if (!selectedFile) {
@@ -817,6 +849,40 @@ export const BimbinganMahasiswa = () => {
     const currentPenguji = activeSubTab === 'penguji1' ? user?.penguji_1 : user?.penguji_2;
     const hasCurrentPenguji = typeof currentPenguji === 'object' ? Boolean((currentPenguji as any)?._id) : Boolean(currentPenguji);
 
+    const renderRevisionDeadlineInfo = () => {
+        if (!isDeadlineRevisionPhase || !user?.revisiDeadline?.deadline || user.revisiDeadline.status === 'selesai') {
+            return null
+        }
+
+        return (
+            <motion.div
+                variants={itemVariants}
+                className={`rounded-2xl border p-4 ${
+                    isRevisionDeadlineLocked
+                        ? 'border-red-100 bg-red-50 text-red-700'
+                        : 'border-blue-100 bg-blue-50 text-blue-700'
+                }`}
+            >
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-2 font-semibold">
+                        <Clock className="h-4 w-4" />
+                        <span>Deadline Revisi: {formatDeadlineDate(user.revisiDeadline.deadline)}</span>
+                    </div>
+                    {!isRevisionDeadlineLocked && deadlineDaysLeft !== null && (
+                        <span className="text-sm font-medium">
+                            Sisa waktu: {Math.max(deadlineDaysLeft, 0)} hari
+                        </span>
+                    )}
+                </div>
+                {isRevisionDeadlineLocked && (
+                    <p className="mt-2 text-sm">
+                        Batas waktu revisi telah berakhir. Silakan hubungi Dosen Penguji untuk perpanjang.
+                    </p>
+                )}
+            </motion.div>
+        )
+    }
+
     const renderContent = () => {
         const isAcademicSidangPhase = ['bimbingan_akhir', 'menunggu_sidang'].includes(user?.statusMahasiswa || '');
         if (isAcademicSidangPhase) {
@@ -1030,6 +1096,7 @@ export const BimbinganMahasiswa = () => {
                     </motion.button>
                 </motion.div>
 
+                {renderRevisionDeadlineInfo()}
                 {renderHistoryAndForm()}
             </motion.div>
         );

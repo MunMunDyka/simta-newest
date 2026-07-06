@@ -164,6 +164,46 @@ const userSchema = new Schema({
         default: null
     },
 
+    // ===== Deadline Revisi Penguji =====
+    revisiDeadline: {
+        jenis: {
+            type: String,
+            enum: ['revisi_sempro', 'revisi_semhas', null],
+            default: null
+        },
+        tanggalMulai: {
+            type: Date,
+            default: null
+        },
+        deadline: {
+            type: Date,
+            default: null
+        },
+        status: {
+            type: String,
+            enum: ['tidak_aktif', 'aktif', 'lewat', 'selesai'],
+            default: 'tidak_aktif'
+        },
+        isLocked: {
+            type: Boolean,
+            default: false
+        },
+        unlockedBy: {
+            type: Schema.Types.ObjectId,
+            ref: 'User',
+            default: null
+        },
+        unlockedAt: {
+            type: Date,
+            default: null
+        },
+        catatan: {
+            type: String,
+            trim: true,
+            default: null
+        }
+    },
+
     // ===== Dokumen Wisuda (Mahasiswa only) =====
     dokumenWisuda: {
         skripsiFull: {

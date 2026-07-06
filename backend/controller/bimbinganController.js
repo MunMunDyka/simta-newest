@@ -61,6 +61,26 @@ const getMinBimbinganForDosenType = async (mahasiswaId, dosenType) => {
     return dosenType === 'dospem_2' ? requirements.dospem2 : requirements.dospem1;
 };
 
+const syncRevisionDeadlineStatus = async (mahasiswa) => {
+    if (!mahasiswa?.revisiDeadline?.deadline) return mahasiswa?.revisiDeadline;
+
+    const isRevisionPhase = ['revisi_sempro', 'revisi_semhas'].includes(mahasiswa.statusMahasiswa);
+    if (!isRevisionPhase || mahasiswa.revisiDeadline.status === 'selesai') {
+        return mahasiswa.revisiDeadline;
+    }
+
+    const isExpired = new Date(mahasiswa.revisiDeadline.deadline).getTime() < Date.now();
+    const nextStatus = isExpired ? 'lewat' : 'aktif';
+
+    if (mahasiswa.revisiDeadline.status !== nextStatus || mahasiswa.revisiDeadline.isLocked !== isExpired) {
+        mahasiswa.revisiDeadline.status = nextStatus;
+        mahasiswa.revisiDeadline.isLocked = isExpired;
+        await mahasiswa.save();
+    }
+
+    return mahasiswa.revisiDeadline;
+};
+
 const normalizeMinBimbinganValue = (value) => {
     const parsed = parseInt(value, 10);
 
@@ -207,6 +227,18 @@ const create = asyncHandler(async (req, res) => {
             throw ApiError.badRequest(
                 'Bimbingan dengan Dosen Pembimbing dikunci sementara. ' +
                 'Selesaikan revisi dengan Dosen Penguji terlebih dahulu.'
+            );
+        }
+
+        const revisionDeadline = await syncRevisionDeadlineStatus(mahasiswaFull);
+        if (
+            ['revisi_sempro', 'revisi_semhas'].includes(studentStatus) &&
+            revisionDeadline?.status === 'lewat' &&
+            revisionDeadline?.isLocked
+        ) {
+            if (file) fs.unlinkSync(file.path);
+            throw ApiError.badRequest(
+                'Batas waktu revisi telah berakhir. Silakan hubungi Dosen Penguji untuk perpanjang.'
             );
         }
     } else if (DOSPEM_STATUSES.includes(studentStatus)) {
@@ -423,6 +455,7 @@ const giveFeedback = asyncHandler(async (req, res) => {
                 };
                 const nextStatus = statusTransitions[mahasiswa.statusMahasiswa];
                 if (nextStatus) {
+                    const completedRevisionType = mahasiswa.statusMahasiswa;
                     mahasiswa.statusMahasiswa = nextStatus;
 
                     // Automatically update progress bab
@@ -432,6 +465,15 @@ const giveFeedback = asyncHandler(async (req, res) => {
                         mahasiswa.currentProgress = 'BAB VI';
                     } else if (nextStatus === 'persiapan_wisuda') {
                         mahasiswa.currentProgress = 'Selesai';
+                    }
+
+                    if (
+                        mahasiswa.revisiDeadline &&
+                        mahasiswa.revisiDeadline.jenis === completedRevisionType
+                    ) {
+                        mahasiswa.revisiDeadline.status = 'selesai';
+                        mahasiswa.revisiDeadline.isLocked = false;
+                        mahasiswa.revisiDeadline.catatan = 'Revisi telah selesai dan mendapatkan ACC dari kedua dosen penguji.';
                     }
 
                     await mahasiswa.save();
@@ -1193,7 +1235,7 @@ const getProgressReport = asyncHandler(async (req, res) => {
 
     // Get all mahasiswa with their dospem info
     const mahasiswaList = await User.find({ role: 'mahasiswa', status: 'aktif' })
-        .select('name nim_nip prodi judulTA currentProgress dospem_1 dospem_2 penguji_1 penguji_2')
+        .select('name nim_nip prodi judulTA currentProgress statusMahasiswa dospem_1 dospem_2 penguji_1 penguji_2')
         .populate('dospem_1', 'name nim_nip')
         .populate('dospem_2', 'name nim_nip')
         .populate('penguji_1', 'name nim_nip')
@@ -1274,6 +1316,7 @@ const getProgressReport = asyncHandler(async (req, res) => {
             prodi: mhs.prodi,
             judulTA: mhs.judulTA,
             currentProgress: mhs.currentProgress,
+            statusMahasiswa: mhs.statusMahasiswa,
             dospem_1: mhs.dospem_1 ? {
                 name: mhs.dospem_1.name,
                 nim_nip: mhs.dospem_1.nim_nip,

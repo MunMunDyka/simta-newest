@@ -8,6 +8,7 @@
     "dev": "nodemon app.js",
     "seed": "node scripts/seed.js",
     "seed:pengajuan-seminar-flow": "node scripts/seedPengajuanSeminarFlowData.js",
+    "prepare:academic-final-defense": "node scripts/prepareAcademicFinalDefenseFlowData.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [

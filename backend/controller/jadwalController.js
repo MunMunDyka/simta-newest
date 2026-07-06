@@ -34,6 +34,36 @@ const requiredPengajuanByJadwal = {
 };
 
 const ACADEMIC_SIDANG_LINK_KEY = 'academic_sidang_akhir_link';
+const REVISION_DEADLINE_DAYS = Number(process.env.REVISION_DEADLINE_DAYS || 14);
+
+const setRevisionDeadline = (student, jenis) => {
+    const tanggalMulai = new Date();
+    const deadline = new Date(tanggalMulai.getTime() + REVISION_DEADLINE_DAYS * 24 * 60 * 60 * 1000);
+
+    student.revisiDeadline = {
+        jenis,
+        tanggalMulai,
+        deadline,
+        status: 'aktif',
+        isLocked: false,
+        unlockedBy: null,
+        unlockedAt: null,
+        catatan: `Deadline revisi otomatis ${REVISION_DEADLINE_DAYS} hari setelah jadwal selesai.`
+    };
+};
+
+const clearRevisionDeadline = (student) => {
+    student.revisiDeadline = {
+        jenis: null,
+        tanggalMulai: null,
+        deadline: null,
+        status: 'tidak_aktif',
+        isLocked: false,
+        unlockedBy: null,
+        unlockedAt: null,
+        catatan: null
+    };
+};
 
 const getAcademicSidangLink = asyncHandler(async (req, res) => {
     const setting = await SystemSetting.findOne({ key: ACADEMIC_SIDANG_LINK_KEY }).lean();
@@ -492,6 +522,12 @@ const update = asyncHandler(async (req, res) => {
                     student.currentProgress = 'Selesai';
                 }
 
+                if (jadwal.hasil === 'lulus_revisi' && ['revisi_sempro', 'revisi_semhas'].includes(nextStatus)) {
+                    setRevisionDeadline(student, nextStatus);
+                } else if (nextStatus === 'persiapan_wisuda') {
+                    clearRevisionDeadline(student);
+                }
+
                 // Assign penguji_1 and penguji_2 from the exam panel
                 if (jadwal.penguji && jadwal.penguji.length >= 1) {
                     student.penguji_1 = jadwal.penguji[0]._id || jadwal.penguji[0];
@@ -515,6 +551,7 @@ const update = asyncHandler(async (req, res) => {
                 const directStatus = directTransition[jadwal.jenisJadwal];
                 if (directStatus) {
                     student.statusMahasiswa = directStatus;
+                    clearRevisionDeadline(student);
 
                     // Automatically update progress bab
                     if (directStatus === 'bimbingan_lanjut') {

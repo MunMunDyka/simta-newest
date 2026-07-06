@@ -79,8 +79,25 @@ interface MahasiswaData {
         name: string
         nim_nip: string
     }
+    revisiDeadline?: {
+        jenis?: 'revisi_sempro' | 'revisi_semhas' | null
+        tanggalMulai?: string | null
+        deadline?: string | null
+        status?: 'tidak_aktif' | 'aktif' | 'lewat' | 'selesai'
+        isLocked?: boolean
+        catatan?: string | null
+    }
     status: 'aktif' | 'nonaktif'
     avatar?: string
+}
+
+const formatDeadlineDate = (date?: string | null) => {
+    if (!date) return '-'
+    return new Date(date).toLocaleDateString('id-ID', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric'
+    })
 }
 
 // Helpers for Status Akademik Mahasiswa
@@ -488,6 +505,61 @@ export const ManajemenUserMahasiswa = () => {
                                         </div>
                                     </div>
                                 </div>
+                            </motion.div>
+
+                            {/* Deadline Revisi Seminar */}
+                            <motion.div variants={itemVariants} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div>
+                                        <h3 className="text-lg font-bold text-gray-800 mb-2">Deadline Revisi Seminar</h3>
+                                        <p className="text-sm text-gray-500">
+                                            Batas waktu revisi yang berlaku untuk Bimbingan Penguji.
+                                        </p>
+                                    </div>
+                                    <Badge className={
+                                        mahasiswa.revisiDeadline?.status === 'lewat'
+                                            ? 'bg-red-100 text-red-600 hover:bg-red-100'
+                                            : mahasiswa.revisiDeadline?.status === 'aktif'
+                                                ? 'bg-blue-100 text-blue-600 hover:bg-blue-100'
+                                                : mahasiswa.revisiDeadline?.status === 'selesai'
+                                                    ? 'bg-green-100 text-green-600 hover:bg-green-100'
+                                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-100'
+                                    }>
+                                        {mahasiswa.revisiDeadline?.status === 'aktif'
+                                            ? 'Aktif'
+                                            : mahasiswa.revisiDeadline?.status === 'lewat'
+                                                ? 'Lewat Deadline'
+                                                : mahasiswa.revisiDeadline?.status === 'selesai'
+                                                    ? 'Selesai'
+                                                    : 'Tidak Aktif'}
+                                    </Badge>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5">
+                                    <div className="p-4 bg-gray-50 rounded-xl">
+                                        <p className="text-sm text-gray-500 mb-2">Jenis Revisi</p>
+                                        <p className="font-medium text-gray-800">
+                                            {mahasiswa.revisiDeadline?.jenis === 'revisi_semhas'
+                                                ? 'Revisi Semhas'
+                                                : mahasiswa.revisiDeadline?.jenis === 'revisi_sempro'
+                                                    ? 'Revisi Sempro'
+                                                    : '-'}
+                                        </p>
+                                    </div>
+                                    <div className="p-4 bg-gray-50 rounded-xl">
+                                        <p className="text-sm text-gray-500 mb-2">Tanggal Mulai</p>
+                                        <p className="font-medium text-gray-800">{formatDeadlineDate(mahasiswa.revisiDeadline?.tanggalMulai)}</p>
+                                    </div>
+                                    <div className="p-4 bg-gray-50 rounded-xl">
+                                        <p className="text-sm text-gray-500 mb-2">Deadline</p>
+                                        <p className="font-medium text-gray-800">{formatDeadlineDate(mahasiswa.revisiDeadline?.deadline)}</p>
+                                    </div>
+                                </div>
+                                {mahasiswa.revisiDeadline?.status === 'lewat' && (
+                                    <p className="mt-4 text-sm font-medium text-red-600">
+                                        Akses bimbingan penguji terkunci sampai deadline diperpanjang.
+                                    </p>
+                                )}
                             </motion.div>
 
                             {/* Dosen Pembimbing & Penguji */}

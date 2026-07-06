@@ -30,7 +30,7 @@ export interface Bimbingan {
     id?: string; // alias for _id
     mahasiswa: User | string;
     dosen: User | string;
-    dosenType: 'dospem_1' | 'dospem_2';
+    dosenType: 'dospem_1' | 'dospem_2' | 'penguji_1' | 'penguji_2';
     version: string;
     judul: string;
     catatan?: string;
@@ -58,7 +58,7 @@ export interface Bimbingan {
 
 export interface CreateBimbinganRequest {
     judul: string;
-    dosenType: 'dospem_1' | 'dospem_2';
+    dosenType: 'dospem_1' | 'dospem_2' | 'penguji_1' | 'penguji_2';
     catatan?: string;
     file: File;
 }

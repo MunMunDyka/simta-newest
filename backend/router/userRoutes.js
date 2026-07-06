@@ -303,6 +303,19 @@ router.put(
 );
 
 /**
+ * @route   PUT /api/users/:id/revisi-deadline
+ * @desc    Update revision deadline for mahasiswa
+ * @access  Admin
+ */
+router.put(
+    '/:id/revisi-deadline',
+    roleMiddleware(['admin']),
+    mongoIdParam('id'),
+    handleValidationErrors,
+    userController.updateRevisiDeadline
+);
+
+/**
  * @route   PUT /api/users/:id/reset-password
  * @desc    Reset user password (Admin only)
  * @access  Admin

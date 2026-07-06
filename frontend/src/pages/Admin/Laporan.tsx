@@ -89,6 +89,7 @@ interface MahasiswaProgress {
     prodi: string
     judulTA: string
     currentProgress: string
+    statusMahasiswa?: string
     dospem_1: { name: string; nim_nip: string; workload?: number } | null
     dospem_2: { name: string; nim_nip: string; workload?: number } | null
     penguji_1: { name: string; nim_nip: string; workload?: number } | null
@@ -129,6 +130,24 @@ const reportItems = [
     { label: 'Laporan', icon: BarChart3, active: true, path: '/admin/laporan' },
 ]
 
+const statusMahasiswaOptions = [
+    { value: 'all', label: 'Semua Fase' },
+    { value: 'pra_sempro', label: 'Pra-Sempro' },
+    { value: 'menunggu_sempro', label: 'Menunggu Sempro' },
+    { value: 'revisi_sempro', label: 'Revisi Sempro' },
+    { value: 'bimbingan_lanjut', label: 'Bimbingan Lanjut' },
+    { value: 'menunggu_semhas', label: 'Menunggu Semhas' },
+    { value: 'revisi_semhas', label: 'Revisi Semhas' },
+    { value: 'bimbingan_akhir', label: 'Bimbingan Akhir' },
+    { value: 'menunggu_sidang', label: 'Sidang Akhir Akademik' },
+    { value: 'persiapan_wisuda', label: 'Persiapan Wisuda' },
+    { value: 'selesai', label: 'Selesai' },
+]
+
+const getStatusMahasiswaLabel = (status?: string) => {
+    return statusMahasiswaOptions.find(option => option.value === status)?.label || 'Pra-Sempro'
+}
+
 export const Laporan = () => {
     const navigate = useNavigate()
     const dispatch = useAppDispatch()
@@ -137,6 +156,7 @@ export const Laporan = () => {
     const [isLoading, setIsLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState('')
     const [statusFilter, setStatusFilter] = useState('all')
+    const [faseFilter, setFaseFilter] = useState('all')
     const [report, setReport] = useState<MahasiswaProgress[]>([])
     const [summary, setSummary] = useState<ReportSummary | null>(null)
     const [loadError, setLoadError] = useState<string | null>(null)
@@ -177,11 +197,13 @@ export const Laporan = () => {
     const filteredReport = report.filter(mhs => {
         const matchesSearch = mhs.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             mhs.nim_nip.includes(searchQuery)
-        if (statusFilter === 'all') return matchesSearch
-        if (statusFilter === 'sufficient') return matchesSearch && mhs.isBothSufficient
-        if (statusFilter === 'partial') return matchesSearch && (mhs.dospem1.isSufficient || mhs.dospem2.isSufficient) && !mhs.isBothSufficient
-        if (statusFilter === 'insufficient') return matchesSearch && !mhs.dospem1.isSufficient && !mhs.dospem2.isSufficient
-        return matchesSearch
+        const matchesFase = faseFilter === 'all' || (mhs.statusMahasiswa || 'pra_sempro') === faseFilter
+        if (!matchesSearch || !matchesFase) return false
+        if (statusFilter === 'all') return true
+        if (statusFilter === 'sufficient') return mhs.isBothSufficient
+        if (statusFilter === 'partial') return (mhs.dospem1.isSufficient || mhs.dospem2.isSufficient) && !mhs.isBothSufficient
+        if (statusFilter === 'insufficient') return !mhs.dospem1.isSufficient && !mhs.dospem2.isSufficient
+        return true
     })
 
     const ProgressBar = ({ current, min, color }: { current: number; min: number; color: string }) => {
@@ -398,6 +420,18 @@ export const Laporan = () => {
                                             <SelectItem value="insufficient">❌ Belum Cukup</SelectItem>
                                         </SelectContent>
                                     </Select>
+                                    <Select value={faseFilter} onValueChange={setFaseFilter}>
+                                        <SelectTrigger className="w-56 h-9 bg-gray-50 border-gray-200">
+                                            <SelectValue placeholder="Fase Mahasiswa" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {statusMahasiswaOptions.map(option => (
+                                                <SelectItem key={option.value} value={option.value}>
+                                                    {option.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                     <div className="relative">
                                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                         <Input
@@ -475,9 +509,14 @@ export const Laporan = () => {
                                                         </div>
                                                     </TableCell>
                                                     <TableCell className="py-4">
-                                                        <Badge className="bg-blue-100 text-blue-700 text-xs">
-                                                            <BookOpen className="w-3 h-3 mr-1" />{mhs.currentProgress || 'BAB I'}
-                                                        </Badge>
+                                                        <div className="flex flex-col items-start gap-1.5">
+                                                            <Badge className="bg-blue-100 text-blue-700 text-xs">
+                                                                <BookOpen className="w-3 h-3 mr-1" />{mhs.currentProgress || 'BAB I'}
+                                                            </Badge>
+                                                            <Badge className="bg-slate-100 text-slate-600 text-[10px] border-0">
+                                                                {getStatusMahasiswaLabel(mhs.statusMahasiswa)}
+                                                            </Badge>
+                                                        </div>
                                                     </TableCell>
                                                     <TableCell className="py-4">
                                                         <div className="text-center space-y-1">

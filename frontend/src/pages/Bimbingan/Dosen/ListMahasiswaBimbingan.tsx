@@ -59,9 +59,24 @@ interface MahasiswaWithBimbingan {
     status: 'menunggu' | 'revisi' | 'baik' | 'acc' | 'lanjut_bab' | 'acc_sempro' | 'selesai' | 'belum_ada'
     isSemproReady: boolean
     dosenRelation?: 'pembimbing' | 'penguji'
+    revisiDeadline?: {
+        jenis?: 'revisi_sempro' | 'revisi_semhas' | null
+        deadline?: string | null
+        status?: 'tidak_aktif' | 'aktif' | 'lewat' | 'selesai'
+        isLocked?: boolean
+    }
 }
 
 type StatusFilter = 'semua' | 'menunggu_review' | 'sudah_direview' | MahasiswaWithBimbingan['status']
+
+const formatDeadlineDate = (date?: string | null) => {
+    if (!date) return '-'
+    return new Date(date).toLocaleDateString('id-ID', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+    })
+}
 
 // Menu items untuk dosen
 const menuItems = [
@@ -158,7 +173,8 @@ export const ListMahasiswaBimbingan = () => {
                         pendingCount,
                         status,
                         isSemproReady: false,
-                        dosenRelation: mhs.dosenRelation
+                        dosenRelation: mhs.dosenRelation,
+                        revisiDeadline: mhs.revisiDeadline
                     }
                 })
 
@@ -242,6 +258,26 @@ export const ListMahasiswaBimbingan = () => {
             default:
                 return <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 border-0">-</Badge>
         }
+    }
+
+    const getDeadlineBadge = (mahasiswa: MahasiswaWithBimbingan) => {
+        if (mahasiswa.dosenRelation !== 'penguji' || !mahasiswa.revisiDeadline?.deadline || mahasiswa.revisiDeadline.status === 'selesai') {
+            return null
+        }
+
+        if (mahasiswa.revisiDeadline.status === 'lewat' || mahasiswa.revisiDeadline.isLocked) {
+            return (
+                <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border-0">
+                    Lewat Deadline
+                </Badge>
+            )
+        }
+
+        return (
+            <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-0">
+                Deadline: {formatDeadlineDate(mahasiswa.revisiDeadline.deadline)}
+            </Badge>
+        )
     }
 
     const handleDownloadSurat = async (e: React.MouseEvent, mhs: MahasiswaWithBimbingan) => {
@@ -511,6 +547,7 @@ export const ListMahasiswaBimbingan = () => {
                                                     <p className="text-xs text-gray-500">Update: {mahasiswa.lastUpdate}</p>
                                                 </div>
                                                 {getStatusBadge(mahasiswa.status, mahasiswa.pendingCount)}
+                                                {getDeadlineBadge(mahasiswa)}
                                                 {mahasiswa.isSemproReady && (
                                                     <motion.button
                                                         className="p-2 rounded-lg bg-green-50 text-green-600 hover:bg-green-100"

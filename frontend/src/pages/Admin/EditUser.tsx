@@ -58,6 +58,14 @@ interface UserData {
     dospem_2?: { _id: string; name: string }
     penguji_1?: string | { _id: string; name: string }
     penguji_2?: string | { _id: string; name: string }
+    revisiDeadline?: {
+        jenis?: 'revisi_sempro' | 'revisi_semhas' | null
+        tanggalMulai?: string | null
+        deadline?: string | null
+        status?: 'tidak_aktif' | 'aktif' | 'lewat' | 'selesai'
+        isLocked?: boolean
+        catatan?: string | null
+    }
 }
 
 interface DosenOption {
@@ -65,6 +73,11 @@ interface DosenOption {
     name: string
     nim_nip: string
     status?: 'aktif' | 'nonaktif'
+}
+
+const toDateInputValue = (date?: string | null) => {
+    if (!date) return ''
+    return new Date(date).toISOString().slice(0, 10)
 }
 
 // Menu items
@@ -109,6 +122,11 @@ export const EditUser = () => {
     const [dospem2, setDospem2] = useState('')
     const [penguji1, setPenguji1] = useState('none')
     const [penguji2, setPenguji2] = useState('none')
+    const [deadlineJenis, setDeadlineJenis] = useState<'revisi_sempro' | 'revisi_semhas'>('revisi_sempro')
+    const [deadlineTanggalMulai, setDeadlineTanggalMulai] = useState('')
+    const [deadlineTanggal, setDeadlineTanggal] = useState('')
+    const [deadlineStatus, setDeadlineStatus] = useState<'tidak_aktif' | 'aktif' | 'lewat' | 'selesai'>('tidak_aktif')
+    const [deadlineCatatan, setDeadlineCatatan] = useState('')
 
     // Fetch user data
     const fetchUserData = async () => {
@@ -133,6 +151,11 @@ export const EditUser = () => {
             setDospem2(data.dospem_2?._id || 'none')
             setPenguji1(data.penguji_1?._id || (typeof data.penguji_1 === 'string' ? data.penguji_1 : 'none'))
             setPenguji2(data.penguji_2?._id || (typeof data.penguji_2 === 'string' ? data.penguji_2 : 'none'))
+            setDeadlineJenis(data.revisiDeadline?.jenis || (data.statusMahasiswa === 'revisi_semhas' ? 'revisi_semhas' : 'revisi_sempro'))
+            setDeadlineTanggalMulai(toDateInputValue(data.revisiDeadline?.tanggalMulai))
+            setDeadlineTanggal(toDateInputValue(data.revisiDeadline?.deadline))
+            setDeadlineStatus(data.revisiDeadline?.status || 'tidak_aktif')
+            setDeadlineCatatan(data.revisiDeadline?.catatan || '')
         } catch (error) {
             console.error('Failed to fetch user:', error)
             setLoadError(getApiErrorMessage(error, 'Gagal memuat data user. Silakan refresh halaman.'))
@@ -198,6 +221,14 @@ export const EditUser = () => {
                 if (Object.keys(dospemData).length > 0) {
                     await api.put(`/users/${id}/assign-dospem`, dospemData)
                 }
+
+                await api.put(`/users/${id}/revisi-deadline`, {
+                    jenis: deadlineJenis,
+                    tanggalMulai: deadlineTanggalMulai || undefined,
+                    deadline: deadlineTanggal || undefined,
+                    status: deadlineStatus,
+                    catatan: deadlineCatatan.trim() || undefined,
+                })
             }
 
             alert('Data berhasil disimpan!')
@@ -639,6 +670,73 @@ export const EditUser = () => {
                                                         ))}
                                                     </SelectContent>
                                                 </Select>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+
+                                    {/* Deadline Revisi Seminar */}
+                                    <motion.div variants={itemVariants} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                                        <div className="mb-6">
+                                            <h3 className="text-lg font-bold text-gray-800">Deadline Revisi Seminar</h3>
+                                            <p className="text-sm text-gray-500">
+                                                Atur batas waktu revisi untuk Bimbingan Penguji.
+                                            </p>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div className="space-y-2">
+                                                <Label>Jenis Revisi</Label>
+                                                <Select value={deadlineJenis} onValueChange={(value) => setDeadlineJenis(value as 'revisi_sempro' | 'revisi_semhas')}>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Pilih jenis revisi" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="revisi_sempro">Revisi Sempro</SelectItem>
+                                                        <SelectItem value="revisi_semhas">Revisi Semhas</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <Label>Status Deadline</Label>
+                                                <Select value={deadlineStatus} onValueChange={(value) => setDeadlineStatus(value as 'tidak_aktif' | 'aktif' | 'lewat' | 'selesai')}>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Pilih status deadline" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="tidak_aktif">Tidak Aktif</SelectItem>
+                                                        <SelectItem value="aktif">Aktif / Buka Akses</SelectItem>
+                                                        <SelectItem value="lewat">Lewat Deadline / Kunci</SelectItem>
+                                                        <SelectItem value="selesai">Selesai</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <Label>Tanggal Mulai</Label>
+                                                <Input
+                                                    type="date"
+                                                    value={deadlineTanggalMulai}
+                                                    onChange={(event) => setDeadlineTanggalMulai(event.target.value)}
+                                                />
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <Label>Deadline Revisi</Label>
+                                                <Input
+                                                    type="date"
+                                                    value={deadlineTanggal}
+                                                    onChange={(event) => setDeadlineTanggal(event.target.value)}
+                                                />
+                                            </div>
+
+                                            <div className="space-y-2 md:col-span-2">
+                                                <Label>Catatan</Label>
+                                                <Input
+                                                    value={deadlineCatatan}
+                                                    onChange={(event) => setDeadlineCatatan(event.target.value)}
+                                                    placeholder="Contoh: Perpanjangan berdasarkan konfirmasi dosen penguji"
+                                                />
                                             </div>
                                         </div>
                                     </motion.div>

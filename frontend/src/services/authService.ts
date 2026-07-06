@@ -26,6 +26,16 @@ export interface DokumenWisuda {
     verifiedAt?: string;
 }
 
+export interface RevisiDeadline {
+    jenis?: 'revisi_sempro' | 'revisi_semhas' | null;
+    tanggalMulai?: string | null;
+    deadline?: string | null;
+    status?: 'tidak_aktif' | 'aktif' | 'lewat' | 'selesai';
+    isLocked?: boolean;
+    catatan?: string | null;
+    unlockedAt?: string | null;
+}
+
 export interface User {
     _id: string;
     id: string;
@@ -38,6 +48,7 @@ export interface User {
     judulTA?: string;
     currentProgress?: string;
     statusMahasiswa?: 'pra_sempro' | 'menunggu_sempro' | 'revisi_sempro' | 'bimbingan_lanjut' | 'menunggu_semhas' | 'revisi_semhas' | 'bimbingan_akhir' | 'menunggu_sidang' | 'revisi_sidang' | 'persiapan_wisuda' | 'selesai';
+    revisiDeadline?: RevisiDeadline;
     dokumenWisuda?: DokumenWisuda;
     dospem_1?: string | { _id: string; name: string; nim_nip: string };
     dospem_2?: string | { _id: string; name: string; nim_nip: string };
