@@ -491,7 +491,7 @@ export const DashboardMhs = () => {
             case 'acc':
                 return 'ACC'
             case 'acc_sempro':
-                return 'ACC SEMPRO'
+                return 'ACC SIDANG'
             case 'menunggu':
                 return 'MENUNGGU'
             case 'lanjut_bab':
@@ -514,6 +514,16 @@ export const DashboardMhs = () => {
 
     const isRevisionPhase = ['revisi_sempro', 'revisi_semhas', 'revisi_sidang'].includes(mahasiswaData?.statusMahasiswa || 'pra_sempro')
     const isAcademicSidangPhase = ['bimbingan_akhir', 'menunggu_sidang'].includes(mahasiswaData?.statusMahasiswa || '')
+    const isCompletedBimbinganPhase = ['bimbingan_akhir', 'menunggu_sidang', 'persiapan_wisuda', 'selesai']
+        .includes(mahasiswaData?.statusMahasiswa || '')
+    const reviewer1Status = isRevisionPhase
+        ? bimbinganStats.penguji1Status.status
+        : bimbinganStats.dospem1Status.status
+    const reviewer2Status = isRevisionPhase
+        ? bimbinganStats.penguji2Status.status
+        : bimbinganStats.dospem2Status.status
+    const displayedReviewer1Status = reviewer1Status || (isCompletedBimbinganPhase ? 'acc_sempro' : null)
+    const displayedReviewer2Status = reviewer2Status || (isCompletedBimbinganPhase ? 'acc_sempro' : null)
 
     // Loading state
     if (isLoading) {
@@ -769,14 +779,14 @@ export const DashboardMhs = () => {
                                 <p className="text-xs text-gray-400 font-semibold mb-3 text-center uppercase tracking-wider">
                                     {isRevisionPhase ? 'Status Penguji 1' : 'Status Dospem 1'}
                                 </p>
-                                <div className={`bg-gradient-to-r ${getStatusColor(isRevisionPhase ? bimbinganStats.penguji1Status.status : bimbinganStats.dospem1Status.status)} rounded-xl p-4`}>
+                                <div className={`bg-gradient-to-r ${getStatusColor(displayedReviewer1Status)} rounded-xl p-4`}>
                                     <motion.span
                                         className="text-lg font-bold text-white block"
                                         initial={{ opacity: 0, x: -10 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: 0.4 }}
                                     >
-                                        {getStatusText(isRevisionPhase ? bimbinganStats.penguji1Status.status : bimbinganStats.dospem1Status.status)}
+                                        {getStatusText(displayedReviewer1Status)}
                                     </motion.span>
                                 </div>
                             </motion.div>
@@ -790,14 +800,14 @@ export const DashboardMhs = () => {
                                 <p className="text-xs text-gray-400 font-semibold mb-3 text-center uppercase tracking-wider">
                                     {isRevisionPhase ? 'Status Penguji 2' : 'Status Dospem 2'}
                                 </p>
-                                <div className={`bg-gradient-to-r ${getStatusColor(isRevisionPhase ? bimbinganStats.penguji2Status.status : bimbinganStats.dospem2Status.status)} rounded-xl p-4`}>
+                                <div className={`bg-gradient-to-r ${getStatusColor(displayedReviewer2Status)} rounded-xl p-4`}>
                                     <motion.span
                                         className="text-lg font-bold text-white block"
                                         initial={{ opacity: 0, x: -10 }}
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: 0.45 }}
                                     >
-                                        {getStatusText(isRevisionPhase ? bimbinganStats.penguji2Status.status : bimbinganStats.dospem2Status.status)}
+                                        {getStatusText(displayedReviewer2Status)}
                                     </motion.span>
                                 </div>
                             </motion.div>
@@ -808,7 +818,9 @@ export const DashboardMhs = () => {
                                 className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
                                 whileHover={{ y: -2 }}
                             >
-                                <p className="text-xs text-gray-400 font-semibold mb-3 text-center uppercase tracking-wider">Total Bimbingan</p>
+                                <p className="text-xs text-gray-400 font-semibold mb-3 text-center uppercase tracking-wider">
+                                    {isCompletedBimbinganPhase ? 'Status Bimbingan' : 'Total Bimbingan'}
+                                </p>
                                 <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl p-4 flex items-center justify-between">
                                     <motion.span
                                         className="text-lg font-bold text-white"
@@ -816,7 +828,7 @@ export const DashboardMhs = () => {
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: 0.5 }}
                                     >
-                                        {bimbinganStats.totalBimbingan} Sesi
+                                        {isCompletedBimbinganPhase ? 'SELESAI' : `${bimbinganStats.totalBimbingan} Sesi`}
                                     </motion.span>
                                     <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
                                         <FileEdit className="w-4 h-4 text-white" />

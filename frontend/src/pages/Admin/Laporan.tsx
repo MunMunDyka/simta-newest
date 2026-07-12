@@ -130,6 +130,12 @@ const reportItems = [
     { label: 'Laporan', icon: BarChart3, active: true, path: '/admin/laporan' },
 ]
 
+const SIDANG_AKHIR_STATUSES = new Set([
+    'bimbingan_akhir',
+    'menunggu_sidang',
+    'revisi_sidang',
+])
+
 const statusMahasiswaOptions = [
     { value: 'all', label: 'Semua Fase' },
     { value: 'pra_sempro', label: 'Pra-Sempro' },
@@ -138,13 +144,15 @@ const statusMahasiswaOptions = [
     { value: 'bimbingan_lanjut', label: 'Bimbingan Lanjut' },
     { value: 'menunggu_semhas', label: 'Menunggu Semhas' },
     { value: 'revisi_semhas', label: 'Revisi Semhas' },
-    { value: 'bimbingan_akhir', label: 'Bimbingan Akhir' },
-    { value: 'menunggu_sidang', label: 'Sidang Akhir Akademik' },
+    { value: 'sidang_akhir_akademik', label: 'Sidang Akhir Akademik' },
     { value: 'persiapan_wisuda', label: 'Persiapan Wisuda' },
     { value: 'selesai', label: 'Selesai' },
 ]
 
 const getStatusMahasiswaLabel = (status?: string) => {
+    if (status === 'bimbingan_akhir') return 'Bimbingan Akhir'
+    if (status === 'menunggu_sidang') return 'Sidang Akhir Akademik'
+    if (status === 'revisi_sidang') return 'Revisi Sidang Akhir'
     return statusMahasiswaOptions.find(option => option.value === status)?.label || 'Pra-Sempro'
 }
 
@@ -197,7 +205,11 @@ export const Laporan = () => {
     const filteredReport = report.filter(mhs => {
         const matchesSearch = mhs.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             mhs.nim_nip.includes(searchQuery)
-        const matchesFase = faseFilter === 'all' || (mhs.statusMahasiswa || 'pra_sempro') === faseFilter
+        const mahasiswaPhase = mhs.statusMahasiswa || 'pra_sempro'
+        const matchesFase = faseFilter === 'all' ||
+            (faseFilter === 'sidang_akhir_akademik'
+                ? SIDANG_AKHIR_STATUSES.has(mahasiswaPhase)
+                : mahasiswaPhase === faseFilter)
         if (!matchesSearch || !matchesFase) return false
         if (statusFilter === 'all') return true
         if (statusFilter === 'sufficient') return mhs.isBothSufficient
