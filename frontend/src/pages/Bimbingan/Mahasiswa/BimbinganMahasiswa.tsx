@@ -439,8 +439,8 @@ export const BimbinganMahasiswa = () => {
                 return 'completed';
             }
             if (step === 'semhas') {
-                if (['pra_sempro', 'menunggu_sempro', 'revisi_sempro', 'bimbingan_lanjut'].includes(status)) return 'upcoming';
-                if (status === 'menunggu_semhas') return 'active';
+                if (['pra_sempro', 'menunggu_sempro', 'revisi_sempro'].includes(status)) return 'upcoming';
+                if (['bimbingan_lanjut', 'menunggu_semhas'].includes(status)) return 'active';
                 if (status === 'revisi_semhas') return 'revision';
                 return 'completed';
             }
