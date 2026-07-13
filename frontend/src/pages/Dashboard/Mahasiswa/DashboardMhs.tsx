@@ -81,6 +81,7 @@ type BimbinganStatus = 'menunggu' | 'revisi' | 'acc' | 'lanjut_bab' | 'acc_sempr
 
 interface DospemStatus {
     status: BimbinganStatus
+    total: number
 }
 
 interface BimbinganStats {
@@ -144,10 +145,10 @@ export const DashboardMhs = () => {
     // State for data from API
     const [mahasiswaData, setMahasiswaData] = useState<MahasiswaData | null>(null)
     const [bimbinganStats, setBimbinganStats] = useState<BimbinganStats>({
-        dospem1Status: { status: null },
-        dospem2Status: { status: null },
-        penguji1Status: { status: null },
-        penguji2Status: { status: null },
+        dospem1Status: { status: null, total: 0 },
+        dospem2Status: { status: null, total: 0 },
+        penguji1Status: { status: null, total: 0 },
+        penguji2Status: { status: null, total: 0 },
         totalBimbingan: 0,
         pendingCount: 0
     })
@@ -193,21 +194,36 @@ export const DashboardMhs = () => {
                 // Get last status per dospem and penguji
                 const lastDospem1 = bimbinganList.find((b: { dosenType: string }) => b.dosenType === 'dospem_1')
                 const lastDospem2 = bimbinganList.find((b: { dosenType: string }) => b.dosenType === 'dospem_2')
-                const lastPenguji1 = bimbinganList.find((b: { dosenType: string }) => b.dosenType === 'penguji_1')
-                const lastPenguji2 = bimbinganList.find((b: { dosenType: string }) => b.dosenType === 'penguji_2')
+                const revisionCategories = ['revisi_sempro', 'revisi_semhas', 'revisi_sidang']
+                const activeRevisionCategory = revisionCategories.includes(userData.statusMahasiswa)
+                    ? userData.statusMahasiswa
+                    : null
+                const activePengujiList = activeRevisionCategory
+                    ? bimbinganList.filter((b: { kategoriBimbingan?: string }) => b.kategoriBimbingan === activeRevisionCategory)
+                    : bimbinganList
+                const lastPenguji1 = activePengujiList.find((b: { dosenType: string }) => b.dosenType === 'penguji_1')
+                const lastPenguji2 = activePengujiList.find((b: { dosenType: string }) => b.dosenType === 'penguji_2')
+                const countByDosenType = (dosenType: string) =>
+                    bimbinganList.filter((b: { dosenType: string }) => b.dosenType === dosenType).length
+                const countActiveRevisionByDosenType = (dosenType: string) =>
+                    activePengujiList.filter((b: { dosenType: string }) => b.dosenType === dosenType).length
 
                 setBimbinganStats({
                     dospem1Status: {
                         status: lastDospem1?.status || null,
+                        total: countByDosenType('dospem_1'),
                     },
                     dospem2Status: {
                         status: lastDospem2?.status || null,
+                        total: countByDosenType('dospem_2'),
                     },
                     penguji1Status: {
                         status: lastPenguji1?.status || null,
+                        total: countActiveRevisionByDosenType('penguji_1'),
                     },
                     penguji2Status: {
                         status: lastPenguji2?.status || null,
+                        total: countActiveRevisionByDosenType('penguji_2'),
                     },
                     totalBimbingan: bimbinganList.length,
                     pendingCount
@@ -524,6 +540,16 @@ export const DashboardMhs = () => {
         : bimbinganStats.dospem2Status.status
     const displayedReviewer1Status = reviewer1Status || (isCompletedBimbinganPhase ? 'acc_sempro' : null)
     const displayedReviewer2Status = reviewer2Status || (isCompletedBimbinganPhase ? 'acc_sempro' : null)
+    const revisionTotal = bimbinganStats.penguji1Status.total + bimbinganStats.penguji2Status.total
+    const isRevisionApproved = ['acc', 'acc_sempro'].includes(reviewer1Status || '')
+        && ['acc', 'acc_sempro'].includes(reviewer2Status || '')
+
+    const getRevisionStatusText = (status: BimbinganStatus) => {
+        if (status === 'acc' || status === 'acc_sempro') return 'Revisi disetujui'
+        if (status === 'revisi') return 'Perlu perbaikan'
+        if (status === 'menunggu') return 'Menunggu review'
+        return 'Belum ada pengajuan'
+    }
 
     // Loading state
     if (isLoading) {
@@ -819,7 +845,7 @@ export const DashboardMhs = () => {
                                 whileHover={{ y: -2 }}
                             >
                                 <p className="text-xs text-gray-400 font-semibold mb-3 text-center uppercase tracking-wider">
-                                    {isCompletedBimbinganPhase ? 'Status Bimbingan' : 'Total Bimbingan'}
+                                    {isCompletedBimbinganPhase ? 'Status Bimbingan' : isRevisionPhase ? 'Total Revisi' : 'Total Bimbingan'}
                                 </p>
                                 <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl p-4 flex items-center justify-between">
                                     <motion.span
@@ -828,7 +854,9 @@ export const DashboardMhs = () => {
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: 0.5 }}
                                     >
-                                        {isCompletedBimbinganPhase ? 'SELESAI' : `${bimbinganStats.totalBimbingan} Sesi`}
+                                        {isCompletedBimbinganPhase
+                                            ? 'SELESAI'
+                                            : `${isRevisionPhase ? revisionTotal : bimbinganStats.totalBimbingan} Sesi`}
                                     </motion.span>
                                     <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
                                         <FileEdit className="w-4 h-4 text-white" />
@@ -1238,8 +1266,91 @@ export const DashboardMhs = () => {
                             </motion.div>
                         )}
 
-                        {/* ===== STATUS BIMBINGAN CARD (Only show when NOT in persiapan_wisuda / selesai) ===== */}
-                        {semproStatus && mahasiswaData && !['bimbingan_akhir', 'menunggu_sidang', 'persiapan_wisuda', 'selesai'].includes(mahasiswaData.statusMahasiswa || '') && (
+                        {/* ===== STATUS REVISI SEMINAR (PENGUJI) ===== */}
+                        {mahasiswaData && isRevisionPhase && (
+                            <motion.div
+                                variants={itemVariants}
+                                className={`rounded-2xl p-6 shadow-sm border ${isRevisionApproved
+                                    ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200'
+                                    : 'bg-white border-gray-100'
+                                }`}
+                            >
+                                <div className="flex flex-wrap items-center gap-3 mb-4">
+                                    <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center border border-blue-200">
+                                        <GraduationCap className="w-5 h-5 text-blue-600" />
+                                    </div>
+                                    <h3 className="text-lg font-bold text-gray-800">Status Revisi Seminar</h3>
+                                    {isRevisionApproved && (
+                                        <div className="ml-auto bg-green-500 text-white px-4 py-1.5 rounded-full text-sm font-semibold flex items-center gap-2">
+                                            <CheckCircle className="w-4 h-4" />
+                                            REVISI SELESAI
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {([
+                                        {
+                                            label: 'Penguji 1',
+                                            dosen: mahasiswaData.penguji_1,
+                                            data: bimbinganStats.penguji1Status,
+                                        },
+                                        {
+                                            label: 'Penguji 2',
+                                            dosen: mahasiswaData.penguji_2,
+                                            data: bimbinganStats.penguji2Status,
+                                        },
+                                    ] as const).map(({ label, dosen, data }) => {
+                                        const approved = data.status === 'acc' || data.status === 'acc_sempro'
+                                        const progressWidth = approved ? 100 : data.status ? 55 : 0
+
+                                        return (
+                                            <div
+                                                key={label}
+                                                className={`p-4 rounded-xl border ${approved
+                                                    ? 'bg-green-100 border-green-200'
+                                                    : 'bg-gray-50 border-gray-200'
+                                                }`}
+                                            >
+                                                <div className="flex items-center justify-between gap-3 mb-2">
+                                                    <div className="flex items-center gap-2">
+                                                        {approved
+                                                            ? <CheckCircle className="w-5 h-5 text-green-500" />
+                                                            : <Clock className="w-5 h-5 text-gray-400" />
+                                                        }
+                                                        <span className="font-medium text-gray-700">{label}</span>
+                                                    </div>
+                                                    <span className="text-sm font-bold text-gray-600">{data.total} sesi</span>
+                                                </div>
+                                                <p className="text-xs text-gray-500 mb-2 truncate">
+                                                    {dosen?.name || 'Belum ditentukan'}
+                                                </p>
+                                                <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                                                    <motion.div
+                                                        className={`h-2.5 rounded-full ${approved ? 'bg-green-500' : 'bg-blue-500'}`}
+                                                        initial={{ width: 0 }}
+                                                        animate={{ width: `${progressWidth}%` }}
+                                                        transition={{ duration: 0.8 }}
+                                                    />
+                                                </div>
+                                                <p className={`text-xs mt-2 ${approved ? 'text-green-600 font-medium' : 'text-gray-500'}`}>
+                                                    {getRevisionStatusText(data.status)}
+                                                </p>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+
+                                <div className="mt-4 p-3 rounded-lg text-center bg-blue-50 text-blue-700">
+                                    <p className="text-sm font-medium">
+                                        Revisi seminar ditinjau oleh masing-masing dosen penguji.
+                                    </p>
+                                </div>
+                            </motion.div>
+                        )}
+
+                        {/* ===== STATUS BIMBINGAN CARD (Only show during pembimbing phase) ===== */}
+                        {semproStatus && mahasiswaData && !isRevisionPhase && !['bimbingan_akhir', 'menunggu_sidang', 'persiapan_wisuda', 'selesai'].includes(mahasiswaData.statusMahasiswa || '') && (
                             <motion.div
                                 variants={itemVariants}
                                 className={`rounded-2xl p-6 shadow-sm border ${semproStatus.isReady

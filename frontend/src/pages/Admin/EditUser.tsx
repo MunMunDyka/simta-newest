@@ -128,6 +128,9 @@ export const EditUser = () => {
     const [deadlineStatus, setDeadlineStatus] = useState<'tidak_aktif' | 'aktif' | 'lewat' | 'selesai'>('tidak_aktif')
     const [deadlineCatatan, setDeadlineCatatan] = useState('')
 
+    const isDosenSelectedElsewhere = (dosenId: string, currentValue: string) =>
+        dosenId !== currentValue && [dospem1, dospem2, penguji1, penguji2].includes(dosenId)
+
     // Fetch user data
     const fetchUserData = async () => {
         if (!id) return
@@ -597,16 +600,20 @@ export const EditUser = () => {
                                         <h3 className="text-lg font-bold text-gray-800 mb-6">Dosen Pembimbing</h3>
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            <div className="space-y-2">
+                                            <div className="min-w-0 space-y-2">
                                                 <Label>Pembimbing 1</Label>
                                                 <Select value={dospem1} onValueChange={setDospem1}>
-                                                    <SelectTrigger>
+                                                    <SelectTrigger className="w-full min-w-0 [&>span]:truncate">
                                                         <SelectValue placeholder="Pilih dosen pembimbing 1" />
                                                     </SelectTrigger>
                                                     <SelectContent>
                                                         <SelectItem value="none">-- Tidak Ada --</SelectItem>
                                                         {dosenList.map((dosen) => (
-                                                            <SelectItem key={dosen._id} value={dosen._id}>
+                                                            <SelectItem
+                                                                key={dosen._id}
+                                                                value={dosen._id}
+                                                                disabled={isDosenSelectedElsewhere(dosen._id, dospem1)}
+                                                            >
                                                                 {dosen.name} ({dosen.nim_nip}){dosen.status === 'nonaktif' && ' - Nonaktif'}
                                                             </SelectItem>
                                                         ))}
@@ -614,16 +621,20 @@ export const EditUser = () => {
                                                 </Select>
                                             </div>
 
-                                            <div className="space-y-2">
+                                            <div className="min-w-0 space-y-2">
                                                 <Label>Pembimbing 2</Label>
                                                 <Select value={dospem2} onValueChange={setDospem2}>
-                                                    <SelectTrigger>
+                                                    <SelectTrigger className="w-full min-w-0 [&>span]:truncate">
                                                         <SelectValue placeholder="Pilih dosen pembimbing 2" />
                                                     </SelectTrigger>
                                                     <SelectContent>
                                                         <SelectItem value="none">-- Tidak Ada --</SelectItem>
                                                         {dosenList.map((dosen) => (
-                                                            <SelectItem key={dosen._id} value={dosen._id}>
+                                                            <SelectItem
+                                                                key={dosen._id}
+                                                                value={dosen._id}
+                                                                disabled={isDosenSelectedElsewhere(dosen._id, dospem2)}
+                                                            >
                                                                 {dosen.name} ({dosen.nim_nip}){dosen.status === 'nonaktif' && ' - Nonaktif'}
                                                             </SelectItem>
                                                         ))}
@@ -638,16 +649,20 @@ export const EditUser = () => {
                                         <h3 className="text-lg font-bold text-gray-800 mb-6">Dosen Penguji</h3>
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            <div className="space-y-2">
+                                            <div className="min-w-0 space-y-2">
                                                 <Label>Penguji 1</Label>
                                                 <Select value={penguji1} onValueChange={setPenguji1}>
-                                                    <SelectTrigger>
+                                                    <SelectTrigger className="w-full min-w-0 [&>span]:truncate">
                                                         <SelectValue placeholder="Pilih dosen penguji 1" />
                                                     </SelectTrigger>
                                                     <SelectContent>
                                                         <SelectItem value="none">-- Tidak Ada --</SelectItem>
                                                         {dosenList.map((dosen) => (
-                                                            <SelectItem key={dosen._id} value={dosen._id}>
+                                                            <SelectItem
+                                                                key={dosen._id}
+                                                                value={dosen._id}
+                                                                disabled={isDosenSelectedElsewhere(dosen._id, penguji1)}
+                                                            >
                                                                 {dosen.name} ({dosen.nim_nip}){dosen.status === 'nonaktif' && ' - Nonaktif'}
                                                             </SelectItem>
                                                         ))}
@@ -655,16 +670,20 @@ export const EditUser = () => {
                                                 </Select>
                                             </div>
 
-                                            <div className="space-y-2">
+                                            <div className="min-w-0 space-y-2">
                                                 <Label>Penguji 2</Label>
                                                 <Select value={penguji2} onValueChange={setPenguji2}>
-                                                    <SelectTrigger>
+                                                    <SelectTrigger className="w-full min-w-0 [&>span]:truncate">
                                                         <SelectValue placeholder="Pilih dosen penguji 2" />
                                                     </SelectTrigger>
                                                     <SelectContent>
                                                         <SelectItem value="none">-- Tidak Ada --</SelectItem>
                                                         {dosenList.map((dosen) => (
-                                                            <SelectItem key={dosen._id} value={dosen._id}>
+                                                            <SelectItem
+                                                                key={dosen._id}
+                                                                value={dosen._id}
+                                                                disabled={isDosenSelectedElsewhere(dosen._id, penguji2)}
+                                                            >
                                                                 {dosen.name} ({dosen.nim_nip}){dosen.status === 'nonaktif' && ' - Nonaktif'}
                                                             </SelectItem>
                                                         ))}

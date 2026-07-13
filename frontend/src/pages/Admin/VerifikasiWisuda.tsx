@@ -75,9 +75,12 @@ export const VerifikasiWisuda = () => {
             // Build query params
             let url = '/users?role=mahasiswa&limit=100'
             
-            // If filtering by "selesai" (lulus), query statusMahasiswa=selesai
+            // Berkas yang disetujui berpindah ke fase selesai, jadi filter
+            // persetujuan harus membaca status dokumen pada fase tersebut.
             if (statusFilter === 'selesai') {
                 url += '&statusMahasiswa=selesai'
+            } else if (statusFilter === 'disetujui') {
+                url += '&statusMahasiswa=selesai&statusVerifikasi=disetujui'
             } else {
                 url += '&statusMahasiswa=persiapan_wisuda'
                 if (statusFilter !== 'semua') {
