@@ -41,8 +41,10 @@ export const mahasiswaSidebar: SidebarConfig = {
         { label: 'Bimbingan', icon: FileEdit, path: '/bimbingan/mahasiswa' },
         { label: 'Jadwal Sidang', icon: Calendar, path: '/jadwal-sidang' },
     ],
-    historyLabel: '',
-    history: [],
+    historyLabel: 'Akun',
+    history: [
+        { label: 'Profil', icon: Settings, path: '/profile/mahasiswa' },
+    ],
 }
 
 // ===== DOSEN SIDEBAR =====
@@ -56,8 +58,10 @@ export const dosenSidebar: SidebarConfig = {
         { label: 'Jadwal Penguji', icon: CalendarCheck, path: '/dosen/jadwal-penguji' },
         { label: 'Jadwal Sidang', icon: Calendar, path: '/jadwal-sidang' },
     ],
-    historyLabel: '',
-    history: [],
+    historyLabel: 'Akun',
+    history: [
+        { label: 'Profil', icon: Settings, path: '/profile/dosen' },
+    ],
 }
 
 // ===== ADMIN SIDEBAR =====
@@ -68,11 +72,15 @@ export const adminSidebar: SidebarConfig = {
     aktivitasLabel: 'Manajemen',
     aktivitas: [
         { label: 'Manajemen User', icon: Users, path: '/admin/users' },
+        { label: 'Manajemen Dosen', icon: Users, path: '/admin/plotting' },
+        { label: 'Kelola Bimbingan', icon: FileEdit, path: '/admin/bimbingan' },
         { label: 'Kelola Jadwal', icon: Calendar, path: '/admin/jadwal' },
+        { label: 'Verifikasi Dokumen', icon: CalendarCheck, path: '/admin/wisuda' },
     ],
-    historyLabel: 'Pengaturan',
+    historyLabel: 'Laporan dan Akun',
     history: [
-        { label: 'Pengaturan Sistem', icon: Settings, path: '#' },
+        { label: 'Laporan', icon: FileEdit, path: '/admin/laporan' },
+        { label: 'Profil', icon: Settings, path: '/admin/profile' },
     ],
 }
 

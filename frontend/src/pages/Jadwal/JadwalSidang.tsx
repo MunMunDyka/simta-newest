@@ -85,6 +85,16 @@ const dosenAktivitasItems = [
     { label: 'Jadwal Sidang', icon: Calendar, active: true, path: '/jadwal-sidang' },
 ]
 
+// Menu items untuk admin
+const adminMenuItems = [
+    { label: 'Dashboard', icon: LayoutDashboard, path: '/admin/dashboard' },
+]
+const adminAktivitasItems = [
+    { label: 'Manajemen User', icon: Users, path: '/admin/users' },
+    { label: 'Kelola Jadwal', icon: Calendar, path: '/admin/jadwal' },
+    { label: 'Jadwal Sidang', icon: CalendarCheck, active: true, path: '/jadwal-sidang' },
+]
+
 export const JadwalSidang = () => {
     const navigate = useNavigate()
     const dispatch = useAppDispatch()
@@ -166,11 +176,14 @@ export const JadwalSidang = () => {
         fetchJadwal()
     }, [jenisJadwalFilter, statusFilter])
 
-    // Determine which menu to show based on user role
-    const isDosen = user?.role === 'dosen'
+    // Determine navigation and profile from the selected mode for multi-role users.
+    const activeRole = user?.activeRole || user?.role
+    const isDosen = activeRole === 'dosen'
+    const isAdmin = activeRole === 'admin'
 
-    const menuItems = isDosen ? dosenMenuItems : mahasiswaMenuItems
-    const aktivitasItems = isDosen ? dosenAktivitasItems : mahasiswaAktivitasItems
+    const menuItems = isAdmin ? adminMenuItems : isDosen ? dosenMenuItems : mahasiswaMenuItems
+    const aktivitasItems = isAdmin ? adminAktivitasItems : isDosen ? dosenAktivitasItems : mahasiswaAktivitasItems
+    const profilePath = isAdmin ? '/admin/profile' : isDosen ? '/profile/dosen' : '/profile/mahasiswa'
 
     const ruanganOptions = useMemo(() => {
         return Array.from(new Set(jadwalData.map(j => j.ruangan).filter(Boolean))).sort()
@@ -392,7 +405,7 @@ export const JadwalSidang = () => {
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                     className="cursor-pointer"
-                                    onClick={() => navigate(isDosen ? '/profile/dosen' : '/profile/mahasiswa')}
+                                    onClick={() => navigate(profilePath)}
                                 >
                                     <User className="w-4 h-4 mr-2" />Profile
                                 </DropdownMenuItem>                                <DropdownMenuSeparator />

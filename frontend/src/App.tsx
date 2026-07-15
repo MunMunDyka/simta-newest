@@ -10,6 +10,7 @@ import { Route, Routes, Navigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from './store/hooks'
 import { initializeAuth } from './store/slices/authSlice'
 import ProtectedRoute from './components/ProtectedRoute'
+import GlobalAccountActions from './components/GlobalAccountActions'
 import './App.css'
   
 // Pages
@@ -33,14 +34,31 @@ import { BimbinganDosen } from './pages/Bimbingan/Dosen/BimbinganDosen'
 import { ListMahasiswaBimbingan } from './pages/Bimbingan/Dosen/ListMahasiswaBimbingan'
 import { ProfileMahasiswa } from './pages/Profile/ProfileMahasiswa'
 import { ProfileDosen } from './pages/Profile/ProfileDosen'
+import { ProfileAdmin } from './pages/Profile/ProfileAdmin'
 import { JadwalPenguji } from './pages/Dosen/JadwalPenguji'
 
 // Wireframe Pages (untuk dokumentasi skripsi)
 import { LoginWireframe, DashboardWireframe, BimbinganWireframe } from './pages/Wireframe'
 
+const LoginRoute = () => {
+  const { isAuthenticated, user } = useAppSelector((state) => state.auth)
+
+  if (isAuthenticated && user) {
+    const dashboards = {
+      mahasiswa: '/dashboard/mahasiswa',
+      dosen: '/dashboard/dosen',
+      admin: '/admin/dashboard',
+    }
+    const activeRole = user.activeRole || user.role
+    return <Navigate to={dashboards[activeRole]} replace />
+  }
+
+  return <Login />
+}
+
 function App() {
   const dispatch = useAppDispatch()
-  const { isInitialized, isAuthenticated, user } = useAppSelector((state) => state.auth)
+  const { isInitialized } = useAppSelector((state) => state.auth)
 
   // Initialize auth on app load
   useEffect(() => {
@@ -60,21 +78,9 @@ function App() {
     )
   }
 
-  // Helper to redirect authenticated users from login page
-  const LoginRoute = () => {
-    if (isAuthenticated && user) {
-      const dashboards = {
-        mahasiswa: '/dashboard/mahasiswa',
-        dosen: '/dashboard/dosen',
-        admin: '/admin/dashboard',
-      }
-      const activeRole = user.activeRole || user.role
-      return <Navigate to={dashboards[activeRole]} replace />
-    }
-    return <Login />
-  }
-
   return (
+    <>
+    <GlobalAccountActions />
     <Routes>
       {/* Public Route - Login */}
       <Route path="/" element={<LoginRoute />} />
@@ -149,6 +155,14 @@ function App() {
       />
 
       {/* Admin Routes */}
+      <Route
+        path="/admin/profile"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <ProfileAdmin />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/admin/dashboard"
         element={
@@ -248,6 +262,7 @@ function App() {
       {/* Catch all - redirect to login */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   )
 }
 

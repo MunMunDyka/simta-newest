@@ -90,7 +90,8 @@ export const Login = () => {
                 dosen: '/dashboard/dosen',
                 admin: '/admin/dashboard',
             }
-            navigate(dashboards[user.role], { replace: true })
+            const activeRole = user.activeRole || user.role
+            navigate(dashboards[activeRole], { replace: true })
         }
     }, [isAuthenticated, user, navigate])
 

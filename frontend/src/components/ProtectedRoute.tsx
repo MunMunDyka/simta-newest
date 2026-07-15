@@ -43,7 +43,7 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
             const roleDashboards = {
                 mahasiswa: '/dashboard/mahasiswa',
                 dosen: '/dashboard/dosen',
-                admin: '/admin/users',
+                admin: '/admin/dashboard',
             };
 
             return <Navigate to={roleDashboards[activeRole]} replace />;

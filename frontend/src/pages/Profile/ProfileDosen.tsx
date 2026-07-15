@@ -24,7 +24,6 @@ import {
     ChevronDown,
     LogOut,
     User,
-    FileEdit,
     Camera,
     Mail,
     Lock,
@@ -39,7 +38,6 @@ const menuItems = [
 
 const managementItems = [
     { label: 'Mahasiswa Bimbingan', icon: Users, path: '/dosen/mahasiswa' },
-    { label: 'Review Bimbingan', icon: FileEdit, path: '/dosen/review' },
 ]
 
 const scheduleItems = [
