@@ -37,6 +37,7 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
 import api from '@/lib/api'
 import { FeedbackAlert } from '@/components/FeedbackAlert'
+import { RoleSwitchMenuItem } from '@/components/RoleSwitchMenuItem'
 import { getApiErrorMessage } from '@/lib/errorMessage'
 
 // Interfaces
@@ -246,7 +247,8 @@ export const KelolaPlottingDosen = () => {
                             <DropdownMenuContent align="end" className="w-48">
                                 <DropdownMenuLabel>{user?.name || 'Administrator'}</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/profile')}>
+                                <RoleSwitchMenuItem />
+                                <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/admin/profile')}>
                                     <User className="w-4 h-4 mr-2" /> Profile
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />

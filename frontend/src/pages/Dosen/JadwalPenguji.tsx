@@ -36,6 +36,7 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
 import api from '@/lib/api'
 import { FeedbackAlert } from '@/components/FeedbackAlert'
+import { RoleSwitchMenuItem } from '@/components/RoleSwitchMenuItem'
 import { getApiErrorMessage } from '@/lib/errorMessage'
 
 
@@ -187,6 +188,7 @@ export const JadwalPenguji = () => {
                             <DropdownMenuContent align="end" className="w-56 rounded-xl p-1.5">
                                 <DropdownMenuLabel className="font-normal text-xs text-gray-400 px-2.5 py-1">Akun Saya</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
+                                <RoleSwitchMenuItem />
                                 <DropdownMenuItem onClick={() => navigate('/profile/dosen')} className="rounded-lg py-2 px-2.5 text-gray-600 hover:text-blue-600">
                                     <User className="w-4 h-4 mr-2 text-gray-400" /> Profil Saya
                                 </DropdownMenuItem>

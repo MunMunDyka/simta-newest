@@ -42,12 +42,12 @@ import {
     ChevronRight,
     LogOut,
     User,
-    Shield,
 } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
-import { logout, toggleActiveRole } from '@/store/slices/authSlice'
+import { logout } from '@/store/slices/authSlice'
 import api from '@/lib/api'
 import { FeedbackAlert } from '@/components/FeedbackAlert'
+import { RoleSwitchMenuItem } from '@/components/RoleSwitchMenuItem'
 import { getApiErrorMessage } from '@/lib/errorMessage'
 
 // Types
@@ -612,21 +612,7 @@ export const DashboardDosen = () => {
                         <DropdownMenuContent align="end" className="w-48">
                             <DropdownMenuLabel>{user?.name || 'My Account'}</DropdownMenuLabel>
                             <DropdownMenuSeparator />
-                            {user?.canAccessAdmin && (
-                                <>
-                                    <DropdownMenuItem
-                                        className="cursor-pointer text-purple-600 font-medium"
-                                        onClick={() => {
-                                            dispatch(toggleActiveRole())
-                                            navigate('/admin/dashboard')
-                                        }}
-                                    >
-                                        <Shield className="w-4 h-4 mr-2" />
-                                        Masuk Mode Admin
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                </>
-                            )}
+                            <RoleSwitchMenuItem />
                             <DropdownMenuItem
                                 className="cursor-pointer"
                                 onClick={() => navigate('/profile/dosen')}

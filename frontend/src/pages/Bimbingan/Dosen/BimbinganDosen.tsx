@@ -48,6 +48,7 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
 import api from '@/lib/api'
 import { FeedbackAlert } from '@/components/FeedbackAlert'
+import { RoleSwitchMenuItem } from '@/components/RoleSwitchMenuItem'
 import { getApiErrorMessage } from '@/lib/errorMessage'
 import { downloadWisudaFile, previewWisudaFile } from '@/services/wisudaService'
 import { type DokumenWisuda, type FileWisuda, type User as AuthUser } from '@/services/authService'
@@ -873,6 +874,7 @@ export const BimbinganDosen = () => {
                                     </div>
                                 </DropdownMenuLabel>
                                 <DropdownMenuSeparator />
+                                <RoleSwitchMenuItem />
                                 <DropdownMenuItem
                                     className="cursor-pointer"
                                     onClick={() => navigate('/profile/dosen')}

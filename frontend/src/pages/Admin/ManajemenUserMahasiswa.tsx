@@ -45,6 +45,7 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
 import api from '@/lib/api'
 import { FeedbackAlert } from '@/components/FeedbackAlert'
+import { RoleSwitchMenuItem } from '@/components/RoleSwitchMenuItem'
 import { getApiErrorMessage } from '@/lib/errorMessage'
 
 // Types
@@ -406,6 +407,7 @@ export const ManajemenUserMahasiswa = () => {
                                     </div>
                                 </DropdownMenuLabel>
                                 <DropdownMenuSeparator />
+                                <RoleSwitchMenuItem />
                                 <DropdownMenuItem onClick={() => navigate('/admin/profile')}>
                                     <User className="w-4 h-4 mr-2" />Profile
                                 </DropdownMenuItem>                                <DropdownMenuSeparator />

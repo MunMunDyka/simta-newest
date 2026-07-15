@@ -5,6 +5,7 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout, setUser } from '@/store/slices/authSlice'
 import { changePassword } from '@/services/authService'
 import api from '@/lib/api'
+import { RoleSwitchMenuItem } from '@/components/RoleSwitchMenuItem'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -376,6 +377,7 @@ export const ProfileDosen = () => {
                                     </div>
                                 </DropdownMenuLabel>
                                 <DropdownMenuSeparator />
+                                <RoleSwitchMenuItem />
                                 <DropdownMenuItem
                                     className="cursor-pointer"
                                     onClick={() => navigate('/profile/dosen')}

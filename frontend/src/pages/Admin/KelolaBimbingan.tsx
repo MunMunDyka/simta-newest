@@ -27,6 +27,7 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
 import api from '@/lib/api'
 import { FeedbackAlert } from '@/components/FeedbackAlert'
+import { RoleSwitchMenuItem } from '@/components/RoleSwitchMenuItem'
 import { getApiErrorMessage } from '@/lib/errorMessage'
 import {
     getAdminBimbinganSummary, clearBimbinganHistory, clearAllBimbinganGlobal,
@@ -512,6 +513,7 @@ export const KelolaBimbingan = () => {
                         <DropdownMenuContent align="end" className="w-56">
                             <DropdownMenuLabel className="font-normal"><div className="flex flex-col space-y-1"><p className="text-sm font-medium">{user?.name || 'Admin'}</p><p className="text-xs text-muted-foreground">{user?.email || ''}</p></div></DropdownMenuLabel>
                             <DropdownMenuSeparator />
+                            <RoleSwitchMenuItem />
                             <DropdownMenuItem onClick={() => navigate('/admin/profile')}><User className="w-4 h-4 mr-2" />Profile</DropdownMenuItem>                            <DropdownMenuSeparator />
                             <DropdownMenuItem className="text-red-600" onClick={() => { dispatch(logout()); navigate('/') }}><LogOut className="w-4 h-4 mr-2" />Logout</DropdownMenuItem>
                         </DropdownMenuContent>

@@ -23,12 +23,12 @@ import {
     TrendingUp,
     Clock,
     Activity,
-    Shield,
 } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
-import { logout, toggleActiveRole } from '@/store/slices/authSlice'
+import { logout } from '@/store/slices/authSlice'
 import api from '@/lib/api'
 import { FeedbackAlert } from '@/components/FeedbackAlert'
+import { RoleSwitchMenuItem } from '@/components/RoleSwitchMenuItem'
 import { getApiErrorMessage } from '@/lib/errorMessage'
 
 // Types
@@ -421,6 +421,7 @@ export const DashboardAdmin = () => {
                                     </div>
                                 </DropdownMenuLabel>
                                 <DropdownMenuSeparator />
+                                <RoleSwitchMenuItem />
                                 <DropdownMenuItem
                                     className="cursor-pointer"
                                     onClick={() => navigate('/admin/profile')}
@@ -428,21 +429,6 @@ export const DashboardAdmin = () => {
                                     <User className="w-4 h-4 mr-2" />
                                     Profile
                                 </DropdownMenuItem>
-                                {user?.canAccessAdmin && (
-                                    <>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem
-                                            className="cursor-pointer text-blue-600 font-medium"
-                                            onClick={() => {
-                                                dispatch(toggleActiveRole())
-                                                navigate('/dashboard/dosen')
-                                            }}
-                                        >
-                                            <Shield className="w-4 h-4 mr-2" />
-                                            Masuk Mode Dosen
-                                        </DropdownMenuItem>
-                                    </>
-                                )}
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                     className="cursor-pointer text-red-600"

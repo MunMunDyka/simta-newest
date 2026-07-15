@@ -16,7 +16,7 @@ import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
 import {
-    LayoutDashboard, Users, Calendar, ChevronDown, LogOut, GraduationCap,
+    LayoutDashboard, Users, Calendar, ChevronDown, LogOut, User, GraduationCap,
     FileText, CheckCircle2, XCircle, Search, Award, Download, Eye,
     CheckSquare,
 } from 'lucide-react'
@@ -24,6 +24,7 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
 import api from '@/lib/api'
 import { FeedbackAlert } from '@/components/FeedbackAlert'
+import { RoleSwitchMenuItem } from '@/components/RoleSwitchMenuItem'
 import { getApiErrorMessage } from '@/lib/errorMessage'
 import { downloadWisudaFile, previewWisudaFile, verifikasiWisuda } from '@/services/wisudaService'
 import { type FileWisuda, type User as UserType } from '@/services/authService'
@@ -322,6 +323,11 @@ export const VerifikasiWisuda = () => {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
                                 <DropdownMenuLabel>{currentUser?.name || 'Administrator'}</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <RoleSwitchMenuItem />
+                                <DropdownMenuItem className="cursor-pointer" onClick={() => navigate('/admin/profile')}>
+                                    <User className="w-4 h-4 mr-2" /> Profile
+                                </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem className="cursor-pointer text-red-600" onClick={() => { dispatch(logout()); navigate('/') }}>
                                     <LogOut className="w-4 h-4 mr-2" /> Logout

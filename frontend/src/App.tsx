@@ -10,7 +10,6 @@ import { Route, Routes, Navigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from './store/hooks'
 import { initializeAuth } from './store/slices/authSlice'
 import ProtectedRoute from './components/ProtectedRoute'
-import GlobalAccountActions from './components/GlobalAccountActions'
 import './App.css'
   
 // Pages
@@ -79,8 +78,6 @@ function App() {
   }
 
   return (
-    <>
-    <GlobalAccountActions />
     <Routes>
       {/* Public Route - Login */}
       <Route path="/" element={<LoginRoute />} />
@@ -262,7 +259,6 @@ function App() {
       {/* Catch all - redirect to login */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
-    </>
   )
 }
 
