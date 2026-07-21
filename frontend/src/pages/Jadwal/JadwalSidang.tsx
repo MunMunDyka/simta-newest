@@ -246,6 +246,113 @@ export const JadwalSidang = () => {
         }
     }
 
+    const getStatusLabel = (status: string) => {
+        switch (status) {
+            case 'selesai': return 'Selesai'
+            case 'dibatalkan': return 'Dibatalkan'
+            case 'berlangsung': return 'Berlangsung'
+            default: return 'Terjadwal'
+        }
+    }
+
+    // Render jadwal ke dokumen cetak pada jendela terpisah.
+    // Sengaja tidak mengubah tampilan/state halaman utama.
+    const escapeHtml = (value: string) => String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+
+    const buildPrintableDocument = () => {
+        const cetakPada = new Date().toLocaleString('id-ID', {
+            dateStyle: 'long',
+            timeStyle: 'short',
+        })
+
+        const rows = filteredJadwalData.map((jadwal, index) => `
+            <tr>
+                <td class="center">${index + 1}</td>
+                <td>${escapeHtml(jadwal.tanggal)}</td>
+                <td>${escapeHtml(jadwal.waktu)}</td>
+                <td><strong>${escapeHtml(jadwal.nama)}</strong><br><span class="muted">${escapeHtml(jadwal.nim)}</span></td>
+                <td>${escapeHtml(jadwal.judul)}</td>
+                <td>1. ${escapeHtml(jadwal.penguji1 || '-')}<br>2. ${escapeHtml(jadwal.penguji2 || '-')}</td>
+                <td class="center">${escapeHtml(jadwal.ruangan || '-')}</td>
+                <td class="center">${escapeHtml(getStatusLabel(jadwal.status))}</td>
+            </tr>`).join('')
+
+        const emptyRow = `
+            <tr><td class="center muted" colspan="8">Tidak ada jadwal sidang untuk filter yang dipilih.</td></tr>`
+
+        return `<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Jadwal Ujian Tugas Akhir</title>
+<style>
+    * { box-sizing: border-box; }
+    body { font-family: Arial, Helvetica, sans-serif; color: #0f172a; margin: 24px; }
+    h1 { font-size: 18px; margin: 0 0 4px; text-align: center; text-transform: uppercase; }
+    .subtitle { text-align: center; font-size: 13px; color: #475569; margin: 0 0 2px; }
+    .badge { display: block; text-align: center; font-size: 12px; color: #1d4ed8; margin-bottom: 16px; }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    th, td { border: 1px solid #cbd5e1; padding: 6px 8px; vertical-align: top; }
+    th { background: #2563eb; color: #fff; font-size: 11px; text-align: left; }
+    .center { text-align: center; }
+    .muted { color: #64748b; }
+    tbody tr:nth-child(even) { background: #f8fafc; }
+    footer { margin-top: 14px; font-size: 10px; color: #64748b; }
+    @page { size: A4 landscape; margin: 12mm; }
+    @media print { body { margin: 0; } }
+</style>
+</head>
+<body>
+    <h1>Jadwal Ujian Tugas Akhir</h1>
+    <p class="subtitle">Sistem Informasi &middot; Institut Teknologi Batam</p>
+    <span class="badge">Filter status: ${escapeHtml(getStatusFilterLabel())}</span>
+    <table>
+        <thead>
+            <tr>
+                <th style="width:32px">No</th>
+                <th style="width:90px">Tanggal</th>
+                <th style="width:80px">Waktu</th>
+                <th style="width:150px">Mahasiswa</th>
+                <th>Judul</th>
+                <th style="width:170px">Penguji</th>
+                <th style="width:60px">Ruang</th>
+                <th style="width:70px">Status</th>
+            </tr>
+        </thead>
+        <tbody>${rows || emptyRow}</tbody>
+    </table>
+    <footer>
+        Menampilkan ${filteredJadwalData.length} jadwal sidang &middot; Dicetak pada ${escapeHtml(cetakPada)}<br>
+        * Jadwal dapat berubah sewaktu-waktu. Harap konfirmasi dengan prodi.
+    </footer>
+</body>
+</html>`
+    }
+
+    const openJadwalDocument = (autoPrint: boolean) => {
+        const printWindow = window.open('', '_blank', 'width=1100,height=760')
+
+        if (!printWindow) {
+            setLoadError('Jendela cetak diblokir browser. Izinkan pop-up untuk halaman ini lalu coba lagi.')
+            return
+        }
+
+        printWindow.document.write(buildPrintableDocument())
+        printWindow.document.close()
+
+        if (autoPrint) {
+            printWindow.onload = () => {
+                printWindow.focus()
+                printWindow.print()
+            }
+        }
+    }
+
     // Animation variants
     const containerVariants: Variants = {
         hidden: { opacity: 0 },
@@ -497,13 +604,22 @@ export const JadwalSidang = () => {
                                     {/* Action Buttons */}
                                     <div className="flex items-center gap-2 ml-2">
                                         <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                                            <Button variant="outline" size="sm" className="rounded-lg border-gray-200 text-gray-600 hover:bg-gray-50 h-9">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="rounded-lg border-gray-200 text-gray-600 hover:bg-gray-50 h-9"
+                                                onClick={() => openJadwalDocument(false)}
+                                            >
                                                 <Eye className="w-4 h-4 mr-1.5" />
                                                 Preview
                                             </Button>
                                         </motion.div>
                                         <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                                            <Button size="sm" className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg h-9">
+                                            <Button
+                                                size="sm"
+                                                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg h-9"
+                                                onClick={() => openJadwalDocument(true)}
+                                            >
                                                 <Download className="w-4 h-4 mr-1.5" />
                                                 Download PDF
                                             </Button>
