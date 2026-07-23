@@ -236,6 +236,8 @@ export const BimbinganDosen = () => {
         status: string
         feedback: string
         feedbackDate: string
+        feedbackFile?: string
+        feedbackFileName?: string
         createdAt: string
         dosenType?: string
         kategoriBimbingan?: string
@@ -351,6 +353,8 @@ export const BimbinganDosen = () => {
                         status: item.status,
                         feedback: item.feedback || '',
                         feedbackDate: item.feedbackDate ? new Date(item.feedbackDate).toLocaleString('id-ID') : '-',
+                        feedbackFile: item.feedbackFile || '',
+                        feedbackFileName: item.feedbackFileName || '',
                         createdAt: new Date(item.createdAt).toLocaleString('id-ID'),
                         dosenType: item.dosenType,
                         kategoriBimbingan: item.kategoriBimbingan,
@@ -444,6 +448,30 @@ export const BimbinganDosen = () => {
             console.error('Download failed:', error)
             setFormSuccess(null)
             setFormError('Gagal mendownload file')
+        }
+    }
+
+    const handleDownloadFeedbackFile = async (bimbinganId: string, fileName?: string) => {
+        if (!bimbinganId) return
+
+        try {
+            const response = await api.get(`/bimbingan/download-feedback/${bimbinganId}`, {
+                responseType: 'blob'
+            })
+
+            const blob = new Blob([response.data], { type: 'application/pdf' })
+            const url = window.URL.createObjectURL(blob)
+            const link = document.createElement('a')
+            link.href = url
+            link.download = fileName || 'lampiran-feedback.pdf'
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
+            window.URL.revokeObjectURL(url)
+        } catch (error) {
+            console.error('Download lampiran feedback failed:', error)
+            setFormSuccess(null)
+            setFormError('Gagal mendownload lampiran feedback')
         }
     }
 
@@ -701,6 +729,8 @@ export const BimbinganDosen = () => {
                 status: item.status,
                 feedback: item.feedback || '',
                 feedbackDate: item.feedbackDate ? new Date(item.feedbackDate).toLocaleString('id-ID') : '-',
+                feedbackFile: item.feedbackFile || '',
+                feedbackFileName: item.feedbackFileName || '',
                 createdAt: new Date(item.createdAt).toLocaleString('id-ID'),
                 dosenType: item.dosenType,
                 kategoriBimbingan: item.kategoriBimbingan,
@@ -1517,6 +1547,17 @@ export const BimbinganDosen = () => {
                                                                             'text-blue-600'
                                                                     }`}>Feedback Dosen ({item.feedbackDate}):</p>
                                                                 <p className="text-sm text-gray-700">{item.feedback}</p>
+
+                                                                {item.feedbackFile && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleDownloadFeedbackFile(item.id, item.feedbackFileName)}
+                                                                        className="mt-3 inline-flex items-center gap-2 text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+                                                                    >
+                                                                        <Download className="w-3.5 h-3.5" />
+                                                                        Lampiran: {item.feedbackFileName || 'Unduh lampiran'}
+                                                                    </button>
+                                                                )}
                                                             </div>
                                                         )}
 

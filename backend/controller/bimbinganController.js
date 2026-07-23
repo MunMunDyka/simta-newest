@@ -684,6 +684,42 @@ const downloadFile = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @desc    Download lampiran feedback dari dosen
+ * @route   GET /api/bimbingan/download-feedback/:id
+ * @access  Private (mahasiswa pemilik, dosen terkait, atau admin)
+ */
+const downloadFeedbackFile = asyncHandler(async (req, res) => {
+    const bimbingan = await Bimbingan.findById(req.params.id);
+
+    if (!bimbingan) {
+        throw ApiError.notFound('Bimbingan tidak ditemukan');
+    }
+
+    // Authorization check (sama seperti downloadFile)
+    const userId = req.user._id.toString();
+    const userRole = req.user.role;
+
+    const isMahasiswa = bimbingan.mahasiswa.toString() === userId;
+    const isDosen = bimbingan.dosen.toString() === userId;
+
+    if (!isMahasiswa && !isDosen && userRole !== 'admin') {
+        throw ApiError.forbidden('Anda tidak memiliki akses untuk mendownload lampiran ini');
+    }
+
+    if (!bimbingan.feedbackFile) {
+        throw ApiError.notFound('Bimbingan ini tidak memiliki lampiran feedback');
+    }
+
+    const feedbackPath = path.resolve(bimbingan.feedbackFile);
+
+    if (!fs.existsSync(feedbackPath)) {
+        throw ApiError.notFound('Lampiran feedback tidak ditemukan di server');
+    }
+
+    res.download(feedbackPath, bimbingan.feedbackFileName || path.basename(feedbackPath));
+});
+
+/**
  * @desc    Get pending bimbingan count (for dosen dashboard)
  * @route   GET /api/bimbingan/pending-count
  * @access  Dosen
@@ -1410,6 +1446,7 @@ module.exports = {
     saveFeedbackDraft,
     addReply,
     downloadFile,
+    downloadFeedbackFile,
     getPendingCount,
     getSemproStatus,
     generateSuratSempro,

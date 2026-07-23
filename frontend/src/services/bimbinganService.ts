@@ -174,6 +174,16 @@ export const downloadFile = async (bimbinganId: string): Promise<Blob> => {
 };
 
 /**
+ * Download lampiran feedback dari dosen
+ */
+export const downloadFeedbackFile = async (bimbinganId: string): Promise<Blob> => {
+    const response = await api.get(`/bimbingan/download-feedback/${bimbinganId}`, {
+        responseType: 'blob',
+    });
+    return response.data;
+};
+
+/**
  * Get pending bimbingan count (dosen only)
  */
 export const getPendingCount = async (): Promise<ApiResponse<{ count: number }>> => {

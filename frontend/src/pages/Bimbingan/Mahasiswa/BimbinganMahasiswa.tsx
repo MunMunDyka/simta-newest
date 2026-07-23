@@ -405,6 +405,23 @@ export const BimbinganMahasiswa = () => {
         }
     }
 
+    const handleDownloadFeedbackFile = async (bimbinganId: string, fileName?: string) => {
+        try {
+            const blob = await bimbinganService.downloadFeedbackFile(bimbinganId)
+            const url = window.URL.createObjectURL(blob)
+            const link = document.createElement('a')
+            link.href = url
+            link.download = fileName || 'lampiran-feedback.pdf'
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
+            window.URL.revokeObjectURL(url)
+        } catch (error) {
+            console.error('Download lampiran feedback failed:', error)
+            setError('Gagal mendownload lampiran feedback')
+        }
+    }
+
     const getStatusBadge = (status: string) => {
         switch (status) {
             case 'menunggu':
@@ -606,6 +623,17 @@ export const BimbinganMahasiswa = () => {
                                                                 <p className="text-xs font-medium text-gray-600">Feedback Dosen ({item.tanggalFeedback}):</p>
                                                             </div>
                                                             <p className="text-sm text-gray-700">{item.feedback}</p>
+
+                                                            {item.feedbackFile && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleDownloadFeedbackFile(item.id || item._id, item.feedbackFileName)}
+                                                                    className="mt-3 inline-flex items-center gap-2 text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+                                                                >
+                                                                    <Download className="w-3.5 h-3.5" />
+                                                                    Lampiran dosen: {item.feedbackFileName || 'Unduh lampiran'}
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     )}
 

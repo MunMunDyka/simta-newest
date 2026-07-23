@@ -203,6 +203,18 @@ router.get(
 );
 
 /**
+ * @route   GET /api/bimbingan/download-feedback/:id
+ * @desc    Download lampiran feedback dari dosen
+ * @access  Private (mahasiswa pemilik, dosen terkait, atau admin)
+ */
+router.get(
+    '/download-feedback/:id',
+    mongoIdParam('id'),
+    handleValidationErrors,
+    bimbinganController.downloadFeedbackFile
+);
+
+/**
  * @route   GET /api/bimbingan
  * @desc    Get all bimbingan (filtered by role)
  * @access  Private
