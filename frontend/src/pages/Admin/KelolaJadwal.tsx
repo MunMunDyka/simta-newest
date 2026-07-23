@@ -193,7 +193,9 @@ export const KelolaJadwal = () => {
     // Selesai modal states
     const [isSelesaiModalOpen, setIsSelesaiModalOpen] = useState(false)
     const [selesaiJadwal, setSelesaiJadwal] = useState<JadwalSidang | null>(null)
-    const [hasilSidang, setHasilSidang] = useState<'lulus' | 'lulus_revisi' | 'tidak_lulus'>('lulus')
+    // Default 'lulus_revisi': alur normal setelah seminar adalah revisi ke dosen penguji.
+    // Pilihan 'lulus' melewati fase revisi penguji, jadi harus dipilih secara sadar.
+    const [hasilSidang, setHasilSidang] = useState<'lulus' | 'lulus_revisi' | 'tidak_lulus'>('lulus_revisi')
     const [nilaiSidang, setNilaiSidang] = useState('')
     const [catatanHasil, setCatatanHasil] = useState('')
 
@@ -524,7 +526,9 @@ export const KelolaJadwal = () => {
     // Open Selesai modal
     const openSelesaiModal = (jadwal: JadwalSidang) => {
         setSelesaiJadwal(jadwal)
-        setHasilSidang('lulus')
+        // Seminar Proposal/Hasil: alur normal lanjut ke revisi dosen penguji.
+        // Sidang Akhir: hasil dikonfirmasi dari akademik, langsung ke berkas wisuda.
+        setHasilSidang(jadwal.jenisJadwal === 'sidang_skripsi' ? 'lulus' : 'lulus_revisi')
         setNilaiSidang('')
         setCatatanHasil('')
         setIsSelesaiModalOpen(true)
@@ -551,7 +555,7 @@ export const KelolaJadwal = () => {
             alert('Jadwal berhasil diselesaikan!')
             setIsSelesaiModalOpen(false)
             setSelesaiJadwal(null)
-            setHasilSidang('lulus')
+            setHasilSidang('lulus_revisi')
             setNilaiSidang('')
             setCatatanHasil('')
             fetchJadwal()
@@ -1849,6 +1853,20 @@ export const KelolaJadwal = () => {
                                     </SelectItem>
                                 </SelectContent>
                             </Select>
+
+                            {selesaiJadwal?.jenisJadwal !== 'sidang_skripsi' && (
+                                <p className="mt-2 text-xs text-gray-500 leading-relaxed">
+                                    {hasilSidang === 'lulus_revisi' && (
+                                        <>Mahasiswa akan masuk <span className="font-semibold text-gray-700">fase revisi dengan dosen penguji</span>. Bimbingan pembimbing dikunci sementara hingga kedua penguji memberi ACC.</>
+                                    )}
+                                    {hasilSidang === 'lulus' && (
+                                        <>Mahasiswa <span className="font-semibold text-gray-700">melewati fase revisi penguji</span> dan langsung lanjut bimbingan dengan dosen pembimbing.</>
+                                    )}
+                                    {hasilSidang === 'tidak_lulus' && (
+                                        <>Status fase mahasiswa tidak berubah.</>
+                                    )}
+                                </p>
+                            )}
                         </div>
 
                         {/* Nilai Sidang */}
