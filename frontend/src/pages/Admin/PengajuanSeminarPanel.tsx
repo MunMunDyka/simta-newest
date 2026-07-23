@@ -54,7 +54,7 @@ export const PengajuanSeminarPanel = () => {
     const [items, setItems] = useState<PengajuanSeminar[]>([])
     const [search, setSearch] = useState('')
     const [jenisFilter, setJenisFilter] = useState<FilterJenis>('semua')
-    const [statusFilter, setStatusFilter] = useState<FilterStatus>('menunggu_verifikasi')
+    const [statusFilter, setStatusFilter] = useState<FilterStatus>('semua')
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [successMessage, setSuccessMessage] = useState<string | null>(null)

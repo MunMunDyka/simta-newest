@@ -810,13 +810,36 @@ const uploadWisuda = asyncHandler(async (req, res) => {
         throw ApiError.badRequest('Tidak ada berkas yang diunggah');
     }
 
-    // Check if all 4 files are now uploaded
+    // Keempat berkas wajib lengkap. Pengunggahan sebagian ditolak agar admin
+    // tidak menerima berkas wisuda yang tidak utuh.
     const doc = student.dokumenWisuda;
-    if (doc.skripsiFull.fileName && doc.pptSkripsi.fileName && doc.halamanPengesahan.fileName && doc.formBimbingan.fileName) {
-        doc.statusVerifikasi = 'menunggu_verifikasi';
-    } else {
-        doc.statusVerifikasi = 'belum_upload';
+    const berkasWajib = [
+        { key: 'skripsiFull', label: 'Skripsi Lengkap' },
+        { key: 'pptSkripsi', label: 'PPT Skripsi' },
+        { key: 'halamanPengesahan', label: 'Halaman Pengesahan' },
+        { key: 'formBimbingan', label: 'Form/Logbook Bimbingan' }
+    ];
+    const berkasKurang = berkasWajib.filter(item => !doc[item.key] || !doc[item.key].fileName);
+
+    if (berkasKurang.length > 0) {
+        // Hapus file yang terlanjur terunggah agar tidak menumpuk di server
+        fields.forEach(field => {
+            const uploaded = req.files && req.files[field] && req.files[field][0];
+            if (uploaded && fs.existsSync(uploaded.path)) {
+                try {
+                    fs.unlinkSync(uploaded.path);
+                } catch (err) {
+                    console.error(`⚠️ Gagal menghapus berkas wisuda sementara: ${uploaded.path}`, err.message);
+                }
+            }
+        });
+
+        throw ApiError.badRequest(
+            `Keempat berkas wisuda wajib dilengkapi. Berkas yang belum ada: ${berkasKurang.map(item => item.label).join(', ')}.`
+        );
     }
+
+    doc.statusVerifikasi = 'menunggu_verifikasi';
 
     await student.save();
     console.log(`🎓 Wisuda documents uploaded for ${student.name}`);

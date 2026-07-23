@@ -257,7 +257,10 @@ export const BimbinganDosen = () => {
         minBimbinganSempro
     )
     const showWisudaCard = Boolean(displayMahasiswa && (isFinalStage(displayMahasiswa.statusMahasiswa) || hasAnyWisudaFile(displayMahasiswa.dokumenWisuda)))
+    // Berkas pengajuan seminar hanya relevan saat mahasiswa sedang menunggu
+    // pelaksanaan seminar. Setelah fase itu lewat, dosen tidak perlu melihatnya lagi.
     const showPengajuanCard = pengajuanSeminar.length > 0
+        && ['menunggu_sempro', 'menunggu_semhas'].includes(displayMahasiswa?.statusMahasiswa || '')
     const wisudaDocuments = displayMahasiswa?.dokumenWisuda ? [
         { key: 'skripsiFull', label: 'Skripsi Lengkap', file: displayMahasiswa.dokumenWisuda.skripsiFull },
         { key: 'pptSkripsi', label: 'PPT Presentasi Skripsi', file: displayMahasiswa.dokumenWisuda.pptSkripsi },

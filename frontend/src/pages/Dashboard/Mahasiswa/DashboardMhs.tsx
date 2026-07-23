@@ -275,6 +275,11 @@ export const DashboardMhs = () => {
             return
         }
 
+        if (!isWisudaLengkap) {
+            setUploadWisudaError('Keempat berkas wisuda wajib dilengkapi sebelum diunggah')
+            return
+        }
+
         const selectedFiles = [skripsiFullFile, pptFile, halamanFile, formFile].filter(Boolean) as File[]
         if (selectedFiles.some((file) => !isPdfFile(file))) {
             setUploadWisudaError(wisudaPdfErrorMessage)
@@ -527,6 +532,17 @@ export const DashboardMhs = () => {
     const handleStartBimbingan = () => {
         navigate('/bimbingan/mahasiswa')
     }
+
+    // Keempat berkas wisuda wajib lengkap sebelum dapat diunggah.
+    // Satu slot dianggap terpenuhi bila ada file baru dipilih ATAU sudah pernah diunggah,
+    // sehingga mahasiswa tetap dapat mengganti satu berkas tanpa mengunggah ulang semuanya.
+    const wisudaSlotTerisi = (newFile: File | null, uploaded?: FileWisuda) =>
+        Boolean(newFile || uploaded?.fileName)
+    const isWisudaLengkap =
+        wisudaSlotTerisi(skripsiFullFile, mahasiswaData?.dokumenWisuda?.skripsiFull) &&
+        wisudaSlotTerisi(pptFile, mahasiswaData?.dokumenWisuda?.pptSkripsi) &&
+        wisudaSlotTerisi(halamanFile, mahasiswaData?.dokumenWisuda?.halamanPengesahan) &&
+        wisudaSlotTerisi(formFile, mahasiswaData?.dokumenWisuda?.formBimbingan)
 
     const isRevisionPhase = ['revisi_sempro', 'revisi_semhas', 'revisi_sidang'].includes(mahasiswaData?.statusMahasiswa || 'pra_sempro')
     const isAcademicSidangPhase = ['bimbingan_akhir', 'menunggu_sidang'].includes(mahasiswaData?.statusMahasiswa || '')
@@ -1255,7 +1271,11 @@ export const DashboardMhs = () => {
                                         <div className="pt-2 flex justify-end">
                                             <Button
                                                 type="submit"
-                                                disabled={isUploadingWisuda || (!skripsiFullFile && !pptFile && !halamanFile && !formFile)}
+                                                disabled={
+                                                    isUploadingWisuda
+                                                    || !isWisudaLengkap
+                                                    || (!skripsiFullFile && !pptFile && !halamanFile && !formFile)
+                                                }
                                                 className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-6 py-2 rounded-xl transition-all shadow-md shadow-orange-500/20"
                                             >
                                                 {isUploadingWisuda ? 'Mengunggah...' : 'Unggah Berkas'}

@@ -1839,12 +1839,16 @@ export const KelolaJadwal = () => {
                                             Lulus
                                         </div>
                                     </SelectItem>
-                                    <SelectItem value="lulus_revisi">
-                                        <div className="flex items-center gap-2">
-                                            <AlertCircle className="w-4 h-4 text-yellow-500" />
-                                            Lulus dengan Revisi
-                                        </div>
-                                    </SelectItem>
+                                    {/* Sidang Akhir adalah fase terakhir: tidak ada bimbingan
+                                        revisi penguji setelahnya, sehingga opsi ini disembunyikan. */}
+                                    {selesaiJadwal?.jenisJadwal !== 'sidang_skripsi' && (
+                                        <SelectItem value="lulus_revisi">
+                                            <div className="flex items-center gap-2">
+                                                <AlertCircle className="w-4 h-4 text-yellow-500" />
+                                                Lulus dengan Revisi
+                                            </div>
+                                        </SelectItem>
+                                    )}
                                     <SelectItem value="tidak_lulus">
                                         <div className="flex items-center gap-2">
                                             <XCircle className="w-4 h-4 text-red-500" />

@@ -491,6 +491,15 @@ const update = asyncHandler(async (req, res) => {
         }
     }
 
+    // Sidang Akhir adalah fase terakhir: tidak ada bimbingan revisi penguji setelahnya,
+    // sehingga hasil 'lulus_revisi' tidak berlaku untuk jenis jadwal ini.
+    if (jadwal.jenisJadwal === 'sidang_skripsi' && req.body.hasil === 'lulus_revisi') {
+        throw ApiError.badRequest(
+            'Hasil "Lulus dengan Revisi" tidak berlaku untuk Sidang Akhir. ' +
+            'Sidang Akhir merupakan fase terakhir sehingga tidak ada bimbingan revisi penguji setelahnya.'
+        );
+    }
+
     // ===== Sync penguji to mahasiswa User record when penguji array is updated =====
     if (req.body.penguji !== undefined) {
         const newPenguji = req.body.penguji || [];
