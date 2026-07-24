@@ -573,6 +573,13 @@ const update = asyncHandler(async (req, res) => {
 
                     await student.save();
                     console.log(`🎓 Student directly transitioned: ${student.name} -> ${directStatus} (lulus tanpa revisi)`);
+
+                    // Memasuki siklus Seminar Hasil tanpa melalui revisi penguji:
+                    // ambang minimal bimbingan tetap dinaikkan agar konsisten.
+                    if (directStatus === 'bimbingan_lanjut') {
+                        const { bumpMinBimbinganForNextCycle } = require('./bimbinganController');
+                        await bumpMinBimbinganForNextCycle(student._id, student.name);
+                    }
                 }
             }
         }

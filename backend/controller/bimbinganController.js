@@ -61,6 +61,47 @@ const getMinBimbinganForDosenType = async (mahasiswaId, dosenType) => {
     return dosenType === 'dospem_2' ? requirements.dospem2 : requirements.dospem1;
 };
 
+const MAX_MIN_BIMBINGAN = 20;
+
+/**
+ * Naikkan syarat minimal bimbingan ketika mahasiswa memasuki siklus seminar berikutnya.
+ *
+ * Jumlah bimbingan dihitung kumulatif sepanjang masa, sehingga tanpa penyesuaian ini
+ * riwayat siklus Seminar Proposal sudah memenuhi syarat dan dosen dapat langsung
+ * memberi ACC Maju Sidang untuk Seminar Hasil tanpa bimbingan baru. Ambang digandakan
+ * agar siklus berikutnya tetap menuntut jumlah bimbingan baru yang sama.
+ *
+ * Kegagalan di sini sengaja tidak melempar error agar tidak membatalkan transisi fase.
+ */
+const bumpMinBimbinganForNextCycle = async (mahasiswaId, mahasiswaName = '') => {
+    try {
+        const current = await getMinBimbinganRequirements(mahasiswaId);
+        const next = {
+            dospem1: Math.min(MAX_MIN_BIMBINGAN, current.dospem1 * 2),
+            dospem2: Math.min(MAX_MIN_BIMBINGAN, current.dospem2 * 2)
+        };
+
+        if (next.dospem1 === current.dospem1 && next.dospem2 === current.dospem2) {
+            return;
+        }
+
+        await SystemSetting.findOneAndUpdate(
+            { key: getMinBimbinganSettingKey(mahasiswaId) },
+            {
+                value: next,
+                label: `Minimal bimbingan sidang - ${mahasiswaName || mahasiswaId}`,
+                description: 'Dinaikkan otomatis saat mahasiswa memasuki siklus Seminar Hasil. Admin dapat menyesuaikan kembali bila perlu.'
+            },
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+
+        console.log(`📌 Minimal bimbingan dinaikkan untuk ${mahasiswaName || mahasiswaId}: ` +
+            `dospem1 ${current.dospem1} -> ${next.dospem1}, dospem2 ${current.dospem2} -> ${next.dospem2}`);
+    } catch (error) {
+        console.error('⚠️ Gagal menaikkan minimal bimbingan siklus berikutnya:', error.message);
+    }
+};
+
 const syncRevisionDeadlineStatus = async (mahasiswa) => {
     if (!mahasiswa?.revisiDeadline?.deadline) return mahasiswa?.revisiDeadline;
 
@@ -478,6 +519,12 @@ const giveFeedback = asyncHandler(async (req, res) => {
 
                     await mahasiswa.save();
                     console.log(`🎓 Status transitioned: ${mahasiswa.name} -> ${nextStatus} (both penguji ACC)`);
+
+                    // Memasuki siklus Seminar Hasil: naikkan ambang minimal bimbingan
+                    // agar riwayat siklus Sempro tidak langsung memenuhi syarat.
+                    if (nextStatus === 'bimbingan_lanjut') {
+                        await bumpMinBimbinganForNextCycle(mahasiswa._id, mahasiswa.name);
+                    }
                 }
             } else {
                 console.log(`⏳ Waiting for ${otherPengujiType} ACC for ${mahasiswa.name}`);
@@ -1447,6 +1494,7 @@ module.exports = {
     addReply,
     downloadFile,
     downloadFeedbackFile,
+    bumpMinBimbinganForNextCycle,
     getPendingCount,
     getSemproStatus,
     generateSuratSempro,

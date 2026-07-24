@@ -191,10 +191,29 @@ export const DashboardMhs = () => {
                 // Calculate stats
                 const pendingCount = bimbinganList.filter((b: { status: string }) => b.status === 'menunggu').length
 
-                // Get last status per dospem and penguji
-                const lastDospem1 = bimbinganList.find((b: { dosenType: string }) => b.dosenType === 'dospem_1')
-                const lastDospem2 = bimbinganList.find((b: { dosenType: string }) => b.dosenType === 'dospem_2')
                 const revisionCategories = ['revisi_sempro', 'revisi_semhas', 'revisi_sidang']
+
+                // Batas siklus seminar: bimbingan revisi penguji terakhir menandai
+                // berakhirnya siklus seminar sebelumnya. Bimbingan dospem yang dibuat
+                // sebelum titik itu milik siklus lama, sehingga statusnya (mis. ACC Maju
+                // Sidang untuk Sempro) tidak lagi relevan ditampilkan pada siklus Semhas.
+                const lastRevisionTime = bimbinganList
+                    .filter((b: { kategoriBimbingan?: string }) => revisionCategories.includes(b.kategoriBimbingan || ''))
+                    .reduce((latest: number, b: { createdAt?: string }) => {
+                        const time = b.createdAt ? new Date(b.createdAt).getTime() : 0
+                        return time > latest ? time : latest
+                    }, 0)
+
+                const currentCycleList = lastRevisionTime > 0
+                    ? bimbinganList.filter((b: { createdAt?: string }) => {
+                        const time = b.createdAt ? new Date(b.createdAt).getTime() : 0
+                        return time > lastRevisionTime
+                    })
+                    : bimbinganList
+
+                // Get last status per dospem (siklus berjalan) dan penguji
+                const lastDospem1 = currentCycleList.find((b: { dosenType: string }) => b.dosenType === 'dospem_1')
+                const lastDospem2 = currentCycleList.find((b: { dosenType: string }) => b.dosenType === 'dospem_2')
                 const activeRevisionCategory = revisionCategories.includes(userData.statusMahasiswa)
                     ? userData.statusMahasiswa
                     : null
