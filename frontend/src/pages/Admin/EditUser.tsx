@@ -46,6 +46,7 @@ interface UserData {
     _id: string
     name: string
     nim_nip: string
+    nuptk?: string
     email: string
     role: 'mahasiswa' | 'dosen' | 'admin'
     prodi?: string
@@ -113,6 +114,7 @@ export const EditUser = () => {
     // Form state
     const [name, setName] = useState('')
     const [email, setEmail] = useState('')
+    const [nuptk, setNuptk] = useState('')
     const [prodi, setProdi] = useState('')
     const [semester, setSemester] = useState('')
     const [judulTA, setJudulTA] = useState('')
@@ -145,6 +147,7 @@ export const EditUser = () => {
             // Populate form
             setName(data.name || '')
             setEmail(data.email || '')
+            setNuptk(data.nuptk || '')
             setProdi(data.prodi || '')
             setSemester(data.semester || '')
             setJudulTA(data.judulTA || '')
@@ -207,6 +210,11 @@ export const EditUser = () => {
                 updateData.statusMahasiswa = statusMahasiswa
                 updateData.penguji_1 = penguji1 === 'none' ? null : penguji1
                 updateData.penguji_2 = penguji2 === 'none' ? null : penguji2
+            }
+
+            // Add dosen-specific fields
+            if (userType === 'dosen') {
+                updateData.nuptk = nuptk.trim() || null
             }
 
             await api.put(`/users/${id}`, updateData)
@@ -501,6 +509,23 @@ export const EditUser = () => {
                                             </SelectContent>
                                         </Select>
                                     </div>
+
+                                    {/* NUPTK (dosen) */}
+                                    {!isMahasiswa && (
+                                        <div className="space-y-2">
+                                            <Label htmlFor="nuptk">NUPTK</Label>
+                                            <div className="relative">
+                                                <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                                <Input
+                                                    id="nuptk"
+                                                    value={nuptk}
+                                                    onChange={(e) => setNuptk(e.target.value)}
+                                                    className="pl-10"
+                                                    placeholder="16 digit — kosongkan untuk dihapus"
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </motion.div>
 

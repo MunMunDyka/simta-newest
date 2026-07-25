@@ -119,6 +119,7 @@ export const ManajemenUser = () => {
     // Form state for Add User
     const [newUser, setNewUser] = useState({
         nim_nip: '',
+        nuptk: '',
         name: '',
         email: '',
         password: '',
@@ -174,11 +175,16 @@ export const ManajemenUser = () => {
 
     // Handle Add User
     const handleAddUser = async () => {
+        if (newUser.role === 'dosen' && !newUser.nuptk.trim()) {
+            alert('NUPTK wajib diisi untuk dosen.')
+            return
+        }
         try {
             await api.post('/users', newUser)
             setShowAddModal(false)
             setNewUser({
                 nim_nip: '',
+                nuptk: '',
                 name: '',
                 email: '',
                 password: '',
@@ -867,6 +873,17 @@ export const ManajemenUser = () => {
                                 placeholder="Minimal 6 karakter"
                             />
                         </div>
+                        {newUser.role === 'dosen' && (
+                            <div className="space-y-2">
+                                <Label htmlFor="nuptk">NUPTK <span className="text-red-500">*</span></Label>
+                                <Input
+                                    id="nuptk"
+                                    value={newUser.nuptk}
+                                    onChange={(e) => setNewUser({ ...newUser, nuptk: e.target.value })}
+                                    placeholder="Wajib diisi — 16 digit"
+                                />
+                            </div>
+                        )}
                         {newUser.role === 'mahasiswa' && (
                             <>
                                 <div className="space-y-2">

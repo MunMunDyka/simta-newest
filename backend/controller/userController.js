@@ -167,21 +167,17 @@ const getById = asyncHandler(async (req, res) => {
  * @route   POST /api/users
  * @access  Admin
  */
-// Generate NUPTK acak 16 digit (sementara, sampai data resmi tersedia).
-const generateRandomNuptk = () => {
-    let nuptk = '';
-    for (let i = 0; i < 16; i++) {
-        nuptk += Math.floor(Math.random() * 10);
-    }
-    return nuptk;
-};
-
 const create = asyncHandler(async (req, res) => {
     const { nim_nip, password, name, email, role, prodi, semester, status, judulTA, canAccessAdmin, nuptk, angkatan } = req.body;
 
     // Only Master Admin (admin001) can grant admin access
     if (canAccessAdmin === true && req.user.nim_nip !== 'admin001') {
         throw ApiError.forbidden('Hanya Master Admin (admin001) yang dapat memberikan akses admin');
+    }
+
+    // NUPTK wajib diisi saat membuat dosen (tidak ada generate otomatis)
+    if (role === 'dosen' && (!nuptk || !nuptk.trim())) {
+        throw ApiError.badRequest('NUPTK wajib diisi untuk dosen.');
     }
 
     // Check if nim_nip already exists
@@ -206,7 +202,7 @@ const create = asyncHandler(async (req, res) => {
         semester,
         judulTA,
         angkatan: role === 'mahasiswa' ? (angkatan || null) : null,
-        nuptk: role === 'dosen' ? (nuptk || generateRandomNuptk()) : null,
+        nuptk: role === 'dosen' ? nuptk.trim() : null,
         canAccessAdmin: role === 'dosen' ? (canAccessAdmin || false) : false,
         status: status || 'aktif'
     });
