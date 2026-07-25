@@ -76,6 +76,13 @@ const userSchema = new Schema({
         default: null
     },
 
+    // Angkatan/tahun masuk mahasiswa (untuk pengelompokan lintas tahun).
+    angkatan: {
+        type: String,
+        trim: true,
+        default: null
+    },
+
     judulTA: {
         type: String,
         trim: true,
@@ -228,6 +235,20 @@ const userSchema = new Schema({
             uploadedAt: { type: Date, default: null }
         },
         formBimbingan: {
+            fileName: { type: String, default: null },
+            filePath: { type: String, default: null },
+            fileSize: { type: String, default: null },
+            fileOriginalName: { type: String, default: null },
+            uploadedAt: { type: Date, default: null }
+        },
+        transkripNilai: {
+            fileName: { type: String, default: null },
+            filePath: { type: String, default: null },
+            fileSize: { type: String, default: null },
+            fileOriginalName: { type: String, default: null },
+            uploadedAt: { type: Date, default: null }
+        },
+        turnitinFinal: {
             fileName: { type: String, default: null },
             filePath: { type: String, default: null },
             fileSize: { type: String, default: null },

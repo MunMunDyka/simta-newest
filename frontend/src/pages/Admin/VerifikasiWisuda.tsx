@@ -454,7 +454,9 @@ export const VerifikasiWisuda = () => {
                                                 doc?.skripsiFull?.fileName,
                                                 doc?.pptSkripsi?.fileName,
                                                 doc?.halamanPengesahan?.fileName,
-                                                doc?.formBimbingan?.fileName
+                                                doc?.formBimbingan?.fileName,
+                                                doc?.transkripNilai?.fileName,
+                                                doc?.turnitinFinal?.fileName
                                             ].filter(Boolean).length
 
                                             return (
@@ -470,7 +472,7 @@ export const VerifikasiWisuda = () => {
                                                     </TableCell>
                                                     <TableCell className="text-center font-bold text-gray-700">
                                                         <Badge variant="outline" className="border-gray-200">
-                                                            {totalFiles}/4 Terunggah
+                                                            {totalFiles}/6 Terunggah
                                                         </Badge>
                                                     </TableCell>
                                                     <TableCell className="text-center">
@@ -651,6 +653,72 @@ export const VerifikasiWisuda = () => {
                                             <button
                                                 type="button"
                                                 onClick={() => handleDownloadFile(selectedStudent.dokumenWisuda?.formBimbingan)}
+                                                className="bg-gray-50 hover:bg-gray-100 text-gray-600 p-2 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
+                                                title="Unduh File"
+                                            >
+                                                <Download className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* 5. Transkrip Nilai Sementara */}
+                                <div className="flex items-center justify-between p-3.5 bg-white border border-gray-200 rounded-xl hover:shadow-sm transition-shadow">
+                                    <div className="flex items-center gap-3">
+                                        <FileText className="w-6 h-6 text-green-500" />
+                                        <div>
+                                            <p className="text-sm font-semibold text-gray-700">5. Transkrip Nilai Sementara</p>
+                                            <p className="text-xs text-gray-400">
+                                                {selectedStudent.dokumenWisuda?.transkripNilai?.fileOriginalName || 'Belum diunggah'} &middot; {selectedStudent.dokumenWisuda?.transkripNilai?.fileSize || ''}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    {selectedStudent.dokumenWisuda?.transkripNilai?.filePath && (
+                                        <div className="flex gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => handlePreviewFile(selectedStudent.dokumenWisuda?.transkripNilai)}
+                                                className="bg-blue-50 hover:bg-blue-100 text-blue-600 p-2 rounded-lg border border-blue-200 hover:border-blue-300 transition-colors"
+                                                title="Pratinjau File"
+                                            >
+                                                <Eye className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDownloadFile(selectedStudent.dokumenWisuda?.transkripNilai)}
+                                                className="bg-gray-50 hover:bg-gray-100 text-gray-600 p-2 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
+                                                title="Unduh File"
+                                            >
+                                                <Download className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* 6. Hasil Turnitin */}
+                                <div className="flex items-center justify-between p-3.5 bg-white border border-gray-200 rounded-xl hover:shadow-sm transition-shadow">
+                                    <div className="flex items-center gap-3">
+                                        <FileText className="w-6 h-6 text-green-500" />
+                                        <div>
+                                            <p className="text-sm font-semibold text-gray-700">6. Hasil Turnitin</p>
+                                            <p className="text-xs text-gray-400">
+                                                {selectedStudent.dokumenWisuda?.turnitinFinal?.fileOriginalName || 'Belum diunggah'} &middot; {selectedStudent.dokumenWisuda?.turnitinFinal?.fileSize || ''}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    {selectedStudent.dokumenWisuda?.turnitinFinal?.filePath && (
+                                        <div className="flex gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => handlePreviewFile(selectedStudent.dokumenWisuda?.turnitinFinal)}
+                                                className="bg-blue-50 hover:bg-blue-100 text-blue-600 p-2 rounded-lg border border-blue-200 hover:border-blue-300 transition-colors"
+                                                title="Pratinjau File"
+                                            >
+                                                <Eye className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDownloadFile(selectedStudent.dokumenWisuda?.turnitinFinal)}
                                                 className="bg-gray-50 hover:bg-gray-100 text-gray-600 p-2 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
                                                 title="Unduh File"
                                             >

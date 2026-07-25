@@ -162,6 +162,8 @@ export const DashboardMhs = () => {
     const [pptFile, setPptFile] = useState<File | null>(null)
     const [halamanFile, setHalamanFile] = useState<File | null>(null)
     const [formFile, setFormFile] = useState<File | null>(null)
+    const [transkripFile, setTranskripFile] = useState<File | null>(null)
+    const [turnitinFinalFile, setTurnitinFinalFile] = useState<File | null>(null)
     const [isUploadingWisuda, setIsUploadingWisuda] = useState(false)
     const [uploadWisudaError, setUploadWisudaError] = useState<string | null>(null)
     const [uploadWisudaSuccess, setUploadWisudaSuccess] = useState<string | null>(null)
@@ -290,17 +292,17 @@ export const DashboardMhs = () => {
 
     const handleUploadWisuda = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (!skripsiFullFile && !pptFile && !halamanFile && !formFile) {
+        if (!skripsiFullFile && !pptFile && !halamanFile && !formFile && !transkripFile && !turnitinFinalFile) {
             setUploadWisudaError('Pilih setidaknya satu file PDF untuk diunggah')
             return
         }
 
         if (!isWisudaLengkap) {
-            setUploadWisudaError('Keempat berkas wisuda wajib dilengkapi sebelum diunggah')
+            setUploadWisudaError('Keenam berkas kelulusan wajib dilengkapi sebelum diunggah')
             return
         }
 
-        const selectedFiles = [skripsiFullFile, pptFile, halamanFile, formFile].filter(Boolean) as File[]
+        const selectedFiles = [skripsiFullFile, pptFile, halamanFile, formFile, transkripFile, turnitinFinalFile].filter(Boolean) as File[]
         if (selectedFiles.some((file) => !isPdfFile(file))) {
             setUploadWisudaError(wisudaPdfErrorMessage)
             return
@@ -316,14 +318,18 @@ export const DashboardMhs = () => {
             if (pptFile) formData.append('pptSkripsi', pptFile)
             if (halamanFile) formData.append('halamanPengesahan', halamanFile)
             if (formFile) formData.append('formBimbingan', formFile)
+            if (transkripFile) formData.append('transkripNilai', transkripFile)
+            if (turnitinFinalFile) formData.append('turnitinFinal', turnitinFinalFile)
 
             const res = await uploadWisuda(formData)
             if (res.success) {
-                setUploadWisudaSuccess('Dokumen wisuda berhasil diunggah')
+                setUploadWisudaSuccess('Dokumen kelulusan berhasil diunggah')
                 setSkripsiFullFile(null)
                 setPptFile(null)
                 setHalamanFile(null)
                 setFormFile(null)
+                setTranskripFile(null)
+                setTurnitinFinalFile(null)
                 // Refresh data without full layout spinner
                 fetchData(false)
             }
@@ -602,7 +608,9 @@ export const DashboardMhs = () => {
         wisudaSlotTerisi(skripsiFullFile, mahasiswaData?.dokumenWisuda?.skripsiFull) &&
         wisudaSlotTerisi(pptFile, mahasiswaData?.dokumenWisuda?.pptSkripsi) &&
         wisudaSlotTerisi(halamanFile, mahasiswaData?.dokumenWisuda?.halamanPengesahan) &&
-        wisudaSlotTerisi(formFile, mahasiswaData?.dokumenWisuda?.formBimbingan)
+        wisudaSlotTerisi(formFile, mahasiswaData?.dokumenWisuda?.formBimbingan) &&
+        wisudaSlotTerisi(transkripFile, mahasiswaData?.dokumenWisuda?.transkripNilai) &&
+        wisudaSlotTerisi(turnitinFinalFile, mahasiswaData?.dokumenWisuda?.turnitinFinal)
 
     const isRevisionPhase = ['revisi_sempro', 'revisi_semhas', 'revisi_sidang'].includes(mahasiswaData?.statusMahasiswa || 'pra_sempro')
     const isAcademicSidangPhase = ['bimbingan_akhir', 'menunggu_sidang'].includes(mahasiswaData?.statusMahasiswa || '')
@@ -1371,6 +1379,88 @@ export const DashboardMhs = () => {
                                                 </div>
                                             )}
                                         </div>
+
+                                        {/* File 5: Transkrip Nilai Sementara */}
+                                        <div className="p-4 rounded-xl border border-gray-250 bg-white">
+                                            <label className="block text-sm font-bold text-gray-700 mb-2">5. Transkrip Nilai Sementara (PDF)</label>
+                                            {mahasiswaData.dokumenWisuda?.transkripNilai?.fileName ? (
+                                                <div className="flex items-center justify-between text-xs bg-gray-55 p-2.5 rounded-lg border border-gray-150 mb-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleDownloadWisudaFile(mahasiswaData.dokumenWisuda?.transkripNilai)}
+                                                        className="font-semibold text-blue-600 hover:underline truncate max-w-[200px] text-left"
+                                                    >
+                                                        {mahasiswaData.dokumenWisuda.transkripNilai.fileOriginalName}
+                                                    </button>
+                                                    <span className="text-gray-400 font-medium">{mahasiswaData.dokumenWisuda.transkripNilai.fileSize}</span>
+                                                </div>
+                                            ) : (
+                                                <p className="text-xs text-gray-400 italic mb-2">Belum ada file diunggah</p>
+                                            )}
+                                            {mahasiswaData.dokumenWisuda?.statusVerifikasi !== 'disetujui' && (
+                                                <div className="mt-2 flex items-center gap-2">
+                                                    <input
+                                                        type="file"
+                                                        accept=".pdf"
+                                                        id="transkripInput"
+                                                        className="hidden"
+                                                        onChange={(e) => handleWisudaFileChange(e, setTranskripFile)}
+                                                    />
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => document.getElementById('transkripInput')?.click()}
+                                                        className="text-xs flex items-center gap-1.5 h-8 border-gray-300 hover:bg-gray-50"
+                                                    >
+                                                        <Upload className="w-3.5 h-3.5 text-gray-500" />
+                                                        Pilih File
+                                                    </Button>
+                                                    {transkripFile && <span className="text-xs text-green-600 truncate font-semibold">{transkripFile.name}</span>}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* File 6: Hasil Turnitin */}
+                                        <div className="p-4 rounded-xl border border-gray-250 bg-white">
+                                            <label className="block text-sm font-bold text-gray-700 mb-2">6. Hasil Turnitin (PDF)</label>
+                                            {mahasiswaData.dokumenWisuda?.turnitinFinal?.fileName ? (
+                                                <div className="flex items-center justify-between text-xs bg-gray-55 p-2.5 rounded-lg border border-gray-150 mb-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleDownloadWisudaFile(mahasiswaData.dokumenWisuda?.turnitinFinal)}
+                                                        className="font-semibold text-blue-600 hover:underline truncate max-w-[200px] text-left"
+                                                    >
+                                                        {mahasiswaData.dokumenWisuda.turnitinFinal.fileOriginalName}
+                                                    </button>
+                                                    <span className="text-gray-400 font-medium">{mahasiswaData.dokumenWisuda.turnitinFinal.fileSize}</span>
+                                                </div>
+                                            ) : (
+                                                <p className="text-xs text-gray-400 italic mb-2">Belum ada file diunggah</p>
+                                            )}
+                                            {mahasiswaData.dokumenWisuda?.statusVerifikasi !== 'disetujui' && (
+                                                <div className="mt-2 flex items-center gap-2">
+                                                    <input
+                                                        type="file"
+                                                        accept=".pdf"
+                                                        id="turnitinFinalInput"
+                                                        className="hidden"
+                                                        onChange={(e) => handleWisudaFileChange(e, setTurnitinFinalFile)}
+                                                    />
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => document.getElementById('turnitinFinalInput')?.click()}
+                                                        className="text-xs flex items-center gap-1.5 h-8 border-gray-300 hover:bg-gray-50"
+                                                    >
+                                                        <Upload className="w-3.5 h-3.5 text-gray-500" />
+                                                        Pilih File
+                                                    </Button>
+                                                    {turnitinFinalFile && <span className="text-xs text-green-600 truncate font-semibold">{turnitinFinalFile.name}</span>}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
 
                                     {mahasiswaData.dokumenWisuda?.statusVerifikasi !== 'disetujui' && (
@@ -1380,7 +1470,7 @@ export const DashboardMhs = () => {
                                                 disabled={
                                                     isUploadingWisuda
                                                     || !isWisudaLengkap
-                                                    || (!skripsiFullFile && !pptFile && !halamanFile && !formFile)
+                                                    || (!skripsiFullFile && !pptFile && !halamanFile && !formFile && !transkripFile && !turnitinFinalFile)
                                                 }
                                                 className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-6 py-2 rounded-xl transition-all shadow-md shadow-orange-500/20"
                                             >

@@ -56,6 +56,8 @@ interface JadwalSidangItem {
     ruangan?: string
     penguji: { _id: string; name: string }[]
     status: 'dijadwalkan' | 'selesai' | 'dibatalkan'
+    tahunAjaran?: string
+    gelombang?: string
 }
 
 export const JadwalPenguji = () => {
@@ -64,6 +66,7 @@ export const JadwalPenguji = () => {
     const { user } = useAppSelector((state) => state.auth)
 
     const [jadwalList, setJadwalList] = useState<JadwalSidangItem[]>([])
+    const [gelombangFilter, setGelombangFilter] = useState('all')
     const [isLoading, setIsLoading] = useState(true)
     const [loadError, setLoadError] = useState<string | null>(null)
 
@@ -117,15 +120,19 @@ export const JadwalPenguji = () => {
         navigate('/')
     }
 
+    const gelombangOptions = Array.from(new Set(jadwalList.map(j => j.gelombang).filter(Boolean) as string[])).sort()
+
     // Sorting: Urgent first (weight desc), then date asc
-    const sortedJadwal = [...jadwalList].sort((a, b) => {
-        const priorityA = getSortPriority(a)
-        const priorityB = getSortPriority(b)
-        if (priorityA !== priorityB) {
-            return priorityB - priorityA
-        }
-        return new Date(a.tanggal).getTime() - new Date(b.tanggal).getTime()
-    })
+    const sortedJadwal = [...jadwalList]
+        .filter(j => gelombangFilter === 'all' || j.gelombang === gelombangFilter)
+        .sort((a, b) => {
+            const priorityA = getSortPriority(a)
+            const priorityB = getSortPriority(b)
+            if (priorityA !== priorityB) {
+                return priorityB - priorityA
+            }
+            return new Date(a.tanggal).getTime() - new Date(b.tanggal).getTime()
+        })
 
     // Animation variants
     const containerVariants: Variants = {
@@ -213,10 +220,22 @@ export const JadwalPenguji = () => {
                     >
                         {/* Page Title & Stats info */}
                         <motion.div variants={itemVariants} className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                            <div>
+                            <div className="flex items-center gap-3">
                                 <p className="text-sm text-gray-500">
                                     Daftar seluruh jadwal ujian mahasiswa yang Anda uji. Diurutkan berdasarkan urgensi waktu.
                                 </p>
+                                {gelombangOptions.length > 0 && (
+                                    <select
+                                        value={gelombangFilter}
+                                        onChange={(e) => setGelombangFilter(e.target.value)}
+                                        className="h-9 rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 shrink-0"
+                                    >
+                                        <option value="all">Semua Gelombang</option>
+                                        {gelombangOptions.map((g) => (
+                                            <option key={g} value={g}>Gelombang {g}</option>
+                                        ))}
+                                    </select>
+                                )}
                             </div>
 
                             {/* Legend / Petunjuk Warna */}

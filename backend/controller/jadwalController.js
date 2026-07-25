@@ -106,7 +106,7 @@ const updateAcademicSidangLink = asyncHandler(async (req, res) => {
  * @access  Private
  */
 const getAll = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 10, status, jenisJadwal, upcoming, viewAll } = req.query;
+    const { page = 1, limit = 10, status, jenisJadwal, upcoming, viewAll, tahunAjaran, gelombang } = req.query;
     const userRole = req.user.role;
     const userId = req.user._id;
 
@@ -125,6 +125,8 @@ const getAll = asyncHandler(async (req, res) => {
 
     if (status) query.status = status;
     if (jenisJadwal) query.jenisJadwal = jenisJadwal;
+    if (tahunAjaran) query.tahunAjaran = tahunAjaran;
+    if (gelombang) query.gelombang = gelombang;
 
     // Only upcoming (future dates)
     if (upcoming === 'true') {
@@ -199,7 +201,9 @@ const create = asyncHandler(async (req, res) => {
         waktuSelesai,
         ruangan,
         penguji,
-        catatan
+        catatan,
+        tahunAjaran,
+        gelombang
     } = req.body;
 
     // Validate mahasiswa exists
@@ -227,6 +231,21 @@ const create = asyncHandler(async (req, res) => {
     if (jenisJadwal === 'sidang_skripsi' && !['bimbingan_akhir', 'menunggu_sidang'].includes(mahasiswaUser.statusMahasiswa)) {
         throw ApiError.badRequest(
             'Jadwal Sidang Akhir hanya dapat dicatat setelah mahasiswa menyelesaikan Seminar Hasil.'
+        );
+    }
+
+    // Validasi fase eksplisit per jenis sidang: jenis sidang harus sesuai
+    // dengan tahap akademik mahasiswa saat ini.
+    const requiredStatusByJadwal = {
+        sidang_proposal: 'menunggu_sempro',
+        sidang_semhas: 'menunggu_semhas'
+    };
+    const requiredStatus = requiredStatusByJadwal[jenisJadwal];
+    if (requiredStatus && mahasiswaUser.statusMahasiswa !== requiredStatus) {
+        throw ApiError.badRequest(
+            `Jadwal ${getJenisJadwalDisplay(jenisJadwal)} hanya dapat dibuat saat mahasiswa berada pada tahap ` +
+            `"${requiredStatus === 'menunggu_sempro' ? 'Menunggu Seminar Proposal' : 'Menunggu Seminar Hasil'}". ` +
+            `Status mahasiswa saat ini belum sesuai.`
         );
     }
 
@@ -321,6 +340,8 @@ const create = asyncHandler(async (req, res) => {
         ruangan,
         penguji: penguji || [],
         catatan,
+        tahunAjaran: tahunAjaran || null,
+        gelombang: gelombang || null,
         createdBy: req.user._id
     });
 
@@ -412,7 +433,8 @@ const update = asyncHandler(async (req, res) => {
 
     const allowedUpdates = [
         'tanggal', 'waktuMulai', 'waktuSelesai', 'ruangan',
-        'penguji', 'status', 'catatan', 'hasil', 'nilaiSidang'
+        'penguji', 'status', 'catatan', 'hasil', 'nilaiSidang',
+        'tahunAjaran', 'gelombang'
     ];
 
     // Apply updates

@@ -122,6 +122,44 @@ const syncRevisionDeadlineStatus = async (mahasiswa) => {
     return mahasiswa.revisiDeadline;
 };
 
+// Tenggat feedback dosen: bimbingan berstatus 'menunggu' yang tidak direview
+// dalam batas hari berikut dianggap gagal dan dihapus, sehingga mahasiswa dapat
+// mengajukan bimbingan baru. Dicek secara lazy setiap kali daftar bimbingan diambil.
+const FEEDBACK_DEADLINE_DAYS = parseInt(process.env.FEEDBACK_DEADLINE_DAYS, 10) || 5;
+
+const expireStaleBimbingan = async (scopeQuery = {}) => {
+    const cutoff = new Date(Date.now() - FEEDBACK_DEADLINE_DAYS * 24 * 60 * 60 * 1000);
+    const stale = await Bimbingan.find({
+        ...scopeQuery,
+        status: 'menunggu',
+        createdAt: { $lt: cutoff }
+    }).select('_id filePath feedbackFile');
+
+    if (!stale.length) return 0;
+
+    const ids = stale.map((b) => b._id);
+
+    // Hapus file terkait agar tidak menumpuk di server
+    stale.forEach((b) => {
+        [b.filePath, b.feedbackFile].forEach((fp) => {
+            if (!fp) return;
+            const abs = path.resolve(fp);
+            if (fs.existsSync(abs)) {
+                try {
+                    fs.unlinkSync(abs);
+                } catch (err) {
+                    console.error(`⚠️ Gagal menghapus file bimbingan kedaluwarsa: ${abs}`, err.message);
+                }
+            }
+        });
+    });
+
+    await Reply.deleteMany({ bimbingan: { $in: ids } });
+    await Bimbingan.deleteMany({ _id: { $in: ids } });
+    console.log(`🗑️ ${ids.length} bimbingan menunggu kedaluwarsa (>${FEEDBACK_DEADLINE_DAYS} hari) dihapus.`);
+    return ids.length;
+};
+
 const normalizeMinBimbinganValue = (value) => {
     const parsed = parseInt(value, 10);
 
@@ -164,6 +202,14 @@ const getAll = asyncHandler(async (req, res) => {
     }
 
     if (status) query.status = status;
+
+    // Lazy-check tenggat feedback: hapus bimbingan 'menunggu' yang melewati batas,
+    // dibatasi sesuai lingkup akses pemanggil.
+    const expiryScope = {};
+    if (userRole === 'mahasiswa') expiryScope.mahasiswa = userId;
+    else if (userRole === 'dosen') expiryScope.dosen = userId;
+    else if (mahasiswaId) expiryScope.mahasiswa = mahasiswaId;
+    await expireStaleBimbingan(expiryScope);
 
     // Execute query with pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);

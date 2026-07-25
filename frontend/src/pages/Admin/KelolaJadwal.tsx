@@ -91,6 +91,8 @@ interface JadwalSidang {
     ruangan?: string
     penguji: { _id: string; name: string }[]
     status: string
+    tahunAjaran?: string
+    gelombang?: string
 }
 
 interface UserOption {
@@ -227,6 +229,15 @@ export const KelolaJadwal = () => {
     const [isMulaiDropdownOpen, setIsMulaiDropdownOpen] = useState(false)
     const [isSelesaiDropdownOpen, setIsSelesaiDropdownOpen] = useState(false)
     const [ruangan, setRuangan] = useState('')
+    const [tahunAjaran, setTahunAjaran] = useState('')
+    const [gelombang, setGelombang] = useState('')
+    // Ruangan dari database (CRUD). Fallback ke daftar bawaan bila API kosong/gagal.
+    const [ruanganList, setRuanganList] = useState<{ _id: string; nama: string; isActive: boolean }[]>([])
+    const [isRuanganModalOpen, setIsRuanganModalOpen] = useState(false)
+    const [newRuanganNama, setNewRuanganNama] = useState('')
+    const [editingRuanganId, setEditingRuanganId] = useState('')
+    const [editingRuanganNama, setEditingRuanganNama] = useState('')
+    const [ruanganError, setRuanganError] = useState<string | null>(null)
     const [penguji1, setPenguji1] = useState('')
     const [penguji2, setPenguji2] = useState('')
     const [academicSidangLink, setAcademicSidangLink] = useState('')
@@ -292,7 +303,58 @@ export const KelolaJadwal = () => {
         fetchJadwal()
         fetchUsers()
         fetchAcademicSidangLink()
+        fetchRuangan()
     }, [])
+
+    const fetchRuangan = async (includeInactive = false) => {
+        try {
+            const res = await api.get('/ruangan', { params: includeInactive ? { includeInactive: 'true' } : {} })
+            setRuanganList(res.data.data || [])
+        } catch (error) {
+            console.error('Failed to fetch ruangan:', error)
+        }
+    }
+
+    const handleAddRuangan = async () => {
+        const nama = newRuanganNama.trim()
+        if (!nama) return
+        try {
+            setRuanganError(null)
+            await api.post('/ruangan', { nama })
+            setNewRuanganNama('')
+            fetchRuangan(true)
+        } catch (error) {
+            setRuanganError(getApiErrorMessage(error, 'Gagal menambah ruangan.'))
+        }
+    }
+
+    const handleRenameRuangan = async (id: string) => {
+        const nama = editingRuanganNama.trim()
+        if (!nama) return
+        try {
+            setRuanganError(null)
+            await api.put(`/ruangan/${id}`, { nama })
+            setEditingRuanganId('')
+            setEditingRuanganNama('')
+            fetchRuangan(true)
+        } catch (error) {
+            setRuanganError(getApiErrorMessage(error, 'Gagal mengubah ruangan.'))
+        }
+    }
+
+    const handleDeleteRuangan = async (id: string) => {
+        try {
+            setRuanganError(null)
+            await api.delete(`/ruangan/${id}`)
+            fetchRuangan(true)
+        } catch (error) {
+            setRuanganError(getApiErrorMessage(error, 'Gagal menghapus ruangan.'))
+        }
+    }
+
+    // Daftar nama ruangan aktif untuk dropdown jadwal (fallback ke bawaan bila kosong).
+    const activeRuanganNames = ruanganList.filter(r => r.isActive).map(r => r.nama)
+    const ruanganDropdownOptions = activeRuanganNames.length > 0 ? activeRuanganNames : ruanganOptions
 
     const fetchJadwal = async () => {
         try {
@@ -432,7 +494,9 @@ export const KelolaJadwal = () => {
                 waktuMulai,
                 waktuSelesai: waktuSelesai || null,
                 ruangan,
-                penguji: pengujiArr
+                penguji: pengujiArr,
+                tahunAjaran: tahunAjaran || null,
+                gelombang: gelombang || null
             })
 
             alert('Jadwal sidang berhasil dibuat!')
@@ -454,6 +518,8 @@ export const KelolaJadwal = () => {
         setWaktuMulai(jadwal.waktuMulai)
         setWaktuSelesai(jadwal.waktuSelesai || '')
         setRuangan(jadwal.ruangan || '')
+        setTahunAjaran(jadwal.tahunAjaran || '')
+        setGelombang(jadwal.gelombang || '')
         setPenguji1(jadwal.penguji?.[0]?._id || '')
         setPenguji2(jadwal.penguji?.[1]?._id || '')
         setIsEditModalOpen(true)
@@ -516,7 +582,9 @@ export const KelolaJadwal = () => {
                 waktuMulai,
                 waktuSelesai: waktuSelesai || null,
                 ruangan,
-                penguji: pengujiArr
+                penguji: pengujiArr,
+                tahunAjaran: tahunAjaran || null,
+                gelombang: gelombang || null
             })
 
             alert('Jadwal berhasil diupdate!')
@@ -642,6 +710,8 @@ export const KelolaJadwal = () => {
         setWaktuMulai('')
         setWaktuSelesai('')
         setRuangan('')
+        setTahunAjaran('')
+        setGelombang('')
         setPenguji1('')
         setPenguji2('')
         setMahasiswaSearch('')
@@ -1083,6 +1153,17 @@ export const KelolaJadwal = () => {
                                         <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                                             <Button
                                                 variant="outline"
+                                                className="border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700 rounded-xl"
+                                                onClick={() => { setRuanganError(null); fetchRuangan(true); setIsRuanganModalOpen(true) }}
+                                            >
+                                                <Plus className="w-4 h-4 mr-2" />
+                                                Kelola Ruangan
+                                            </Button>
+                                        </motion.div>
+
+                                        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                                            <Button
+                                                variant="outline"
                                                 className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 rounded-xl"
                                                 onClick={handleDeleteAll}
                                                 disabled={isSubmitting}
@@ -1514,11 +1595,23 @@ export const KelolaJadwal = () => {
                                     <SelectValue placeholder="Pilih ruangan..." />
                                 </SelectTrigger>
                                 <SelectContent className="max-h-[200px] overflow-y-auto">
-                                    {ruanganOptions.map(r => (
+                                    {ruanganDropdownOptions.map(r => (
                                         <SelectItem key={r} value={r}>{r}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
+                        </div>
+
+                        {/* Tahun Ajaran & Gelombang */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <Label className="text-sm font-medium">Tahun Ajaran</Label>
+                                <Input placeholder="mis. 2025/2026" value={tahunAjaran} onChange={(e) => setTahunAjaran(e.target.value)} className="mt-1" />
+                            </div>
+                            <div>
+                                <Label className="text-sm font-medium">Gelombang</Label>
+                                <Input placeholder="mis. 1" value={gelombang} onChange={(e) => setGelombang(e.target.value)} className="mt-1" />
+                            </div>
                         </div>
 
                         {/* Penguji */}
@@ -1743,13 +1836,25 @@ export const KelolaJadwal = () => {
                                     <SelectValue placeholder="Pilih ruangan..." />
                                 </SelectTrigger>
                                 <SelectContent className="max-h-[200px] overflow-y-auto">
-                                    {ruanganOptions.map(room => (
+                                    {ruanganDropdownOptions.map(room => (
                                         <SelectItem key={room} value={room}>
                                             {room}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
+                        </div>
+
+                        {/* Tahun Ajaran & Gelombang */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <Label className="text-sm font-medium">Tahun Ajaran</Label>
+                                <Input placeholder="mis. 2025/2026" value={tahunAjaran} onChange={(e) => setTahunAjaran(e.target.value)} className="mt-1" />
+                            </div>
+                            <div>
+                                <Label className="text-sm font-medium">Gelombang</Label>
+                                <Input placeholder="mis. 1" value={gelombang} onChange={(e) => setGelombang(e.target.value)} className="mt-1" />
+                            </div>
                         </div>
 
                         {/* Penguji */}
@@ -2107,6 +2212,73 @@ export const KelolaJadwal = () => {
                                 </>
                             )}
                         </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal Kelola Ruangan (CRUD) */}
+            <Dialog open={isRuanganModalOpen} onOpenChange={setIsRuanganModalOpen}>
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Kelola Ruangan Sidang</DialogTitle>
+                        <DialogDescription>Tambah, ubah, atau hapus daftar ruangan yang tersedia untuk jadwal sidang.</DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4 mt-2">
+                        {ruanganError && (
+                            <div className="rounded-lg bg-red-50 border border-red-200 p-2.5 text-sm text-red-700">{ruanganError}</div>
+                        )}
+
+                        {/* Tambah ruangan */}
+                        <div className="flex items-center gap-2">
+                            <Input
+                                placeholder="Nama ruangan baru (mis. A316)"
+                                value={newRuanganNama}
+                                onChange={(e) => setNewRuanganNama(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddRuangan() } }}
+                            />
+                            <Button onClick={handleAddRuangan} disabled={!newRuanganNama.trim()} className="bg-blue-600 hover:bg-blue-700 text-white shrink-0">
+                                <Plus className="w-4 h-4 mr-1" /> Tambah
+                            </Button>
+                        </div>
+
+                        {/* Daftar ruangan */}
+                        <div className="max-h-72 overflow-y-auto rounded-lg border border-gray-200 divide-y divide-gray-100">
+                            {ruanganList.length === 0 ? (
+                                <p className="p-4 text-center text-sm text-gray-400">Belum ada ruangan.</p>
+                            ) : (
+                                ruanganList.map((r) => (
+                                    <div key={r._id} className="flex items-center justify-between gap-2 p-2.5">
+                                        {editingRuanganId === r._id ? (
+                                            <>
+                                                <Input
+                                                    value={editingRuanganNama}
+                                                    onChange={(e) => setEditingRuanganNama(e.target.value)}
+                                                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleRenameRuangan(r._id) } }}
+                                                    className="h-8"
+                                                />
+                                                <Button size="sm" onClick={() => handleRenameRuangan(r._id)} className="bg-green-600 hover:bg-green-700 text-white shrink-0 h-8">Simpan</Button>
+                                                <Button size="sm" variant="outline" onClick={() => { setEditingRuanganId(''); setEditingRuanganNama('') }} className="shrink-0 h-8">Batal</Button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <span className="text-sm font-medium text-gray-800">{r.nama}</span>
+                                                <div className="flex items-center gap-1.5 shrink-0">
+                                                    <Button size="sm" variant="outline" onClick={() => { setEditingRuanganId(r._id); setEditingRuanganNama(r.nama); setRuanganError(null) }} className="h-8 px-2 text-xs">Ubah</Button>
+                                                    <Button size="sm" variant="outline" onClick={() => handleDeleteRuangan(r._id)} className="h-8 px-2 text-red-600 border-red-200 hover:bg-red-50">
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                    </Button>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end mt-4">
+                        <Button variant="outline" onClick={() => { setIsRuanganModalOpen(false); fetchRuangan() }}>Tutup</Button>
                     </div>
                 </DialogContent>
             </Dialog>

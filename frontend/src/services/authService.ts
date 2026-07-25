@@ -21,6 +21,8 @@ export interface DokumenWisuda {
     pptSkripsi?: FileWisuda;
     halamanPengesahan?: FileWisuda;
     formBimbingan?: FileWisuda;
+    transkripNilai?: FileWisuda;
+    turnitinFinal?: FileWisuda;
     statusVerifikasi: 'belum_upload' | 'menunggu_verifikasi' | 'disetujui' | 'ditolak';
     catatanAdmin?: string;
     verifiedAt?: string;

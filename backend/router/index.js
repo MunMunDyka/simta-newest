@@ -16,6 +16,7 @@ const userRoutes = require('./userRoutes');
 const bimbinganRoutes = require('./bimbinganRoutes');
 const jadwalRoutes = require('./jadwalRoutes');
 const pengajuanSeminarRoutes = require('./pengajuanSeminarRoutes');
+const ruanganRoutes = require('./ruanganRoutes');
 
 /**
  * API Route Mapping
@@ -33,6 +34,7 @@ router.use('/users', userRoutes);
 router.use('/bimbingan', bimbinganRoutes);
 router.use('/jadwal', jadwalRoutes);
 router.use('/pengajuan-seminar', pengajuanSeminarRoutes);
+router.use('/ruangan', ruanganRoutes);
 
 // ===== Health Check Endpoint =====
 /**

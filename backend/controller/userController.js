@@ -19,7 +19,7 @@ const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess, sendPaginated, sendCreated } = require('../utils/responseHelper');
 
-const wisudaFileFields = ['skripsiFull', 'pptSkripsi', 'halamanPengesahan', 'formBimbingan'];
+const wisudaFileFields = ['skripsiFull', 'pptSkripsi', 'halamanPengesahan', 'formBimbingan', 'transkripNilai', 'turnitinFinal'];
 const REVISION_DEADLINE_STATUSES = ['tidak_aktif', 'aktif', 'lewat', 'selesai'];
 const REVISION_DEADLINE_TYPES = ['revisi_sempro', 'revisi_semhas'];
 
@@ -108,7 +108,7 @@ const getAll = asyncHandler(async (req, res) => {
     const [users, total] = await Promise.all([
         User.find(query)
             .select('-password')
-            .populate('dospem_1 dospem_2 penguji_1 penguji_2', 'name nim_nip')
+            .populate('dospem_1 dospem_2 penguji_1 penguji_2', 'name nim_nip nuptk')
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(parseInt(limit)),
@@ -130,7 +130,7 @@ const getAll = asyncHandler(async (req, res) => {
 const getById = asyncHandler(async (req, res) => {
     // If admin, include plainPassword
     let query = User.findById(req.params.id)
-        .populate('dospem_1 dospem_2 penguji_1 penguji_2', 'name nim_nip email');
+        .populate('dospem_1 dospem_2 penguji_1 penguji_2', 'name nim_nip nuptk email');
 
     if (req.user.role === 'admin' || req.user.canAccessAdmin) {
         query = query.select('+plainPassword');
@@ -177,7 +177,7 @@ const generateRandomNuptk = () => {
 };
 
 const create = asyncHandler(async (req, res) => {
-    const { nim_nip, password, name, email, role, prodi, semester, status, judulTA, canAccessAdmin, nuptk } = req.body;
+    const { nim_nip, password, name, email, role, prodi, semester, status, judulTA, canAccessAdmin, nuptk, angkatan } = req.body;
 
     // Only Master Admin (admin001) can grant admin access
     if (canAccessAdmin === true && req.user.nim_nip !== 'admin001') {
@@ -205,6 +205,7 @@ const create = asyncHandler(async (req, res) => {
         prodi,
         semester,
         judulTA,
+        angkatan: role === 'mahasiswa' ? (angkatan || null) : null,
         nuptk: role === 'dosen' ? (nuptk || generateRandomNuptk()) : null,
         canAccessAdmin: role === 'dosen' ? (canAccessAdmin || false) : false,
         status: status || 'aktif'
@@ -246,7 +247,7 @@ const update = asyncHandler(async (req, res) => {
 
     if (isAdmin) {
         // Admin can update all fields except password (use change-password)
-        allowedFields = ['name', 'email', 'prodi', 'semester', 'judulTA', 'currentProgress', 'statusMahasiswa', 'penguji_1', 'penguji_2', 'status', 'avatar', 'canAccessAdmin', 'nuptk'];
+        allowedFields = ['name', 'email', 'prodi', 'semester', 'judulTA', 'currentProgress', 'statusMahasiswa', 'penguji_1', 'penguji_2', 'status', 'avatar', 'canAccessAdmin', 'nuptk', 'angkatan'];
     } else {
         // Self can only update limited fields
         allowedFields = ['email', 'avatar'];
@@ -346,7 +347,7 @@ const updateRevisiDeadline = asyncHandler(async (req, res) => {
     }
 
     await mahasiswa.save();
-    await mahasiswa.populate('dospem_1 dospem_2 penguji_1 penguji_2', 'name nim_nip email');
+    await mahasiswa.populate('dospem_1 dospem_2 penguji_1 penguji_2', 'name nim_nip nuptk email');
 
     sendSuccess(res, 200, 'Deadline revisi berhasil diperbarui', mahasiswa.toPublicJSON());
 });
@@ -497,7 +498,7 @@ const assignDospem = asyncHandler(async (req, res) => {
     });
 
     await mahasiswa.save();
-    await mahasiswa.populate('dospem_1 dospem_2 penguji_1 penguji_2', 'name nim_nip');
+    await mahasiswa.populate('dospem_1 dospem_2 penguji_1 penguji_2', 'name nim_nip nuptk');
 
     console.log(`👥 Dosen pembimbing and penguji assigned for ${mahasiswa.name}`);
 
@@ -799,7 +800,7 @@ const uploadWisuda = asyncHandler(async (req, res) => {
         throw ApiError.badRequest('Dokumen wisuda Anda telah disetujui, tidak dapat diunggah ulang');
     }
 
-    const fields = ['skripsiFull', 'pptSkripsi', 'halamanPengesahan', 'formBimbingan'];
+    const fields = wisudaFileFields;
     let hasUpdated = false;
 
     fields.forEach(field => {
@@ -820,14 +821,16 @@ const uploadWisuda = asyncHandler(async (req, res) => {
         throw ApiError.badRequest('Tidak ada berkas yang diunggah');
     }
 
-    // Keempat berkas wajib lengkap. Pengunggahan sebagian ditolak agar admin
-    // tidak menerima berkas wisuda yang tidak utuh.
+    // Keenam berkas wajib lengkap. Pengunggahan sebagian ditolak agar admin
+    // tidak menerima berkas kelulusan yang tidak utuh.
     const doc = student.dokumenWisuda;
     const berkasWajib = [
         { key: 'skripsiFull', label: 'Skripsi Lengkap' },
         { key: 'pptSkripsi', label: 'PPT Skripsi' },
         { key: 'halamanPengesahan', label: 'Halaman Pengesahan' },
-        { key: 'formBimbingan', label: 'Form/Logbook Bimbingan' }
+        { key: 'formBimbingan', label: 'Form/Logbook Bimbingan' },
+        { key: 'transkripNilai', label: 'Transkrip Nilai Sementara' },
+        { key: 'turnitinFinal', label: 'Hasil Turnitin' }
     ];
     const berkasKurang = berkasWajib.filter(item => !doc[item.key] || !doc[item.key].fileName);
 
@@ -845,7 +848,7 @@ const uploadWisuda = asyncHandler(async (req, res) => {
         });
 
         throw ApiError.badRequest(
-            `Keempat berkas wisuda wajib dilengkapi. Berkas yang belum ada: ${berkasKurang.map(item => item.label).join(', ')}.`
+            `Keenam berkas kelulusan wajib dilengkapi. Berkas yang belum ada: ${berkasKurang.map(item => item.label).join(', ')}.`
         );
     }
 

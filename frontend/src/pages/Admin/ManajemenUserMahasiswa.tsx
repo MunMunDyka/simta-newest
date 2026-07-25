@@ -64,21 +64,25 @@ interface MahasiswaData {
         _id: string
         name: string
         nim_nip: string
+        nuptk?: string
     }
     dospem_2?: {
         _id: string
         name: string
         nim_nip: string
+        nuptk?: string
     }
     penguji_1?: {
         _id: string
         name: string
         nim_nip: string
+        nuptk?: string
     }
     penguji_2?: {
         _id: string
         name: string
         nim_nip: string
+        nuptk?: string
     }
     revisiDeadline?: {
         jenis?: 'revisi_sempro' | 'revisi_semhas' | null
@@ -571,12 +575,12 @@ export const ManajemenUserMahasiswa = () => {
                                     <div className="p-4 bg-gray-50 rounded-xl">
                                         <p className="text-sm text-gray-500 mb-2">Pembimbing 1</p>
                                         <p className="font-medium text-gray-800">{mahasiswa.dospem_1?.name || 'Belum ditentukan'}</p>
-                                        {mahasiswa.dospem_1?.nim_nip && <p className="text-xs text-gray-400 mt-0.5">NIDN: {mahasiswa.dospem_1.nim_nip}</p>}
+                                        {mahasiswa.dospem_1?.nuptk && <p className="text-xs text-gray-400 mt-0.5">NUPTK: {mahasiswa.dospem_1.nuptk}</p>}
                                     </div>
                                     <div className="p-4 bg-gray-50 rounded-xl">
                                         <p className="text-sm text-gray-500 mb-2">Pembimbing 2</p>
                                         <p className="font-medium text-gray-800">{mahasiswa.dospem_2?.name || 'Belum ditentukan'}</p>
-                                        {mahasiswa.dospem_2?.nim_nip && <p className="text-xs text-gray-400 mt-0.5">NIDN: {mahasiswa.dospem_2.nim_nip}</p>}
+                                        {mahasiswa.dospem_2?.nuptk && <p className="text-xs text-gray-400 mt-0.5">NUPTK: {mahasiswa.dospem_2.nuptk}</p>}
                                     </div>
                                 </div>
 
@@ -585,12 +589,12 @@ export const ManajemenUserMahasiswa = () => {
                                     <div className="p-4 bg-gray-50 rounded-xl">
                                         <p className="text-sm text-gray-500 mb-2">Penguji 1</p>
                                         <p className="font-medium text-gray-800">{mahasiswa.penguji_1?.name || 'Belum ditentukan'}</p>
-                                        {mahasiswa.penguji_1?.nim_nip && <p className="text-xs text-gray-400 mt-0.5">NIP: {mahasiswa.penguji_1.nim_nip}</p>}
+                                        {mahasiswa.penguji_1?.nuptk && <p className="text-xs text-gray-400 mt-0.5">NUPTK: {mahasiswa.penguji_1.nuptk}</p>}
                                     </div>
                                     <div className="p-4 bg-gray-50 rounded-xl">
                                         <p className="text-sm text-gray-500 mb-2">Penguji 2</p>
                                         <p className="font-medium text-gray-800">{mahasiswa.penguji_2?.name || 'Belum ditentukan'}</p>
-                                        {mahasiswa.penguji_2?.nim_nip && <p className="text-xs text-gray-400 mt-0.5">NIP: {mahasiswa.penguji_2.nim_nip}</p>}
+                                        {mahasiswa.penguji_2?.nuptk && <p className="text-xs text-gray-400 mt-0.5">NUPTK: {mahasiswa.penguji_2.nuptk}</p>}
                                     </div>
                                 </div>
                             </motion.div>

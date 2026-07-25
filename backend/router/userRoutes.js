@@ -148,7 +148,9 @@ const uploadWisudaFiles = wisudaUpload.fields([
     { name: 'skripsiFull', maxCount: 1 },
     { name: 'pptSkripsi', maxCount: 1 },
     { name: 'halamanPengesahan', maxCount: 1 },
-    { name: 'formBimbingan', maxCount: 1 }
+    { name: 'formBimbingan', maxCount: 1 },
+    { name: 'transkripNilai', maxCount: 1 },
+    { name: 'turnitinFinal', maxCount: 1 }
 ]);
 
 const handleWisudaUpload = (req, res, next) => {

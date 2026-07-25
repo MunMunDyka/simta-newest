@@ -98,6 +98,18 @@ const jadwalSchema = new Schema({
         default: null
     },
 
+    // ===== Periode Akademik (untuk filter gelombang sidang) =====
+    tahunAjaran: {
+        type: String,
+        trim: true,
+        default: null
+    },
+    gelombang: {
+        type: String,
+        trim: true,
+        default: null
+    },
+
     // ===== Admin yang membuat =====
     createdBy: {
         type: Schema.Types.ObjectId,
