@@ -249,6 +249,15 @@ const userSchema = new Schema({
         }
     },
 
+    // ===== Khusus Dosen =====
+    // NUPTK (Nomor Unik Pendidik dan Tenaga Kependidikan). Untuk sementara
+    // diisi nomor acak; digunakan sebagai identitas dosen pada Manajemen Dosen.
+    nuptk: {
+        type: String,
+        trim: true,
+        default: null
+    },
+
     // ===== Multiple Role (Dosen + Admin) =====
     canAccessAdmin: {
         type: Boolean,

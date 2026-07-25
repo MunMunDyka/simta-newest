@@ -45,6 +45,7 @@ interface DosenWorkload {
     _id: string
     name: string
     nim_nip: string
+    nuptk?: string
     email: string
     status: 'aktif' | 'nonaktif'
     avatar?: string
@@ -113,7 +114,8 @@ export const KelolaPlottingDosen = () => {
     // Filtered Lecturers List
     const filteredLecturers = lecturers.filter(d =>
         d.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        d.nim_nip.includes(searchQuery)
+        d.nim_nip.includes(searchQuery) ||
+        (d.nuptk || '').includes(searchQuery)
     )
 
     // Animation Variants
@@ -276,7 +278,7 @@ export const KelolaPlottingDosen = () => {
                             <div className="relative w-full sm:w-80">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                 <Input
-                                    placeholder="Cari NIP atau nama dosen..."
+                                    placeholder="Cari NUPTK atau nama dosen..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     className="pl-10 rounded-xl"
@@ -324,7 +326,7 @@ export const KelolaPlottingDosen = () => {
                                                         </Avatar>
                                                         <div>
                                                             <p className="font-semibold text-gray-800 leading-tight">{lecturer.name}</p>
-                                                            <p className="text-xs text-gray-500 mt-0.5">NIP: {lecturer.nim_nip}</p>
+                                                            <p className="text-xs text-gray-500 mt-0.5">NUPTK: {lecturer.nuptk || '-'}</p>
                                                         </div>
                                                     </div>
                                                 </TableCell>

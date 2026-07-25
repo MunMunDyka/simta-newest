@@ -26,6 +26,11 @@ export interface PengajuanSeminar {
     fileSize?: string | null
     fileOriginalName?: string | null
     uploadedAt?: string | null
+    turnitinFileName?: string | null
+    turnitinFilePath?: string | null
+    turnitinFileSize?: string | null
+    turnitinFileOriginalName?: string | null
+    turnitinUploadedAt?: string | null
     statusVerifikasi: StatusVerifikasiPengajuan
     catatanAdmin?: string | null
     verifiedAt?: string | null

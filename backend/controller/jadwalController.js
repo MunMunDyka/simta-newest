@@ -12,6 +12,7 @@
 
 const Jadwal = require('../models/Jadwal');
 const User = require('../models/User');
+const Bimbingan = require('../models/Bimbingan');
 const PengajuanSeminar = require('../models/PengajuanSeminar');
 const SystemSetting = require('../models/SystemSetting');
 const ApiError = require('../utils/ApiError');
@@ -547,6 +548,53 @@ const update = asyncHandler(async (req, res) => {
 
                 await student.save();
                 console.log(`🎓 Student status updated: ${student.name} -> ${nextStatus}, penguji assigned`);
+
+                // ===== Hasil sidang per penguji =====
+                // Untuk penguji yang dinyatakan "Lulus tanpa revisi", buat bimbingan
+                // placeholder berstatus 'acc' sehingga mahasiswa tidak perlu bimbingan
+                // dengan penguji itu, dan logika "kedua penguji ACC -> transisi" tetap
+                // jalan begitu penguji yang perlu revisi memberikan ACC.
+                const hasilPenguji = Array.isArray(req.body.hasilPenguji) ? req.body.hasilPenguji : [];
+                const revisiKategori = nextStatus === 'revisi_sempro' ? 'revisi_sempro' : 'revisi_semhas';
+                const pengujiIds = (jadwal.penguji || []).map(p => (p._id || p).toString());
+
+                // Placeholder hanya relevan pada fase revisi (hasil campuran). Bila kedua
+                // penguji lulus tanpa revisi, mahasiswa lompat fase revisi (ditangani blok
+                // 'lulus' di bawah), sehingga tidak perlu placeholder.
+                for (const entry of (jadwal.hasil === 'lulus_revisi' ? hasilPenguji : [])) {
+                    if (!entry || entry.hasil !== 'lulus') continue;
+                    const pengujiIdStr = (entry.penguji || '').toString();
+                    const idx = pengujiIds.indexOf(pengujiIdStr);
+                    if (idx === -1) continue;
+                    const dosenType = idx === 0 ? 'penguji_1' : 'penguji_2';
+
+                    // Hindari duplikat placeholder bila update dijalankan ulang
+                    const existing = await Bimbingan.findOne({
+                        mahasiswa: student._id,
+                        dosenType,
+                        kategoriBimbingan: revisiKategori,
+                        status: 'acc'
+                    });
+                    if (existing) continue;
+
+                    await Bimbingan.create({
+                        mahasiswa: student._id,
+                        dosen: pengujiIdStr,
+                        dosenType,
+                        kategoriBimbingan: revisiKategori,
+                        version: 'V1',
+                        judul: 'Lulus tanpa revisi',
+                        catatan: 'Penguji menyatakan lulus tanpa revisi pada sidang.',
+                        fileName: 'lulus-tanpa-revisi',
+                        filePath: 'system/lulus-tanpa-revisi',
+                        fileSize: '0',
+                        fileOriginalName: 'lulus-tanpa-revisi.pdf',
+                        status: 'acc',
+                        feedback: 'Lulus tanpa revisi berdasarkan hasil sidang.',
+                        feedbackDate: new Date()
+                    });
+                    console.log(`✅ Placeholder ACC dibuat untuk ${dosenType} (lulus tanpa revisi)`);
+                }
             }
 
             // If hasil is 'lulus' (not 'lulus_revisi'), student skips revision and goes straight to next guidance phase.

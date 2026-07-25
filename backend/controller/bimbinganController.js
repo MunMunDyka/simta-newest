@@ -325,6 +325,37 @@ const create = asyncHandler(async (req, res) => {
         );
     }
 
+    // Tolak bila dosen ini sudah memberi ACC final pada siklus berjalan.
+    // Penguji: 'acc' (revisi selesai). Dospem: 'acc_sempro' (ACC Maju Sidang).
+    // Sadar-siklus memakai jumlah ACC vs nomor siklus, karena acc_sempro dipakai
+    // ulang pada siklus Sempro dan Semhas.
+    const isPengujiSubmission = dosenType === 'penguji_1' || dosenType === 'penguji_2';
+    const terminalStatus = isPengujiSubmission ? 'acc' : 'acc_sempro';
+    const cycleNumberByStatus = {
+        pra_sempro: 1,
+        menunggu_sempro: 1,
+        bimbingan_lanjut: 2,
+        menunggu_semhas: 2,
+        revisi_sempro: 1,
+        revisi_semhas: 2
+    };
+    const requiredAccCount = cycleNumberByStatus[studentStatus] || 0;
+    if (requiredAccCount > 0) {
+        const terminalAccCount = await Bimbingan.countDocuments({
+            mahasiswa: mahasiswa._id,
+            dosenType,
+            status: terminalStatus
+        });
+        if (terminalAccCount >= requiredAccCount) {
+            fs.unlinkSync(file.path);
+            throw ApiError.badRequest(
+                isPengujiSubmission
+                    ? 'Dosen penguji ini telah memberikan ACC. Revisi pada tahap ini telah selesai.'
+                    : 'Dosen pembimbing ini telah memberikan ACC Maju Sidang. Bimbingan pada tahap ini telah selesai.'
+            );
+        }
+    }
+
     // Get next version
     const version = await Bimbingan.getNextVersion(mahasiswa._id, dosenId);
 

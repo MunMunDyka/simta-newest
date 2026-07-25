@@ -167,8 +167,17 @@ const getById = asyncHandler(async (req, res) => {
  * @route   POST /api/users
  * @access  Admin
  */
+// Generate NUPTK acak 16 digit (sementara, sampai data resmi tersedia).
+const generateRandomNuptk = () => {
+    let nuptk = '';
+    for (let i = 0; i < 16; i++) {
+        nuptk += Math.floor(Math.random() * 10);
+    }
+    return nuptk;
+};
+
 const create = asyncHandler(async (req, res) => {
-    const { nim_nip, password, name, email, role, prodi, semester, status, judulTA, canAccessAdmin } = req.body;
+    const { nim_nip, password, name, email, role, prodi, semester, status, judulTA, canAccessAdmin, nuptk } = req.body;
 
     // Only Master Admin (admin001) can grant admin access
     if (canAccessAdmin === true && req.user.nim_nip !== 'admin001') {
@@ -196,6 +205,7 @@ const create = asyncHandler(async (req, res) => {
         prodi,
         semester,
         judulTA,
+        nuptk: role === 'dosen' ? (nuptk || generateRandomNuptk()) : null,
         canAccessAdmin: role === 'dosen' ? (canAccessAdmin || false) : false,
         status: status || 'aktif'
     });
@@ -236,7 +246,7 @@ const update = asyncHandler(async (req, res) => {
 
     if (isAdmin) {
         // Admin can update all fields except password (use change-password)
-        allowedFields = ['name', 'email', 'prodi', 'semester', 'judulTA', 'currentProgress', 'statusMahasiswa', 'penguji_1', 'penguji_2', 'status', 'avatar', 'canAccessAdmin'];
+        allowedFields = ['name', 'email', 'prodi', 'semester', 'judulTA', 'currentProgress', 'statusMahasiswa', 'penguji_1', 'penguji_2', 'status', 'avatar', 'canAccessAdmin', 'nuptk'];
     } else {
         // Self can only update limited fields
         allowedFields = ['email', 'avatar'];
@@ -733,7 +743,7 @@ const resetPassword = asyncHandler(async (req, res) => {
  */
 const getDosenWorkloads = asyncHandler(async (req, res) => {
     const lecturers = await User.find({ role: 'dosen' })
-        .select('name nim_nip prodi status avatar email')
+        .select('name nim_nip nuptk prodi status avatar email')
         .lean();
     
     // Fetch active student user assignments

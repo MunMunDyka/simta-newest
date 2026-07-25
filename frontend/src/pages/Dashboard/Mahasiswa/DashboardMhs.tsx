@@ -167,6 +167,7 @@ export const DashboardMhs = () => {
     const [uploadWisudaSuccess, setUploadWisudaSuccess] = useState<string | null>(null)
     const [pengajuanSeminar, setPengajuanSeminar] = useState<PengajuanSeminar[]>([])
     const [softcopyFile, setSoftcopyFile] = useState<File | null>(null)
+    const [turnitinFile, setTurnitinFile] = useState<File | null>(null)
     const [isUploadingSoftcopy, setIsUploadingSoftcopy] = useState(false)
     const [uploadSoftcopyError, setUploadSoftcopyError] = useState<string | null>(null)
     const [uploadSoftcopySuccess, setUploadSoftcopySuccess] = useState<string | null>(null)
@@ -404,6 +405,27 @@ export const DashboardMhs = () => {
         setSoftcopyFile(file)
     }
 
+    const handleTurnitinFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0] || null
+
+        if (!file) {
+            setTurnitinFile(null)
+            return
+        }
+
+        setUploadSoftcopySuccess(null)
+
+        if (!isPdfFile(file)) {
+            setTurnitinFile(null)
+            event.target.value = ''
+            setUploadSoftcopyError('Hanya file PDF yang diperbolehkan untuk hasil Turnitin')
+            return
+        }
+
+        setUploadSoftcopyError(null)
+        setTurnitinFile(file)
+    }
+
     const handleUploadSoftcopy = async (e: React.FormEvent) => {
         e.preventDefault()
 
@@ -412,12 +434,15 @@ export const DashboardMhs = () => {
             return
         }
 
-        if (!softcopyFile) {
-            setUploadSoftcopyError('Pilih file softcopy PDF terlebih dahulu')
+        const isSeminarHasil = currentPengajuanJenis === 'seminar_hasil'
+
+        if (!softcopyFile && !turnitinFile) {
+            setUploadSoftcopyError('Pilih file PDF terlebih dahulu')
             return
         }
 
-        if (!isPdfFile(softcopyFile)) {
+        const selectedFiles = [softcopyFile, turnitinFile].filter(Boolean) as File[]
+        if (selectedFiles.some((file) => !isPdfFile(file))) {
             setUploadSoftcopyError('Hanya file PDF yang diperbolehkan untuk berkas pengajuan seminar')
             return
         }
@@ -428,11 +453,13 @@ export const DashboardMhs = () => {
 
         try {
             const formData = new FormData()
-            formData.append('softcopy', softcopyFile)
+            if (softcopyFile) formData.append('softcopy', softcopyFile)
+            if (isSeminarHasil && turnitinFile) formData.append('turnitin', turnitinFile)
             const response = await uploadPengajuanSeminar(currentPengajuanJenis, formData)
             if (response.success) {
-                setUploadSoftcopySuccess(`Berkas pengajuan ${currentPengajuanLabel} berhasil diunggah`)
+                setUploadSoftcopySuccess(response.message || `Berkas pengajuan ${currentPengajuanLabel} berhasil diunggah`)
                 setSoftcopyFile(null)
+                setTurnitinFile(null)
                 fetchData(false)
             }
         } catch (err: unknown) {
@@ -453,6 +480,20 @@ export const DashboardMhs = () => {
             )
         } catch (err: unknown) {
             setUploadSoftcopyError(getApiErrorMessage(err, 'Gagal mengunduh berkas pengajuan seminar.'))
+        }
+    }
+
+    const handleDownloadTurnitin = async () => {
+        if (!currentPengajuan?.turnitinFilePath) return
+
+        try {
+            setUploadSoftcopyError(null)
+            await downloadPengajuanSeminarFile(
+                currentPengajuan.turnitinFilePath,
+                currentPengajuan.turnitinFileOriginalName || currentPengajuan.turnitinFileName || undefined
+            )
+        } catch (err: unknown) {
+            setUploadSoftcopyError(getApiErrorMessage(err, 'Gagal mengunduh berkas Turnitin.'))
         }
     }
 
@@ -1005,14 +1046,60 @@ export const DashboardMhs = () => {
                                         )}
                                     </div>
 
+                                    {/* Slot Hasil Turnitin - khusus Seminar Hasil */}
+                                    {currentPengajuanJenis === 'seminar_hasil' && (
+                                        <div className="p-4 rounded-xl border border-gray-200 bg-white">
+                                            <label className="block text-sm font-bold text-gray-700 mb-2">
+                                                Hasil Turnitin Skripsi (PDF)
+                                            </label>
+                                            {currentPengajuan?.turnitinFileName ? (
+                                                <div className="flex items-center justify-between gap-3 text-xs bg-gray-50 p-2.5 rounded-lg border border-gray-200 mb-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleDownloadTurnitin}
+                                                        className="font-semibold text-blue-600 hover:underline truncate text-left"
+                                                    >
+                                                        {currentPengajuan.turnitinFileOriginalName || currentPengajuan.turnitinFileName}
+                                                    </button>
+                                                    <span className="text-gray-400 font-medium shrink-0">{currentPengajuan.turnitinFileSize}</span>
+                                                </div>
+                                            ) : (
+                                                <p className="text-xs text-gray-400 italic mb-2">Belum ada file diunggah</p>
+                                            )}
+
+                                            {currentPengajuan?.statusVerifikasi !== 'disetujui' && (
+                                                <div className="mt-2 flex flex-wrap items-center gap-2">
+                                                    <input
+                                                        type="file"
+                                                        accept=".pdf"
+                                                        id="turnitinPengajuanInput"
+                                                        className="hidden"
+                                                        onChange={handleTurnitinFileChange}
+                                                    />
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => document.getElementById('turnitinPengajuanInput')?.click()}
+                                                        className="text-xs flex items-center gap-1.5 h-8 border-gray-300 hover:bg-gray-50"
+                                                    >
+                                                        <Upload className="w-3.5 h-3.5 text-gray-500" />
+                                                        Pilih File
+                                                    </Button>
+                                                    {turnitinFile && <span className="text-xs text-green-600 truncate font-semibold">{turnitinFile.name}</span>}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
                                     {currentPengajuan?.statusVerifikasi !== 'disetujui' && (
                                         <div className="pt-2 flex justify-end">
                                             <Button
                                                 type="submit"
-                                                disabled={isUploadingSoftcopy || !softcopyFile}
+                                                disabled={isUploadingSoftcopy || (!softcopyFile && !turnitinFile)}
                                                 className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2 rounded-xl transition-all shadow-md shadow-blue-500/20"
                                             >
-                                                {isUploadingSoftcopy ? 'Mengunggah...' : 'Unggah Softcopy'}
+                                                {isUploadingSoftcopy ? 'Mengunggah...' : 'Unggah Berkas'}
                                             </Button>
                                         </div>
                                     )}

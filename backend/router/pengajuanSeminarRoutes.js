@@ -47,7 +47,11 @@ const pengajuanUpload = multer({
 });
 
 const handlePengajuanUpload = (req, res, next) => {
-    pengajuanUpload.single('softcopy')(req, res, (err) => {
+    // softcopy (semua jenis) + turnitin (khusus Seminar Hasil)
+    pengajuanUpload.fields([
+        { name: 'softcopy', maxCount: 1 },
+        { name: 'turnitin', maxCount: 1 }
+    ])(req, res, (err) => {
         if (!err) {
             next();
             return;

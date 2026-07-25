@@ -42,6 +42,27 @@ const pengajuanSeminarSchema = new Schema({
         type: Date,
         default: null
     },
+    // ===== Berkas Hasil Turnitin (khusus Seminar Hasil) =====
+    turnitinFileName: {
+        type: String,
+        default: null
+    },
+    turnitinFilePath: {
+        type: String,
+        default: null
+    },
+    turnitinFileSize: {
+        type: String,
+        default: null
+    },
+    turnitinFileOriginalName: {
+        type: String,
+        default: null
+    },
+    turnitinUploadedAt: {
+        type: Date,
+        default: null
+    },
     statusVerifikasi: {
         type: String,
         enum: ['belum_upload', 'menunggu_verifikasi', 'disetujui', 'ditolak'],

@@ -196,6 +196,11 @@ export const KelolaJadwal = () => {
     // Default 'lulus_revisi': alur normal setelah seminar adalah revisi ke dosen penguji.
     // Pilihan 'lulus' melewati fase revisi penguji, jadi harus dipilih secara sadar.
     const [hasilSidang, setHasilSidang] = useState<'lulus' | 'lulus_revisi' | 'tidak_lulus'>('lulus_revisi')
+    // Hasil per penguji (khusus Seminar Proposal/Hasil): tiap penguji dapat menentukan
+    // apakah mahasiswa perlu revisi atau tidak. 'lulus' = tanpa revisi, 'lulus_revisi' = perlu revisi.
+    const [hasilPenguji1, setHasilPenguji1] = useState<'lulus' | 'lulus_revisi'>('lulus_revisi')
+    const [hasilPenguji2, setHasilPenguji2] = useState<'lulus' | 'lulus_revisi'>('lulus_revisi')
+    const [isTidakLulus, setIsTidakLulus] = useState(false)
     const [nilaiSidang, setNilaiSidang] = useState('')
     const [catatanHasil, setCatatanHasil] = useState('')
 
@@ -293,7 +298,11 @@ export const KelolaJadwal = () => {
         try {
             setIsLoading(true)
             setLoadError(null)
-            const response = await api.get('/jadwal', { params: { limit: 100 } })
+            // viewAll=true: halaman kelola jadwal harus menampilkan SELURUH jadwal.
+            // Tanpa ini, akun dosen yang memiliki akses admin (canAccessAdmin) hanya
+            // melihat jadwal tempat ia menjadi penguji, karena backend memfilter
+            // berdasarkan role 'dosen'. Sama seperti halaman Jadwal Sidang publik.
+            const response = await api.get('/jadwal', { params: { limit: 500, viewAll: 'true' } })
             setJadwalList(response.data.data || [])
         } catch (error) {
             console.error('Failed to fetch jadwal:', error)
@@ -529,6 +538,9 @@ export const KelolaJadwal = () => {
         // Seminar Proposal/Hasil: alur normal lanjut ke revisi dosen penguji.
         // Sidang Akhir: hasil dikonfirmasi dari akademik, langsung ke berkas wisuda.
         setHasilSidang(jadwal.jenisJadwal === 'sidang_skripsi' ? 'lulus' : 'lulus_revisi')
+        setHasilPenguji1('lulus_revisi')
+        setHasilPenguji2('lulus_revisi')
+        setIsTidakLulus(false)
         setNilaiSidang('')
         setCatatanHasil('')
         setIsSelesaiModalOpen(true)
@@ -538,16 +550,34 @@ export const KelolaJadwal = () => {
     const handleSelesaiJadwal = async () => {
         if (!selesaiJadwal) return
 
-        if (!hasilSidang) {
-            alert('Mohon pilih hasil sidang!')
-            return
+        const isSeminar = selesaiJadwal.jenisJadwal !== 'sidang_skripsi'
+
+        // Bangun payload hasil. Sidang Akhir memakai hasil tunggal; Seminar
+        // Proposal/Hasil memakai hasil per penguji (kecuali Tidak Lulus).
+        let hasil: 'lulus' | 'lulus_revisi' | 'tidak_lulus'
+        let hasilPenguji: { penguji: string; hasil: 'lulus' | 'lulus_revisi' }[] | undefined
+
+        if (!isSeminar) {
+            hasil = hasilSidang
+        } else if (isTidakLulus) {
+            hasil = 'tidak_lulus'
+        } else {
+            const p1Id = selesaiJadwal.penguji?.[0]?._id
+            const p2Id = selesaiJadwal.penguji?.[1]?._id
+            hasil = (hasilPenguji1 === 'lulus_revisi' || hasilPenguji2 === 'lulus_revisi')
+                ? 'lulus_revisi'
+                : 'lulus'
+            hasilPenguji = []
+            if (p1Id) hasilPenguji.push({ penguji: p1Id, hasil: hasilPenguji1 })
+            if (p2Id) hasilPenguji.push({ penguji: p2Id, hasil: hasilPenguji2 })
         }
 
         setIsSubmitting(true)
         try {
             await api.put(`/jadwal/${selesaiJadwal._id}`, {
                 status: 'selesai',
-                hasil: hasilSidang,
+                hasil,
+                hasilPenguji,
                 nilaiSidang: nilaiSidang || undefined,
                 catatan: catatanHasil || undefined
             })
@@ -556,6 +586,9 @@ export const KelolaJadwal = () => {
             setIsSelesaiModalOpen(false)
             setSelesaiJadwal(null)
             setHasilSidang('lulus_revisi')
+            setHasilPenguji1('lulus_revisi')
+            setHasilPenguji2('lulus_revisi')
+            setIsTidakLulus(false)
             setNilaiSidang('')
             setCatatanHasil('')
             fetchJadwal()
@@ -1825,53 +1858,92 @@ export const KelolaJadwal = () => {
                             </div>
                         )}
 
-                        {/* Hasil Sidang */}
-                        <div>
-                            <Label className="text-sm font-medium">Hasil Sidang *</Label>
-                            <Select value={hasilSidang} onValueChange={(v) => setHasilSidang(v as 'lulus' | 'lulus_revisi' | 'tidak_lulus')}>
-                                <SelectTrigger className="mt-1">
-                                    <SelectValue placeholder="Pilih hasil..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="lulus">
-                                        <div className="flex items-center gap-2">
-                                            <CheckCircle className="w-4 h-4 text-green-500" />
-                                            Lulus
-                                        </div>
-                                    </SelectItem>
-                                    {/* Sidang Akhir adalah fase terakhir: tidak ada bimbingan
-                                        revisi penguji setelahnya, sehingga opsi ini disembunyikan. */}
-                                    {selesaiJadwal?.jenisJadwal !== 'sidang_skripsi' && (
-                                        <SelectItem value="lulus_revisi">
+                        {/* Hasil Sidang - Sidang Akhir memakai hasil tunggal */}
+                        {selesaiJadwal?.jenisJadwal === 'sidang_skripsi' ? (
+                            <div>
+                                <Label className="text-sm font-medium">Hasil Sidang *</Label>
+                                <Select value={hasilSidang} onValueChange={(v) => setHasilSidang(v as 'lulus' | 'lulus_revisi' | 'tidak_lulus')}>
+                                    <SelectTrigger className="mt-1">
+                                        <SelectValue placeholder="Pilih hasil..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="lulus">
                                             <div className="flex items-center gap-2">
-                                                <AlertCircle className="w-4 h-4 text-yellow-500" />
-                                                Lulus dengan Revisi
+                                                <CheckCircle className="w-4 h-4 text-green-500" />
+                                                Lulus
                                             </div>
                                         </SelectItem>
-                                    )}
-                                    <SelectItem value="tidak_lulus">
-                                        <div className="flex items-center gap-2">
-                                            <XCircle className="w-4 h-4 text-red-500" />
-                                            Tidak Lulus
-                                        </div>
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
+                                        <SelectItem value="tidak_lulus">
+                                            <div className="flex items-center gap-2">
+                                                <XCircle className="w-4 h-4 text-red-500" />
+                                                Tidak Lulus
+                                            </div>
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        ) : (
+                            <div>
+                                <Label className="text-sm font-medium">Hasil Sidang per Penguji *</Label>
 
-                            {selesaiJadwal?.jenisJadwal !== 'sidang_skripsi' && (
+                                {/* Toggle Tidak Lulus */}
+                                <label className="mt-2 flex items-center gap-2 rounded-lg border border-gray-200 p-2.5 cursor-pointer hover:bg-gray-50">
+                                    <input
+                                        type="checkbox"
+                                        checked={isTidakLulus}
+                                        onChange={(e) => setIsTidakLulus(e.target.checked)}
+                                        className="w-4 h-4"
+                                    />
+                                    <span className="text-sm text-gray-700 flex items-center gap-1.5">
+                                        <XCircle className="w-4 h-4 text-red-500" />
+                                        Tidak Lulus (mahasiswa tidak lulus sidang)
+                                    </span>
+                                </label>
+
+                                {!isTidakLulus && (
+                                    <div className="mt-3 space-y-3">
+                                        {[
+                                            { label: 'Penguji 1', name: selesaiJadwal?.penguji?.[0]?.name, value: hasilPenguji1, set: setHasilPenguji1 },
+                                            { label: 'Penguji 2', name: selesaiJadwal?.penguji?.[1]?.name, value: hasilPenguji2, set: setHasilPenguji2 },
+                                        ].map((p) => (
+                                            <div key={p.label} className="rounded-lg border border-gray-200 p-3">
+                                                <p className="text-sm font-semibold text-gray-800">{p.label}</p>
+                                                <p className="text-xs text-gray-400 mb-2">{p.name || 'Belum ditentukan'}</p>
+                                                <Select value={p.value} onValueChange={(v) => p.set(v as 'lulus' | 'lulus_revisi')}>
+                                                    <SelectTrigger className="h-9">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="lulus_revisi">
+                                                            <div className="flex items-center gap-2">
+                                                                <AlertCircle className="w-4 h-4 text-yellow-500" />
+                                                                Lulus dengan Revisi
+                                                            </div>
+                                                        </SelectItem>
+                                                        <SelectItem value="lulus">
+                                                            <div className="flex items-center gap-2">
+                                                                <CheckCircle className="w-4 h-4 text-green-500" />
+                                                                Lulus tanpa Revisi
+                                                            </div>
+                                                        </SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
                                 <p className="mt-2 text-xs text-gray-500 leading-relaxed">
-                                    {hasilSidang === 'lulus_revisi' && (
-                                        <>Mahasiswa akan masuk <span className="font-semibold text-gray-700">fase revisi dengan dosen penguji</span>. Bimbingan pembimbing dikunci sementara hingga kedua penguji memberi ACC.</>
-                                    )}
-                                    {hasilSidang === 'lulus' && (
-                                        <>Mahasiswa <span className="font-semibold text-gray-700">melewati fase revisi penguji</span> dan langsung lanjut bimbingan dengan dosen pembimbing.</>
-                                    )}
-                                    {hasilSidang === 'tidak_lulus' && (
+                                    {isTidakLulus ? (
                                         <>Status fase mahasiswa tidak berubah.</>
+                                    ) : hasilPenguji1 === 'lulus' && hasilPenguji2 === 'lulus' ? (
+                                        <>Kedua penguji lulus tanpa revisi. Mahasiswa <span className="font-semibold text-gray-700">melewati fase revisi</span> dan langsung lanjut bimbingan dengan dosen pembimbing.</>
+                                    ) : (
+                                        <>Mahasiswa masuk <span className="font-semibold text-gray-700">fase revisi</span>. Penguji "Lulus tanpa Revisi" otomatis ter-ACC; mahasiswa hanya perlu revisi ke penguji "Lulus dengan Revisi" hingga di-ACC.</>
                                     )}
                                 </p>
-                            )}
-                        </div>
+                            </div>
+                        )}
 
                         {/* Nilai Sidang */}
                         <div>

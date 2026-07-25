@@ -200,7 +200,27 @@ export const BimbinganMahasiswa = () => {
     const currentDosenType = getDosenTypeFromSubTab(activeSubTab)
     const currentHistory = bimbinganList.filter((item) => item.dosenType === currentDosenType)
     const latestStatus = currentHistory[0]?.status
-    const isFormDisabled = latestStatus === 'menunggu' || (activeCategory === 'penguji' && isRevisionDeadlineLocked)
+
+    // Tutup form bila dosen ini sudah memberi ACC final pada siklus berjalan.
+    // Penguji: status akhir 'acc' (revisi selesai). Dospem: 'acc_sempro' (ACC Maju Sidang).
+    // Kesadaran siklus memakai jumlah ACC vs nomor siklus, karena satu dosen bisa
+    // memberi ACC pada Sempro lalu Semhas (acc_sempro dipakai ulang di kedua siklus).
+    const terminalStatus = activeCategory === 'penguji' ? 'acc' : 'acc_sempro'
+    const cycleNumberByStatus: Record<string, number> = {
+        pra_sempro: 1,
+        menunggu_sempro: 1,
+        bimbingan_lanjut: 2,
+        menunggu_semhas: 2,
+        revisi_sempro: 1,
+        revisi_semhas: 2,
+    }
+    const requiredAccCount = cycleNumberByStatus[user?.statusMahasiswa || ''] ?? 0
+    const terminalAccCount = currentHistory.filter((item) => item.status === terminalStatus).length
+    const isDosenAlreadyApproved = requiredAccCount > 0 && terminalAccCount >= requiredAccCount
+
+    const isFormDisabled = latestStatus === 'menunggu'
+        || isDosenAlreadyApproved
+        || (activeCategory === 'penguji' && isRevisionDeadlineLocked)
     const hasHistory = currentHistory.length > 0
     const shouldShowUploadForm = (!hasHistory || isUploadFormOpen) && !isFormDisabled
 
@@ -683,6 +703,17 @@ export const BimbinganMahasiswa = () => {
                             ))
                         )}
                     </div>
+
+                    {hasHistory && isDosenAlreadyApproved && (
+                        <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-xl flex items-center gap-2">
+                            <CheckCircle className="w-5 h-5 text-green-600" />
+                            <p className="text-sm text-green-700">
+                                {activeCategory === 'penguji'
+                                    ? 'Dosen penguji ini telah memberikan ACC. Revisi pada tahap ini telah selesai.'
+                                    : 'Dosen pembimbing ini telah memberikan ACC Maju Sidang. Bimbingan pada tahap ini telah selesai.'}
+                            </p>
+                        </div>
+                    )}
 
                     {hasHistory && !isFormDisabled && (
                         <div className="mt-4 flex justify-end">

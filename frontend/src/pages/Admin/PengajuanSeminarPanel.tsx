@@ -123,6 +123,16 @@ export const PengajuanSeminarPanel = () => {
         }
     }
 
+    const handlePreviewTurnitin = async (item: PengajuanSeminar) => {
+        if (!item.turnitinFilePath) return
+        try {
+            setError(null)
+            await previewPengajuanSeminarFile(item.turnitinFilePath)
+        } catch (err: unknown) {
+            setError(getApiErrorMessage(err, 'Gagal membuka pratinjau berkas Turnitin.'))
+        }
+    }
+
     const handleDownload = async (item: PengajuanSeminar) => {
         if (!item.filePath) return
         try {
@@ -234,6 +244,22 @@ export const PengajuanSeminarPanel = () => {
                                             {item.fileOriginalName || item.fileName || 'Belum ada file'}
                                         </button>
                                         <p className="text-xs text-gray-400">{item.fileSize || '-'}</p>
+                                        {item.jenisPengajuan === 'seminar_hasil' && (
+                                            <div className="mt-1.5 pt-1.5 border-t border-gray-100">
+                                                <p className="text-[10px] uppercase tracking-wide text-gray-400 font-semibold mb-0.5">Turnitin</p>
+                                                {item.turnitinFilePath ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handlePreviewTurnitin(item)}
+                                                        className="max-w-[260px] truncate text-left text-sm font-semibold text-blue-600 hover:underline"
+                                                    >
+                                                        {item.turnitinFileOriginalName || item.turnitinFileName}
+                                                    </button>
+                                                ) : (
+                                                    <span className="text-xs text-red-500 italic">Belum diunggah</span>
+                                                )}
+                                            </div>
+                                        )}
                                     </TableCell>
                                     <TableCell className="text-center">
                                         <Badge className={`${getStatusBadge(item.statusVerifikasi)} border shadow-none font-medium`}>

@@ -144,9 +144,13 @@ const getAll = asyncHandler(async (req, res) => {
 const upload = asyncHandler(async (req, res) => {
     const { jenisPengajuan } = req.params;
     const jenis = ensureValidJenis(jenisPengajuan);
+    const isSeminarHasil = jenisPengajuan === 'seminar_hasil';
 
-    if (!req.file) {
-        throw ApiError.badRequest('File softcopy PDF wajib diunggah');
+    const softcopyFile = req.files?.softcopy?.[0] || null;
+    const turnitinFile = req.files?.turnitin?.[0] || null;
+
+    if (!softcopyFile && !turnitinFile) {
+        throw ApiError.badRequest('File PDF wajib diunggah');
     }
 
     const student = await User.findById(req.user._id);
@@ -176,11 +180,22 @@ const upload = asyncHandler(async (req, res) => {
         });
     }
 
-    pengajuan.fileName = req.file.filename;
-    pengajuan.filePath = 'uploads/pengajuan-seminar/' + req.file.filename;
-    pengajuan.fileSize = (req.file.size / (1024 * 1024)).toFixed(2) + ' MB';
-    pengajuan.fileOriginalName = req.file.originalname;
-    pengajuan.uploadedAt = new Date();
+    if (softcopyFile) {
+        pengajuan.fileName = softcopyFile.filename;
+        pengajuan.filePath = 'uploads/pengajuan-seminar/' + softcopyFile.filename;
+        pengajuan.fileSize = (softcopyFile.size / (1024 * 1024)).toFixed(2) + ' MB';
+        pengajuan.fileOriginalName = softcopyFile.originalname;
+        pengajuan.uploadedAt = new Date();
+    }
+
+    if (turnitinFile) {
+        pengajuan.turnitinFileName = turnitinFile.filename;
+        pengajuan.turnitinFilePath = 'uploads/pengajuan-seminar/' + turnitinFile.filename;
+        pengajuan.turnitinFileSize = (turnitinFile.size / (1024 * 1024)).toFixed(2) + ' MB';
+        pengajuan.turnitinFileOriginalName = turnitinFile.originalname;
+        pengajuan.turnitinUploadedAt = new Date();
+    }
+
     pengajuan.statusVerifikasi = 'menunggu_verifikasi';
     pengajuan.catatanAdmin = null;
     pengajuan.verifiedBy = null;
@@ -188,6 +203,17 @@ const upload = asyncHandler(async (req, res) => {
 
     await pengajuan.save();
     await pengajuan.populate('mahasiswa', 'name nim_nip prodi judulTA statusMahasiswa');
+
+    // Untuk Seminar Hasil kedua berkas wajib; beri tahu bila masih kurang.
+    if (isSeminarHasil && (!pengajuan.fileName || !pengajuan.turnitinFileName)) {
+        const kurang = !pengajuan.fileName ? 'Softcopy TA' : 'Hasil Turnitin';
+        return sendSuccess(
+            res,
+            200,
+            `Berkas berhasil diunggah. Lengkapi juga ${kurang} agar dapat diverifikasi admin.`,
+            pengajuan
+        );
+    }
 
     sendSuccess(res, 200, `Berkas pengajuan ${jenis.label} berhasil diunggah`, pengajuan);
 });
@@ -212,6 +238,13 @@ const verifikasi = asyncHandler(async (req, res) => {
 
     if (!pengajuan.fileName) {
         throw ApiError.badRequest('Pengajuan belum memiliki file softcopy');
+    }
+
+    // Seminar Hasil wajib menyertakan hasil Turnitin sebelum dapat disetujui.
+    if (statusVerifikasi === 'disetujui'
+        && pengajuan.jenisPengajuan === 'seminar_hasil'
+        && !pengajuan.turnitinFileName) {
+        throw ApiError.badRequest('Berkas Hasil Turnitin belum diunggah. Pengajuan Seminar Hasil tidak dapat disetujui.');
     }
 
     pengajuan.statusVerifikasi = statusVerifikasi;
@@ -242,7 +275,10 @@ const downloadFile = asyncHandler(async (req, res) => {
         $or: [
             { fileName: safeFileName },
             { filePath: `uploads/pengajuan-seminar/${safeFileName}` },
-            { filePath: safeFileName }
+            { filePath: safeFileName },
+            { turnitinFileName: safeFileName },
+            { turnitinFilePath: `uploads/pengajuan-seminar/${safeFileName}` },
+            { turnitinFilePath: safeFileName }
         ]
     }).populate('mahasiswa', 'role name dospem_1 dospem_2 penguji_1 penguji_2');
 
