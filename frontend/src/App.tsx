@@ -10,6 +10,7 @@ import { Route, Routes, Navigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from './store/hooks'
 import { initializeAuth } from './store/slices/authSlice'
 import ProtectedRoute from './components/ProtectedRoute'
+import { usePageTitle } from './hooks/usePageTitle'
 import './App.css'
   
 // Pages
@@ -58,6 +59,9 @@ const LoginRoute = () => {
 function App() {
   const dispatch = useAppDispatch()
   const { isInitialized } = useAppSelector((state) => state.auth)
+
+  // Judul tab mengikuti halaman aktif
+  usePageTitle()
 
   // Initialize auth on app load
   useEffect(() => {
