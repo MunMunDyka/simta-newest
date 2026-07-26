@@ -836,7 +836,7 @@ export const ManajemenUser = () => {
                             </Select>
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="nim_nip">NIM/NIP</Label>
+                            <Label htmlFor="nim_nip">{newUser.role === 'mahasiswa' ? 'NIM' : 'NIP'}</Label>
                             <Input
                                 id="nim_nip"
                                 value={newUser.nim_nip}

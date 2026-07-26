@@ -978,7 +978,7 @@ const generateSuratSempro = asyncHandler(async (req, res) => {
     }
 
     // Get mahasiswa data with dosen pembimbing
-    const mahasiswa = await User.findById(mahasiswaId).populate('dospem_1 dospem_2', 'name nim_nip');
+    const mahasiswa = await User.findById(mahasiswaId).populate('dospem_1 dospem_2', 'name nim_nip nuptk');
     if (!mahasiswa || mahasiswa.role !== 'mahasiswa') {
         throw ApiError.notFound('Mahasiswa tidak ditemukan');
     }
@@ -1038,11 +1038,13 @@ const generateSuratSempro = asyncHandler(async (req, res) => {
         },
         dospem1: mahasiswa.dospem_1 ? {
             name: mahasiswa.dospem_1.name,
-            nim_nip: mahasiswa.dospem_1.nim_nip
+            nim_nip: mahasiswa.dospem_1.nim_nip,
+            nuptk: mahasiswa.dospem_1.nuptk
         } : null,
         dospem2: mahasiswa.dospem_2 ? {
             name: mahasiswa.dospem_2.name,
-            nim_nip: mahasiswa.dospem_2.nim_nip
+            nim_nip: mahasiswa.dospem_2.nim_nip,
+            nuptk: mahasiswa.dospem_2.nuptk
         } : null
     });
 

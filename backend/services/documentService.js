@@ -315,19 +315,19 @@ const generateSuratPersetujuanSempro = async (data) => {
                                 }),
                             ],
                         }),
-                        // NIP/NIDN
+                        // NUPTK
                         new TableRow({
                             children: [
                                 new TableCell({
                                     children: [new Paragraph({
                                         alignment: AlignmentType.CENTER,
-                                        text: `NIDN. ${dospem1?.nim_nip || '-'}`
+                                        text: `NUPTK. ${dospem1?.nuptk || '-'}`
                                     })],
                                 }),
                                 new TableCell({
                                     children: [new Paragraph({
                                         alignment: AlignmentType.CENTER,
-                                        text: `NIDN. ${dospem2?.nim_nip || '-'}`
+                                        text: `NUPTK. ${dospem2?.nuptk || '-'}`
                                     })],
                                 }),
                             ],

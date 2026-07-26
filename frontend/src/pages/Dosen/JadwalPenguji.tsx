@@ -67,6 +67,8 @@ export const JadwalPenguji = () => {
 
     const [jadwalList, setJadwalList] = useState<JadwalSidangItem[]>([])
     const [gelombangFilter, setGelombangFilter] = useState('all')
+    const [statusFilter, setStatusFilter] = useState('all')
+    const [jenisFilter, setJenisFilter] = useState('all')
     const [isLoading, setIsLoading] = useState(true)
     const [loadError, setLoadError] = useState<string | null>(null)
 
@@ -125,6 +127,8 @@ export const JadwalPenguji = () => {
     // Sorting: Urgent first (weight desc), then date asc
     const sortedJadwal = [...jadwalList]
         .filter(j => gelombangFilter === 'all' || j.gelombang === gelombangFilter)
+        .filter(j => statusFilter === 'all' || j.status === statusFilter)
+        .filter(j => jenisFilter === 'all' || j.jenisJadwal === jenisFilter)
         .sort((a, b) => {
             const priorityA = getSortPriority(a)
             const priorityB = getSortPriority(b)
@@ -236,6 +240,26 @@ export const JadwalPenguji = () => {
                                         ))}
                                     </select>
                                 )}
+                                <select
+                                    value={jenisFilter}
+                                    onChange={(e) => setJenisFilter(e.target.value)}
+                                    className="h-9 rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 shrink-0"
+                                >
+                                    <option value="all">Semua Jenis</option>
+                                    <option value="sidang_proposal">Seminar Proposal</option>
+                                    <option value="sidang_semhas">Seminar Hasil</option>
+                                    <option value="sidang_skripsi">Sidang Akhir</option>
+                                </select>
+                                <select
+                                    value={statusFilter}
+                                    onChange={(e) => setStatusFilter(e.target.value)}
+                                    className="h-9 rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-700 shrink-0"
+                                >
+                                    <option value="all">Semua Status</option>
+                                    <option value="dijadwalkan">Dijadwalkan</option>
+                                    <option value="selesai">Selesai</option>
+                                    <option value="dibatalkan">Dibatalkan</option>
+                                </select>
                             </div>
 
                             {/* Legend / Petunjuk Warna */}

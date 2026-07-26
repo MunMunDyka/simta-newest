@@ -65,7 +65,6 @@ interface JadwalSidangItem {
     penguji2: string
     ruangan: string
     status: string
-    isMine: boolean
     tahunAjaran: string
     gelombang: string
 }
@@ -131,7 +130,6 @@ export const JadwalSidang = () => {
                 const jadwalList = response.data.data || []
 
                 // Transform data
-                const currentUserId = user?._id
                 const transformed: JadwalSidangItem[] = jadwalList.map((jadwal: {
                     _id: string
                     mahasiswa?: { _id?: string; name?: string; nim_nip?: string; judulTA?: string; dospem_1?: { _id?: string; name?: string }; dospem_2?: { _id?: string; name?: string } }
@@ -167,13 +165,6 @@ export const JadwalSidang = () => {
                         penguji2: jadwal.penguji?.[1]?.name || '-',
                         ruangan: jadwal.ruangan || 'B302',
                         status: jadwal.status || 'dijadwalkan',
-                        // Jadwal milik user login: sebagai mahasiswa ybs, penguji, atau dosen pembimbing.
-                        isMine: Boolean(currentUserId && (
-                            jadwal.mahasiswa?._id === currentUserId ||
-                            jadwal.mahasiswa?.dospem_1?._id === currentUserId ||
-                            jadwal.mahasiswa?.dospem_2?._id === currentUserId ||
-                            (jadwal.penguji || []).some((p) => p?._id === currentUserId)
-                        )),
                         tahunAjaran: jadwal.tahunAjaran || '',
                         gelombang: jadwal.gelombang || ''
                     }
@@ -228,20 +219,12 @@ export const JadwalSidang = () => {
     }, [ruanganFilter, ruanganOptions, dosenFilter, dosenOptions])
 
     const filteredJadwalData = useMemo(() => {
-        const filtered = jadwalData.filter(jadwal => {
+        return jadwalData.filter(jadwal => {
             const matchesRuangan = ruanganFilter === 'all' || jadwal.ruangan === ruanganFilter
             const matchesDosen = dosenFilter === 'all' || jadwal.penguji1 === dosenFilter || jadwal.penguji2 === dosenFilter
             const matchesGelombang = gelombangFilter === 'all' || jadwal.gelombang === gelombangFilter
             return matchesRuangan && matchesDosen && matchesGelombang
         })
-        // Jadwal milik user login diangkat ke paling atas; urutan lain dipertahankan.
-        return filtered
-            .map((item, index) => ({ item, index }))
-            .sort((a, b) => {
-                if (a.item.isMine !== b.item.isMine) return a.item.isMine ? -1 : 1
-                return a.index - b.index
-            })
-            .map(({ item }) => item)
     }, [jadwalData, ruanganFilter, dosenFilter, gelombangFilter])
 
     const totalSesi = useMemo(() => {
@@ -776,14 +759,10 @@ export const JadwalSidang = () => {
                                                     initial={{ opacity: 0, y: 10 }}
                                                     animate={{ opacity: 1, y: 0 }}
                                                     transition={{ delay: 0.03 * index }}
-                                                    className={`border-b border-gray-100 hover:bg-blue-50/30 transition-colors ${jadwal.isMine ? 'bg-blue-50/70 ring-1 ring-inset ring-blue-200' : index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
+                                                    className={`border-b border-gray-100 hover:bg-blue-50/30 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
                                                 >
                                                     <TableCell className="text-center font-medium text-gray-700 py-3 px-3">
-                                                        {jadwal.isMine ? (
-                                                            <span className="inline-block rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-bold text-white whitespace-nowrap">Anda</span>
-                                                        ) : (
-                                                            index + 1
-                                                        )}
+                                                        {index + 1}
                                                     </TableCell>
                                                     <TableCell className="text-gray-700 py-3 px-3 whitespace-nowrap text-xs">{jadwal.tanggal.split(', ')[1] || jadwal.tanggal}</TableCell>
                                                     <TableCell className="text-gray-700 py-3 px-3 whitespace-nowrap text-xs">{jadwal.waktu}</TableCell>
