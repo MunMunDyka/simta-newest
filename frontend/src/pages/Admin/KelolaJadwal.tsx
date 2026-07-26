@@ -1308,6 +1308,17 @@ export const KelolaJadwal = () => {
                                         <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                                             <Button
                                                 variant="outline"
+                                                className="border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700 rounded-xl"
+                                                onClick={() => { setGelombangError(null); resetGelForm(); fetchGelombang(true); setIsGelombangModalOpen(true) }}
+                                            >
+                                                <Plus className="w-4 h-4 mr-2" />
+                                                Kelola Gelombang
+                                            </Button>
+                                        </motion.div>
+
+                                        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                                            <Button
+                                                variant="outline"
                                                 className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 rounded-xl"
                                                 onClick={handleDeleteAll}
                                                 disabled={isSubmitting}
@@ -1749,16 +1760,7 @@ export const KelolaJadwal = () => {
                         {/* Gelombang Sidang (otomatis dari tanggal, bisa diubah admin) */}
                         {jenisJadwalToGelombang(jenisJadwal) ? (
                             <div>
-                                <div className="flex items-center justify-between">
-                                    <Label className="text-sm font-medium">Gelombang Sidang</Label>
-                                    <button
-                                        type="button"
-                                        onClick={() => { setGelombangError(null); resetGelForm(); fetchGelombang(true); setIsGelombangModalOpen(true) }}
-                                        className="text-xs font-medium text-blue-600 hover:underline"
-                                    >
-                                        Kelola Gelombang
-                                    </button>
-                                </div>
+                                <Label className="text-sm font-medium">Gelombang Sidang</Label>
                                 <Select value={gelombangId} onValueChange={handleSelectGelombang}>
                                     <SelectTrigger className="mt-1">
                                         <SelectValue placeholder="Pilih gelombang / otomatis dari tanggal" />
@@ -2014,16 +2016,7 @@ export const KelolaJadwal = () => {
                         {/* Gelombang Sidang (otomatis dari tanggal, bisa diubah admin) */}
                         {jenisJadwalToGelombang(jenisJadwal) ? (
                             <div>
-                                <div className="flex items-center justify-between">
-                                    <Label className="text-sm font-medium">Gelombang Sidang</Label>
-                                    <button
-                                        type="button"
-                                        onClick={() => { setGelombangError(null); resetGelForm(); fetchGelombang(true); setIsGelombangModalOpen(true) }}
-                                        className="text-xs font-medium text-blue-600 hover:underline"
-                                    >
-                                        Kelola Gelombang
-                                    </button>
-                                </div>
+                                <Label className="text-sm font-medium">Gelombang Sidang</Label>
                                 <Select value={gelombangId} onValueChange={handleSelectGelombang}>
                                     <SelectTrigger className="mt-1">
                                         <SelectValue placeholder="Pilih gelombang / otomatis dari tanggal" />
