@@ -95,6 +95,17 @@ interface JadwalSidang {
     gelombang?: string
 }
 
+interface GelombangItem {
+    _id: string
+    jenis: 'seminar_proposal' | 'seminar_hasil'
+    tahunAjaran: string
+    nomor: number
+    tanggalMulai: string
+    tanggalSelesai: string
+    isActive: boolean
+    keterangan?: string | null
+}
+
 interface UserOption {
     _id: string
     name: string
@@ -238,6 +249,14 @@ export const KelolaJadwal = () => {
     const [editingRuanganId, setEditingRuanganId] = useState('')
     const [editingRuanganNama, setEditingRuanganNama] = useState('')
     const [ruanganError, setRuanganError] = useState<string | null>(null)
+    // Gelombang sidang dari database (CRUD). Menentukan gelombang jadwal via tanggal sidang.
+    const [gelombangList, setGelombangList] = useState<GelombangItem[]>([])
+    const [gelombangId, setGelombangId] = useState('none') // pilihan dropdown (Gelombang _id) di form jadwal
+    const [isGelombangModalOpen, setIsGelombangModalOpen] = useState(false)
+    const [gelombangError, setGelombangError] = useState<string | null>(null)
+    const [editingGelombangId, setEditingGelombangId] = useState('')
+    const emptyGelForm = { jenis: 'seminar_proposal', tahunAjaran: '', nomor: '', tanggalMulai: '', tanggalSelesai: '' }
+    const [gelForm, setGelForm] = useState(emptyGelForm)
     const [penguji1, setPenguji1] = useState('')
     const [penguji2, setPenguji2] = useState('')
     const [academicSidangLink, setAcademicSidangLink] = useState('')
@@ -304,6 +323,7 @@ export const KelolaJadwal = () => {
         fetchUsers()
         fetchAcademicSidangLink()
         fetchRuangan()
+        fetchGelombang()
     }, [])
 
     const fetchRuangan = async (includeInactive = false) => {
@@ -312,6 +332,15 @@ export const KelolaJadwal = () => {
             setRuanganList(res.data.data || [])
         } catch (error) {
             console.error('Failed to fetch ruangan:', error)
+        }
+    }
+
+    const fetchGelombang = async (includeInactive = false) => {
+        try {
+            const res = await api.get('/gelombang', { params: includeInactive ? { includeInactive: 'true' } : {} })
+            setGelombangList(res.data.data || [])
+        } catch (error) {
+            console.error('Failed to fetch gelombang:', error)
         }
     }
 
@@ -355,6 +384,114 @@ export const KelolaJadwal = () => {
     // Daftar nama ruangan aktif untuk dropdown jadwal (fallback ke bawaan bila kosong).
     const activeRuanganNames = ruanganList.filter(r => r.isActive).map(r => r.nama)
     const ruanganDropdownOptions = activeRuanganNames.length > 0 ? activeRuanganNames : ruanganOptions
+
+    // ===== Gelombang =====
+    // Sidang Akhir tidak memakai gelombang.
+    const jenisJadwalToGelombang = (jj: string): GelombangItem['jenis'] | null =>
+        jj === 'sidang_proposal' ? 'seminar_proposal' : jj === 'sidang_semhas' ? 'seminar_hasil' : null
+
+    // Gelombang aktif untuk jenis jadwal saat ini (untuk isi dropdown di form jadwal).
+    const gelombangForJenis = (() => {
+        const jenis = jenisJadwalToGelombang(jenisJadwal)
+        if (!jenis) return [] as GelombangItem[]
+        return gelombangList
+            .filter(g => g.jenis === jenis && g.isActive)
+            .sort((a, b) => (a.tahunAjaran === b.tahunAjaran ? a.nomor - b.nomor : a.tahunAjaran.localeCompare(b.tahunAjaran)))
+    })()
+
+    // Cari gelombang yang cocok untuk tanggal sidang: window pertama yang memuat tanggal tsb.
+    const matchGelombangByTanggal = (jj: string, tanggalStr: string): GelombangItem | null => {
+        const jenis = jenisJadwalToGelombang(jj)
+        if (!jenis || !tanggalStr) return null
+        const d = new Date(tanggalStr).getTime()
+        const cocok = gelombangList
+            .filter(g => g.jenis === jenis && g.isActive
+                && new Date(g.tanggalMulai).getTime() <= d && d <= new Date(g.tanggalSelesai).getTime())
+            .sort((a, b) => a.nomor - b.nomor)
+        return cocok[0] || null
+    }
+
+    // Terapkan pilihan gelombang (dari dropdown/otomatis) ke state form jadwal.
+    const applyGelombang = (g: GelombangItem | null) => {
+        if (g) {
+            setGelombangId(g._id)
+            setGelombang(String(g.nomor))
+            setTahunAjaran(g.tahunAjaran)
+        } else {
+            setGelombangId('none')
+        }
+    }
+
+    // Saat admin mengubah tanggal sidang: set tanggal + auto-isi gelombang yang cocok.
+    const handleTanggalChange = (value: string) => {
+        setTanggal(value)
+        const match = matchGelombangByTanggal(jenisJadwal, value)
+        if (match) applyGelombang(match)
+    }
+
+    // Pilihan manual dari dropdown gelombang di form jadwal.
+    const handleSelectGelombang = (id: string) => {
+        if (id === 'none') {
+            setGelombangId('none')
+            setGelombang('')
+            setTahunAjaran('')
+            return
+        }
+        const g = gelombangList.find(x => x._id === id)
+        if (g) applyGelombang(g)
+    }
+
+    const fmtTgl = (d: string) => new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+
+    const resetGelForm = () => { setGelForm(emptyGelForm); setEditingGelombangId('') }
+
+    const handleSaveGelombang = async () => {
+        const payload = {
+            jenis: gelForm.jenis,
+            tahunAjaran: gelForm.tahunAjaran.trim(),
+            nomor: Number(gelForm.nomor),
+            tanggalMulai: gelForm.tanggalMulai,
+            tanggalSelesai: gelForm.tanggalSelesai,
+        }
+        if (!payload.tahunAjaran || !payload.nomor || !payload.tanggalMulai || !payload.tanggalSelesai) {
+            setGelombangError('Semua field gelombang wajib diisi.')
+            return
+        }
+        try {
+            setGelombangError(null)
+            if (editingGelombangId) {
+                await api.put(`/gelombang/${editingGelombangId}`, payload)
+            } else {
+                await api.post('/gelombang', payload)
+            }
+            resetGelForm()
+            fetchGelombang(true)
+        } catch (error) {
+            setGelombangError(getApiErrorMessage(error, 'Gagal menyimpan gelombang.'))
+        }
+    }
+
+    const handleEditGelombang = (g: GelombangItem) => {
+        setEditingGelombangId(g._id)
+        setGelForm({
+            jenis: g.jenis,
+            tahunAjaran: g.tahunAjaran,
+            nomor: String(g.nomor),
+            tanggalMulai: g.tanggalMulai.split('T')[0],
+            tanggalSelesai: g.tanggalSelesai.split('T')[0],
+        })
+    }
+
+    const handleDeleteGelombang = async (id: string) => {
+        try {
+            setGelombangError(null)
+            await api.delete(`/gelombang/${id}`)
+            if (editingGelombangId === id) resetGelForm()
+            fetchGelombang(true)
+        } catch (error) {
+            setGelombangError(getApiErrorMessage(error, 'Gagal menghapus gelombang.'))
+        }
+    }
 
     const fetchJadwal = async () => {
         try {
@@ -520,6 +657,12 @@ export const KelolaJadwal = () => {
         setRuangan(jadwal.ruangan || '')
         setTahunAjaran(jadwal.tahunAjaran || '')
         setGelombang(jadwal.gelombang || '')
+        // Preselect dropdown gelombang bila cocok dengan data master; kalau tidak, biarkan nilai lama.
+        const jenisG = jenisJadwalToGelombang(jadwal.jenisJadwal)
+        const matched = gelombangList.find(g => g.jenis === jenisG
+            && String(g.nomor) === String(jadwal.gelombang || '')
+            && g.tahunAjaran === (jadwal.tahunAjaran || ''))
+        setGelombangId(matched ? matched._id : 'none')
         setPenguji1(jadwal.penguji?.[0]?._id || '')
         setPenguji2(jadwal.penguji?.[1]?._id || '')
         setIsEditModalOpen(true)
@@ -712,6 +855,7 @@ export const KelolaJadwal = () => {
         setRuangan('')
         setTahunAjaran('')
         setGelombang('')
+        setGelombangId('none')
         setPenguji1('')
         setPenguji2('')
         setMahasiswaSearch('')
@@ -1508,7 +1652,7 @@ export const KelolaJadwal = () => {
                                             alert('Tanggal sidang tidak boleh pada hari Sabtu atau Minggu (weekend)! Hari yang diperbolehkan adalah Senin - Jumat.');
                                             setTanggal('');
                                         } else {
-                                            setTanggal(val);
+                                            handleTanggalChange(val);
                                         }
                                     }}
                                     className="mt-1"
@@ -1602,17 +1746,39 @@ export const KelolaJadwal = () => {
                             </Select>
                         </div>
 
-                        {/* Tahun Ajaran & Gelombang */}
-                        <div className="grid grid-cols-2 gap-3">
+                        {/* Gelombang Sidang (otomatis dari tanggal, bisa diubah admin) */}
+                        {jenisJadwalToGelombang(jenisJadwal) ? (
                             <div>
-                                <Label className="text-sm font-medium">Tahun Ajaran</Label>
-                                <Input placeholder="mis. 2025/2026" value={tahunAjaran} onChange={(e) => setTahunAjaran(e.target.value)} className="mt-1" />
+                                <div className="flex items-center justify-between">
+                                    <Label className="text-sm font-medium">Gelombang Sidang</Label>
+                                    <button
+                                        type="button"
+                                        onClick={() => { setGelombangError(null); resetGelForm(); fetchGelombang(true); setIsGelombangModalOpen(true) }}
+                                        className="text-xs font-medium text-blue-600 hover:underline"
+                                    >
+                                        Kelola Gelombang
+                                    </button>
+                                </div>
+                                <Select value={gelombangId} onValueChange={handleSelectGelombang}>
+                                    <SelectTrigger className="mt-1">
+                                        <SelectValue placeholder="Pilih gelombang / otomatis dari tanggal" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">— Tidak ada —</SelectItem>
+                                        {gelombangForJenis.map((g) => (
+                                            <SelectItem key={g._id} value={g._id}>
+                                                Gelombang {g.nomor} — {g.tahunAjaran} ({fmtTgl(g.tanggalMulai)}–{fmtTgl(g.tanggalSelesai)})
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {tahunAjaran && gelombang && (
+                                    <p className="mt-1 text-xs text-gray-500">Tahun Ajaran: {tahunAjaran} · Gelombang {gelombang}</p>
+                                )}
                             </div>
-                            <div>
-                                <Label className="text-sm font-medium">Gelombang</Label>
-                                <Input placeholder="mis. 1" value={gelombang} onChange={(e) => setGelombang(e.target.value)} className="mt-1" />
-                            </div>
-                        </div>
+                        ) : (
+                            <p className="text-xs text-gray-400">Sidang Akhir tidak memakai gelombang.</p>
+                        )}
 
                         {/* Penguji */}
                         <div className="grid grid-cols-2 gap-3">
@@ -1749,7 +1915,7 @@ export const KelolaJadwal = () => {
                                             alert('Tanggal sidang tidak boleh pada hari Sabtu atau Minggu (weekend)! Hari yang diperbolehkan adalah Senin - Jumat.');
                                             setTanggal('');
                                         } else {
-                                            setTanggal(val);
+                                            handleTanggalChange(val);
                                         }
                                     }}
                                     className="mt-1"
@@ -1845,17 +2011,39 @@ export const KelolaJadwal = () => {
                             </Select>
                         </div>
 
-                        {/* Tahun Ajaran & Gelombang */}
-                        <div className="grid grid-cols-2 gap-3">
+                        {/* Gelombang Sidang (otomatis dari tanggal, bisa diubah admin) */}
+                        {jenisJadwalToGelombang(jenisJadwal) ? (
                             <div>
-                                <Label className="text-sm font-medium">Tahun Ajaran</Label>
-                                <Input placeholder="mis. 2025/2026" value={tahunAjaran} onChange={(e) => setTahunAjaran(e.target.value)} className="mt-1" />
+                                <div className="flex items-center justify-between">
+                                    <Label className="text-sm font-medium">Gelombang Sidang</Label>
+                                    <button
+                                        type="button"
+                                        onClick={() => { setGelombangError(null); resetGelForm(); fetchGelombang(true); setIsGelombangModalOpen(true) }}
+                                        className="text-xs font-medium text-blue-600 hover:underline"
+                                    >
+                                        Kelola Gelombang
+                                    </button>
+                                </div>
+                                <Select value={gelombangId} onValueChange={handleSelectGelombang}>
+                                    <SelectTrigger className="mt-1">
+                                        <SelectValue placeholder="Pilih gelombang / otomatis dari tanggal" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">— Tidak ada —</SelectItem>
+                                        {gelombangForJenis.map((g) => (
+                                            <SelectItem key={g._id} value={g._id}>
+                                                Gelombang {g.nomor} — {g.tahunAjaran} ({fmtTgl(g.tanggalMulai)}–{fmtTgl(g.tanggalSelesai)})
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {tahunAjaran && gelombang && (
+                                    <p className="mt-1 text-xs text-gray-500">Tahun Ajaran: {tahunAjaran} · Gelombang {gelombang}</p>
+                                )}
                             </div>
-                            <div>
-                                <Label className="text-sm font-medium">Gelombang</Label>
-                                <Input placeholder="mis. 1" value={gelombang} onChange={(e) => setGelombang(e.target.value)} className="mt-1" />
-                            </div>
-                        </div>
+                        ) : (
+                            <p className="text-xs text-gray-400">Sidang Akhir tidak memakai gelombang.</p>
+                        )}
 
                         {/* Penguji */}
                         <div className="grid grid-cols-2 gap-3">
@@ -2279,6 +2467,93 @@ export const KelolaJadwal = () => {
 
                     <div className="flex justify-end mt-4">
                         <Button variant="outline" onClick={() => { setIsRuanganModalOpen(false); fetchRuangan() }}>Tutup</Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal Kelola Gelombang (CRUD) */}
+            <Dialog open={isGelombangModalOpen} onOpenChange={setIsGelombangModalOpen}>
+                <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Kelola Gelombang Sidang</DialogTitle>
+                        <DialogDescription>Atur periode gelombang Sempro & Semhas. Gelombang jadwal ditentukan otomatis dari tanggal sidang.</DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4 mt-2">
+                        {gelombangError && (
+                            <div className="rounded-lg bg-red-50 border border-red-200 p-2.5 text-sm text-red-700">{gelombangError}</div>
+                        )}
+
+                        {/* Form tambah/ubah gelombang */}
+                        <div className="rounded-lg border border-gray-200 p-3 space-y-3">
+                            <p className="text-sm font-semibold text-gray-700">{editingGelombangId ? 'Ubah Gelombang' : 'Tambah Gelombang'}</p>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <Label className="text-xs">Jenis</Label>
+                                    <Select value={gelForm.jenis} onValueChange={(v) => setGelForm({ ...gelForm, jenis: v })}>
+                                        <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="seminar_proposal">Seminar Proposal</SelectItem>
+                                            <SelectItem value="seminar_hasil">Seminar Hasil</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div>
+                                    <Label className="text-xs">Tahun Ajaran</Label>
+                                    <Input placeholder="mis. 2025/2026 Ganjil" value={gelForm.tahunAjaran} onChange={(e) => setGelForm({ ...gelForm, tahunAjaran: e.target.value })} className="mt-1" />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-3 gap-3">
+                                <div>
+                                    <Label className="text-xs">Nomor</Label>
+                                    <Input type="number" min={1} placeholder="1" value={gelForm.nomor} onChange={(e) => setGelForm({ ...gelForm, nomor: e.target.value })} className="mt-1" />
+                                </div>
+                                <div>
+                                    <Label className="text-xs">Tanggal Mulai</Label>
+                                    <Input type="date" value={gelForm.tanggalMulai} onChange={(e) => setGelForm({ ...gelForm, tanggalMulai: e.target.value })} className="mt-1" />
+                                </div>
+                                <div>
+                                    <Label className="text-xs">Tanggal Selesai</Label>
+                                    <Input type="date" value={gelForm.tanggalSelesai} onChange={(e) => setGelForm({ ...gelForm, tanggalSelesai: e.target.value })} className="mt-1" />
+                                </div>
+                            </div>
+                            <div className="flex justify-end gap-2">
+                                {editingGelombangId && (
+                                    <Button variant="outline" size="sm" onClick={resetGelForm}>Batal</Button>
+                                )}
+                                <Button size="sm" onClick={handleSaveGelombang} className="bg-blue-600 hover:bg-blue-700 text-white">
+                                    <Plus className="w-4 h-4 mr-1" /> {editingGelombangId ? 'Simpan' : 'Tambah'}
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* Daftar gelombang */}
+                        <div className="max-h-72 overflow-y-auto rounded-lg border border-gray-200 divide-y divide-gray-100">
+                            {gelombangList.length === 0 ? (
+                                <p className="p-4 text-center text-sm text-gray-400">Belum ada gelombang.</p>
+                            ) : (
+                                gelombangList.map((g) => (
+                                    <div key={g._id} className="flex items-center justify-between gap-2 p-2.5">
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-medium text-gray-800 truncate">
+                                                {g.jenis === 'seminar_proposal' ? 'Sempro' : 'Semhas'} · Gelombang {g.nomor} · {g.tahunAjaran}
+                                            </p>
+                                            <p className="text-xs text-gray-500">{fmtTgl(g.tanggalMulai)} – {fmtTgl(g.tanggalSelesai)}</p>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 shrink-0">
+                                            <Button size="sm" variant="outline" onClick={() => handleEditGelombang(g)} className="h-8 px-2 text-xs">Ubah</Button>
+                                            <Button size="sm" variant="outline" onClick={() => handleDeleteGelombang(g._id)} className="h-8 px-2 text-red-600 border-red-200 hover:bg-red-50">
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end mt-4">
+                        <Button variant="outline" onClick={() => { setIsGelombangModalOpen(false); resetGelForm(); fetchGelombang() }}>Tutup</Button>
                     </div>
                 </DialogContent>
             </Dialog>
