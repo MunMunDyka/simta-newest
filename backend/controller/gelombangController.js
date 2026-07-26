@@ -57,6 +57,22 @@ const parseGelombangPayload = (body) => {
     return { jenis, tahunAjaran, nomor, tanggalMulai, tanggalSelesai, keterangan: body.keterangan || null };
 };
 
+// Pastikan urutan kronologis antar gelombang pada jenis + tahun ajaran yang sama:
+// gelombang bernomor lebih besar harus dimulai setelah gelombang sebelumnya berakhir.
+const validateChronology = async (data, excludeId) => {
+    const query = { jenis: data.jenis, tahunAjaran: data.tahunAjaran };
+    if (excludeId) query._id = { $ne: excludeId };
+    const sejenis = await Gelombang.find(query);
+    for (const g of sejenis) {
+        if (g.nomor < data.nomor && data.tanggalMulai <= g.tanggalSelesai) {
+            throw ApiError.badRequest(`Tanggal mulai harus setelah Gelombang ${g.nomor} berakhir.`);
+        }
+        if (g.nomor > data.nomor && data.tanggalSelesai >= g.tanggalMulai) {
+            throw ApiError.badRequest(`Tanggal selesai harus sebelum Gelombang ${g.nomor} dimulai.`);
+        }
+    }
+};
+
 /**
  * @desc    Tambah gelombang
  * @route   POST /api/gelombang
@@ -69,6 +85,8 @@ const create = asyncHandler(async (req, res) => {
     if (existing) {
         throw ApiError.conflict(`Gelombang ${data.nomor} untuk ${data.tahunAjaran} sudah terdaftar`);
     }
+
+    await validateChronology(data, null);
 
     const gelombang = await Gelombang.create(data);
     sendCreated(res, 'Gelombang berhasil ditambahkan', gelombang);
@@ -103,6 +121,8 @@ const update = asyncHandler(async (req, res) => {
     if (duplicate) {
         throw ApiError.conflict(`Gelombang ${data.nomor} untuk ${data.tahunAjaran} sudah terdaftar`);
     }
+
+    await validateChronology(data, gelombang._id);
 
     Object.assign(gelombang, data);
     if (req.body.isActive !== undefined) {

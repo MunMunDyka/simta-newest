@@ -190,6 +190,7 @@ export const KelolaJadwal = () => {
 
     const [searchQuery, setSearchQuery] = useState('')
     const [statusFilter, setStatusFilter] = useState('dijadwalkan')
+    const [listGelombangFilter, setListGelombangFilter] = useState('all')
     const [currentPage, setCurrentPage] = useState(1)
     const [isLoading, setIsLoading] = useState(true)
     const [jadwalList, setJadwalList] = useState<JadwalSidang[]>([])
@@ -456,6 +457,28 @@ export const KelolaJadwal = () => {
         if (!payload.tahunAjaran || !payload.nomor || !payload.tanggalMulai || !payload.tanggalSelesai) {
             setGelombangError('Semua field gelombang wajib diisi.')
             return
+        }
+        const mulai = new Date(payload.tanggalMulai).getTime()
+        const selesai = new Date(payload.tanggalSelesai).getTime()
+        if (mulai > selesai) {
+            setGelombangError('Tanggal mulai tidak boleh setelah tanggal selesai.')
+            return
+        }
+        // Validasi kronologis: gelombang bernomor lebih besar harus dimulai setelah
+        // gelombang sebelumnya berakhir (tidak boleh tumpang tindih/mundur).
+        const sejenis = gelombangList.filter(g => g._id !== editingGelombangId
+            && g.jenis === payload.jenis && g.tahunAjaran === payload.tahunAjaran)
+        for (const g of sejenis) {
+            const gMulai = new Date(g.tanggalMulai).getTime()
+            const gSelesai = new Date(g.tanggalSelesai).getTime()
+            if (g.nomor < payload.nomor && mulai <= gSelesai) {
+                setGelombangError(`Tanggal mulai harus setelah Gelombang ${g.nomor} berakhir (${fmtTgl(g.tanggalSelesai)}).`)
+                return
+            }
+            if (g.nomor > payload.nomor && selesai >= gMulai) {
+                setGelombangError(`Tanggal selesai harus sebelum Gelombang ${g.nomor} dimulai (${fmtTgl(g.tanggalMulai)}).`)
+                return
+            }
         }
         try {
             setGelombangError(null)
@@ -999,8 +1022,12 @@ export const KelolaJadwal = () => {
             jadwal.mahasiswa?.name?.toLowerCase().includes(normalizedSearch) ||
             jadwal.mahasiswa?.nim_nip?.includes(normalizedSearch)
         const matchesStatus = statusFilter === 'all' || jadwal.status === statusFilter
-        return matchesSearch && matchesStatus
+        const matchesGelombang = listGelombangFilter === 'all' || String(jadwal.gelombang || '') === listGelombangFilter
+        return matchesSearch && matchesStatus && matchesGelombang
     })
+
+    // Opsi gelombang untuk filter daftar (dari data jadwal yang ada).
+    const listGelombangOptions = Array.from(new Set(jadwalList.map(j => j.gelombang).filter(Boolean) as string[])).sort()
 
     const sortedJadwal = [...filteredJadwal].sort((a, b) => {
         const priorityA = a.status === 'dijadwalkan' ? 2 : a.status === 'selesai' ? 1 : 0
@@ -1281,6 +1308,20 @@ export const KelolaJadwal = () => {
                                             </SelectContent>
                                         </Select>
 
+                                        {listGelombangOptions.length > 0 && (
+                                            <Select value={listGelombangFilter} onValueChange={setListGelombangFilter}>
+                                                <SelectTrigger className="w-40 h-9 bg-gray-50 border-gray-200">
+                                                    <SelectValue placeholder="Filter Gelombang" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all">Semua Gelombang</SelectItem>
+                                                    {listGelombangOptions.map((g) => (
+                                                        <SelectItem key={g} value={g}>Gelombang {g}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        )}
+
                                         <div className="relative">
                                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                             <Input
@@ -1351,6 +1392,7 @@ export const KelolaJadwal = () => {
                                             <TableHead className="font-semibold text-gray-700">Tanggal & Waktu</TableHead>
                                             <TableHead className="font-semibold text-gray-700">Ruangan</TableHead>
                                             <TableHead className="font-semibold text-gray-700">Penguji</TableHead>
+                                            <TableHead className="font-semibold text-gray-700">Gelombang</TableHead>
                                             <TableHead className="font-semibold text-gray-700">Status</TableHead>
                                             <TableHead className="font-semibold text-gray-700 text-center">Aksi</TableHead>
                                         </TableRow>
@@ -1358,7 +1400,7 @@ export const KelolaJadwal = () => {
                                     <TableBody>
                                         {isLoading ? (
                                             <TableRow>
-                                                <TableCell colSpan={7} className="text-center py-12">
+                                                <TableCell colSpan={8} className="text-center py-12">
                                                     <div className="flex flex-col items-center gap-3">
                                                         <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-orange-500"></div>
                                                         <p className="text-gray-500 text-sm">Memuat data jadwal...</p>
@@ -1367,7 +1409,7 @@ export const KelolaJadwal = () => {
                                             </TableRow>
                                         ) : sortedJadwal.length === 0 ? (
                                             <TableRow>
-                                                <TableCell colSpan={7} className="text-center py-12">
+                                                <TableCell colSpan={8} className="text-center py-12">
                                                     <div className="flex flex-col items-center gap-3">
                                                         <Calendar className="w-12 h-12 text-gray-300" />
                                                         <p className="text-gray-500">Belum ada jadwal sidang</p>
@@ -1442,6 +1484,15 @@ export const KelolaJadwal = () => {
                                                                 <p className="text-sm text-gray-400">Belum ada penguji</p>
                                                             )}
                                                         </div>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {jadwal.jenisJadwal === 'sidang_skripsi' ? (
+                                                            <span className="text-sm text-gray-400">-</span>
+                                                        ) : jadwal.gelombang ? (
+                                                            <Badge className="bg-indigo-100 text-indigo-700">Gel {jadwal.gelombang}</Badge>
+                                                        ) : (
+                                                            <span className="text-sm text-gray-400">-</span>
+                                                        )}
                                                     </TableCell>
                                                     <TableCell>{getStatusBadge(jadwal.status)}</TableCell>
                                                     <TableCell className="text-center">
@@ -2498,8 +2549,15 @@ export const KelolaJadwal = () => {
                             </div>
                             <div className="grid grid-cols-3 gap-3">
                                 <div>
-                                    <Label className="text-xs">Nomor</Label>
-                                    <Input type="number" min={1} placeholder="1" value={gelForm.nomor} onChange={(e) => setGelForm({ ...gelForm, nomor: e.target.value })} className="mt-1" />
+                                    <Label className="text-xs">Gelombang</Label>
+                                    <Select value={gelForm.nomor} onValueChange={(v) => setGelForm({ ...gelForm, nomor: v })}>
+                                        <SelectTrigger className="mt-1"><SelectValue placeholder="Pilih" /></SelectTrigger>
+                                        <SelectContent>
+                                            {[1, 2, 3, 4, 5].map((n) => (
+                                                <SelectItem key={n} value={String(n)}>Gelombang {n}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                                 <div>
                                     <Label className="text-xs">Tanggal Mulai</Label>
