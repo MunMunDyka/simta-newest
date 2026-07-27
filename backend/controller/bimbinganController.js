@@ -1582,5 +1582,6 @@ module.exports = {
     clearAllBimbinganGlobal,
     getBimbinganSettings,
     updateBimbinganSettings,
-    getProgressReport
+    getProgressReport,
+    expireStaleBimbingan // diekspos untuk module UAT (tidak mengubah perilaku)
 };

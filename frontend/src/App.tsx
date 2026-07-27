@@ -40,6 +40,9 @@ import { JadwalPenguji } from './pages/Dosen/JadwalPenguji'
 // Wireframe Pages (untuk dokumentasi skripsi)
 import { LoginWireframe, DashboardWireframe, BimbinganWireframe } from './pages/Wireframe'
 
+// UAT hidden module (akses via URL, admin only)
+import { TimeTesting } from './pages/UAT/TimeTesting'
+
 const LoginRoute = () => {
   const { isAuthenticated, user } = useAppSelector((state) => state.auth)
 
@@ -251,6 +254,16 @@ function App() {
         element={
           <ProtectedRoute allowedRoles={['mahasiswa', 'dosen', 'admin']}>
             <JadwalSidang />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* UAT Hidden Module (admin only, tidak ada di menu) */}
+      <Route
+        path="/uat/time-testing"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <TimeTesting />
           </ProtectedRoute>
         }
       />
