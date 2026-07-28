@@ -241,11 +241,19 @@ export interface BimbinganSettings {
     minBimbinganDospem2: number;
     defaultMinBimbinganSempro: number;
     isCustom: boolean;
+    feedbackDeadlineGlobal?: number;
+    feedbackDeadlineOverride?: number | null;
+    feedbackDeadlineEffective?: number;
     mahasiswa?: {
         _id: string;
         name: string;
         nim_nip: string;
     };
+}
+
+export interface GlobalFeedbackDeadline {
+    feedbackDeadlineDays: number;
+    defaultDays: number;
 }
 
 /**
@@ -270,12 +278,28 @@ export const getBimbinganSettings = async (mahasiswaId: string): Promise<ApiResp
 export const updateBimbinganSettings = async (
     mahasiswaId: string,
     minBimbinganDospem1: number,
-    minBimbinganDospem2: number
+    minBimbinganDospem2: number,
+    feedbackDeadlineDays?: number | null
 ): Promise<ApiResponse<BimbinganSettings>> => {
     const response = await api.put<ApiResponse<BimbinganSettings>>(`/bimbingan/admin/settings/${mahasiswaId}`, {
         minBimbinganDospem1,
         minBimbinganDospem2,
+        // Kirim hanya bila diikutkan (null = hapus override, ikut global)
+        ...(feedbackDeadlineDays !== undefined ? { feedbackDeadlineDays } : {}),
     });
+    return response.data;
+};
+
+/**
+ * Tenggat feedback bimbingan global (default semua mahasiswa)
+ */
+export const getGlobalFeedbackDeadline = async (): Promise<ApiResponse<GlobalFeedbackDeadline>> => {
+    const response = await api.get<ApiResponse<GlobalFeedbackDeadline>>('/bimbingan/admin/feedback-deadline');
+    return response.data;
+};
+
+export const updateGlobalFeedbackDeadline = async (feedbackDeadlineDays: number): Promise<ApiResponse<GlobalFeedbackDeadline>> => {
+    const response = await api.put<ApiResponse<GlobalFeedbackDeadline>>('/bimbingan/admin/feedback-deadline', { feedbackDeadlineDays });
     return response.data;
 };
 

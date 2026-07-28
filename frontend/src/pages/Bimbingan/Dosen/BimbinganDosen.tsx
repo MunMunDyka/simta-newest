@@ -757,6 +757,8 @@ export const BimbinganDosen = () => {
                 return <ChevronRight className="w-5 h-5 text-blue-500" />
             case 'acc_sempro':
                 return <GraduationCap className="w-5 h-5 text-purple-500" />
+            case 'expired':
+                return <Clock className="w-5 h-5 text-rose-500" />
             default:
                 return <Clock className="w-5 h-5 text-yellow-500" />
         }
@@ -1468,6 +1470,7 @@ export const BimbinganDosen = () => {
                                                 item.status === 'revisi' ? 'border-red-200 bg-red-50/50' :
                                                     item.status === 'acc' ? 'border-green-200 bg-green-50/50' :
                                                         item.status === 'acc_sempro' ? 'border-purple-200 bg-purple-50/50' :
+                                                            item.status === 'expired' ? 'border-rose-200 bg-rose-50/50' :
                                                             'border-blue-200 bg-blue-50/50'
                                                 }`}
                                         >
@@ -1484,6 +1487,7 @@ export const BimbinganDosen = () => {
                                                         item.status === 'revisi' ? 'bg-red-100' :
                                                             item.status === 'acc' ? 'bg-green-100' :
                                                                 item.status === 'acc_sempro' ? 'bg-purple-100' :
+                                                                    item.status === 'expired' ? 'bg-rose-100' :
                                                                     'bg-blue-100'
                                                         }`}>
                                                         {getStatusIcon(item.status)}
@@ -1493,20 +1497,25 @@ export const BimbinganDosen = () => {
                                                             <p className="font-medium text-gray-800">{item.version} - {item.judul}</p>
                                                             {getKategoriBadge(item.kategoriBimbingan)}
                                                         </div>
-                                                        <p className="text-xs text-gray-500">{item.createdAt}</p>
+                                                        <p className="text-xs text-gray-500">Dikirim: {item.createdAt}</p>
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-2">
+                                                    {item.feedbackDate && item.feedbackDate !== '-' && item.status !== 'menunggu' && (
+                                                        <span className="hidden sm:inline text-xs text-gray-400">Feedback: {item.feedbackDate}</span>
+                                                    )}
                                                     <Badge className={`${item.status === 'menunggu' ? 'bg-yellow-100 text-yellow-700' :
                                                         item.status === 'revisi' ? 'bg-red-100 text-red-700' :
                                                             item.status === 'acc' ? 'bg-green-100 text-green-700' :
                                                                 item.status === 'acc_sempro' ? 'bg-purple-100 text-purple-700' :
+                                                                    item.status === 'expired' ? 'bg-rose-100 text-rose-700' :
                                                                     'bg-blue-100 text-blue-700'
                                                         } border-0`}>
                                                         {item.status === 'menunggu' ? 'Menunggu' :
                                                             item.status === 'revisi' ? 'Revisi' :
                                                                 item.status === 'acc' ? 'ACC' :
-                                                                    item.status === 'acc_sempro' ? seminarTarget.accLabel : 'Lanjut BAB'}
+                                                                    item.status === 'acc_sempro' ? seminarTarget.accLabel :
+                                                                        item.status === 'expired' ? 'Expired' : 'Lanjut BAB'}
                                                     </Badge>
                                                     <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${expandedHistory === item.id ? 'rotate-180' : ''
                                                         }`} />

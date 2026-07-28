@@ -89,6 +89,22 @@ router.get(
 );
 
 /**
+ * @route   GET/PUT /api/bimbingan/admin/feedback-deadline
+ * @desc    Tenggat feedback bimbingan global (default semua mahasiswa)
+ * @access  Admin
+ */
+router.get(
+    '/admin/feedback-deadline',
+    roleMiddleware(['admin']),
+    bimbinganController.getGlobalFeedbackDeadline
+);
+router.put(
+    '/admin/feedback-deadline',
+    roleMiddleware(['admin']),
+    bimbinganController.updateGlobalFeedbackDeadline
+);
+
+/**
  * @route   GET /api/bimbingan/admin/settings/:mahasiswaId
  * @desc    Get bimbingan settings for selected mahasiswa
  * @access  Admin

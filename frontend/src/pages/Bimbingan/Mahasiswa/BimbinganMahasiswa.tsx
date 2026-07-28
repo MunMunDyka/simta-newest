@@ -64,15 +64,25 @@ const aktivitasItems = [
 ]
 
 const babOptions = ['BAB I', 'BAB II', 'BAB III', 'BAB IV', 'BAB V', 'BAB VI'] as const
-type BabOption = typeof babOptions[number]
+// Nilai topik bisa berupa 1 bab ("BAB I") atau rentang bab pada fase revisi penguji.
+type BabOption = string
 
 const semproLimitedStatuses = ['pra_sempro', 'menunggu_sempro', 'revisi_sempro']
 
+// Fase revisi dengan penguji tidak per-bab, melainkan seluruh bab fase tersebut.
+const REVISI_BAB_RANGE: Record<string, string> = {
+    revisi_sempro: 'BAB I - III',
+    revisi_semhas: 'BAB IV - VI',
+}
+
 const getAllowedBabOptions = (statusMahasiswa?: string): BabOption[] => {
-    if (semproLimitedStatuses.includes(statusMahasiswa || 'pra_sempro')) {
+    const status = statusMahasiswa || 'pra_sempro'
+    if (REVISI_BAB_RANGE[status]) {
+        return [REVISI_BAB_RANGE[status]]
+    }
+    if (semproLimitedStatuses.includes(status)) {
         return [...babOptions.slice(0, 3)]
     }
-
     return [...babOptions]
 }
 
@@ -454,6 +464,8 @@ export const BimbinganMahasiswa = () => {
                 return <Badge className="bg-blue-100 text-blue-600 hover:bg-blue-100 border-0"><ChevronRight className="w-3 h-3 mr-1" />Lanjut BAB</Badge>
             case 'acc_sempro':
                 return <Badge className="bg-purple-100 text-purple-600 hover:bg-purple-100 border-0"><CheckCircle className="w-3 h-3 mr-1" />ACC Sidang</Badge>
+            case 'expired':
+                return <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 border-0"><Clock className="w-3 h-3 mr-1" />Expired</Badge>
             default:
                 return <Badge>{status}</Badge>
         }
@@ -613,6 +625,9 @@ export const BimbinganMahasiswa = () => {
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-3">
+                                                {item.tanggalFeedback && item.status !== 'menunggu' && (
+                                                    <span className="hidden sm:inline text-xs text-gray-400">Feedback: {item.tanggalFeedback}</span>
+                                                )}
                                                 {getStatusBadge(item.status)}
                                                 <motion.div animate={{ rotate: expandedId === item._id ? 90 : 0 }}>
                                                     <ChevronRight className="w-5 h-5 text-gray-400" />

@@ -37,9 +37,23 @@ const requiredPengajuanByJadwal = {
 const ACADEMIC_SIDANG_LINK_KEY = 'academic_sidang_akhir_link';
 const REVISION_DEADLINE_DAYS = Number(process.env.REVISION_DEADLINE_DAYS || 14);
 
-const setRevisionDeadline = (student, jenis) => {
+const setRevisionDeadline = (student, jenis, customDeadline) => {
     const tanggalMulai = new Date();
-    const deadline = new Date(tanggalMulai.getTime() + REVISION_DEADLINE_DAYS * 24 * 60 * 60 * 1000);
+    let deadline = null;
+    let catatan = null;
+
+    // Tenggat dari admin (bila valid); kalau tidak, fallback default 14 hari.
+    if (customDeadline) {
+        const d = new Date(customDeadline);
+        if (!isNaN(d.getTime())) {
+            deadline = d;
+            catatan = `Deadline revisi ditetapkan admin hingga ${d.toISOString().split('T')[0]}.`;
+        }
+    }
+    if (!deadline) {
+        deadline = new Date(tanggalMulai.getTime() + REVISION_DEADLINE_DAYS * 24 * 60 * 60 * 1000);
+        catatan = `Deadline revisi otomatis ${REVISION_DEADLINE_DAYS} hari setelah jadwal selesai.`;
+    }
 
     student.revisiDeadline = {
         jenis,
@@ -49,7 +63,7 @@ const setRevisionDeadline = (student, jenis) => {
         isLocked: false,
         unlockedBy: null,
         unlockedAt: null,
-        catatan: `Deadline revisi otomatis ${REVISION_DEADLINE_DAYS} hari setelah jadwal selesai.`
+        catatan
     };
 };
 
@@ -555,7 +569,7 @@ const update = asyncHandler(async (req, res) => {
                 }
 
                 if (jadwal.hasil === 'lulus_revisi' && ['revisi_sempro', 'revisi_semhas'].includes(nextStatus)) {
-                    setRevisionDeadline(student, nextStatus);
+                    setRevisionDeadline(student, nextStatus, req.body.revisiDeadlineTanggal);
                 } else if (nextStatus === 'persiapan_wisuda') {
                     clearRevisionDeadline(student);
                 }

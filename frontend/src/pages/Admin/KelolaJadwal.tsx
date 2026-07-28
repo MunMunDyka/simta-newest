@@ -215,8 +215,8 @@ export const KelolaJadwal = () => {
     const [hasilPenguji1, setHasilPenguji1] = useState<'lulus' | 'lulus_revisi'>('lulus_revisi')
     const [hasilPenguji2, setHasilPenguji2] = useState<'lulus' | 'lulus_revisi'>('lulus_revisi')
     const [isTidakLulus, setIsTidakLulus] = useState(false)
-    const [nilaiSidang, setNilaiSidang] = useState('')
-    const [catatanHasil, setCatatanHasil] = useState('')
+    // Tenggat revisi (YYYY-MM-DD) yang di-set admin saat menyelesaikan sidang; default = tanggal sidang + 14 hari.
+    const [tenggatRevisi, setTenggatRevisi] = useState('')
 
     // Batalkan modal states
     const [isBatalkanModalOpen, setIsBatalkanModalOpen] = useState(false)
@@ -775,8 +775,10 @@ export const KelolaJadwal = () => {
         setHasilPenguji1('lulus_revisi')
         setHasilPenguji2('lulus_revisi')
         setIsTidakLulus(false)
-        setNilaiSidang('')
-        setCatatanHasil('')
+        // Default tenggat revisi = tanggal sidang + 14 hari.
+        const def = new Date(jadwal.tanggal)
+        def.setDate(def.getDate() + 14)
+        setTenggatRevisi(def.toISOString().split('T')[0])
         setIsSelesaiModalOpen(true)
     }
 
@@ -812,8 +814,8 @@ export const KelolaJadwal = () => {
                 status: 'selesai',
                 hasil,
                 hasilPenguji,
-                nilaiSidang: nilaiSidang || undefined,
-                catatan: catatanHasil || undefined
+                // Tenggat revisi hanya relevan bila hasilnya lulus dengan revisi.
+                revisiDeadlineTanggal: (hasil === 'lulus_revisi' && tenggatRevisi) ? tenggatRevisi : undefined
             })
 
             alert('Jadwal berhasil diselesaikan!')
@@ -823,8 +825,7 @@ export const KelolaJadwal = () => {
             setHasilPenguji1('lulus_revisi')
             setHasilPenguji2('lulus_revisi')
             setIsTidakLulus(false)
-            setNilaiSidang('')
-            setCatatanHasil('')
+            setTenggatRevisi('')
             fetchJadwal()
         } catch (error: unknown) {
             const err = error as { response?: { data?: { message?: string } } }
@@ -2282,31 +2283,27 @@ export const KelolaJadwal = () => {
                             </div>
                         )}
 
-                        {/* Nilai Sidang */}
-                        <div>
-                            <Label className="text-sm font-medium">Nilai Sidang (Opsional)</Label>
-                            <Input
-                                type="number"
-                                placeholder="Contoh: 85"
-                                value={nilaiSidang}
-                                onChange={e => setNilaiSidang(e.target.value)}
-                                className="mt-1"
-                                min="0"
-                                max="100"
-                            />
-                        </div>
-
-                        {/* Catatan */}
-                        <div>
-                            <Label className="text-sm font-medium">Catatan (Opsional)</Label>
-                            <Textarea
-                                placeholder="Catatan tambahan tentang hasil sidang..."
-                                value={catatanHasil}
-                                onChange={e => setCatatanHasil(e.target.value)}
-                                className="mt-1"
-                                rows={3}
-                            />
-                        </div>
+                        {/* Tenggat Revisi (hanya bila hasilnya lulus dengan revisi) */}
+                        {(() => {
+                            const willRevisi = selesaiJadwal?.jenisJadwal === 'sidang_skripsi'
+                                ? hasilSidang === 'lulus_revisi'
+                                : (!isTidakLulus && (hasilPenguji1 === 'lulus_revisi' || hasilPenguji2 === 'lulus_revisi'))
+                            if (!willRevisi) return null
+                            return (
+                                <div>
+                                    <Label className="text-sm font-medium">Tenggat Revisi</Label>
+                                    <Input
+                                        type="date"
+                                        value={tenggatRevisi}
+                                        onChange={e => setTenggatRevisi(e.target.value)}
+                                        className="mt-1"
+                                    />
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        Batas waktu mahasiswa menyelesaikan revisi. Default 2 minggu dari tanggal sidang, bisa diubah.
+                                    </p>
+                                </div>
+                            )
+                        })()}
 
                         {/* Buttons */}
                         <div className="flex justify-end gap-3 pt-4">

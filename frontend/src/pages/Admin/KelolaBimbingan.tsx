@@ -32,6 +32,7 @@ import { getApiErrorMessage } from '@/lib/errorMessage'
 import {
     getAdminBimbinganSummary, clearBimbinganHistory, clearAllBimbinganGlobal,
     getBimbinganSettings, updateBimbinganSettings,
+    getGlobalFeedbackDeadline, updateGlobalFeedbackDeadline,
     type AdminBimbinganSummary, type Bimbingan, type BimbinganSettings,
 } from '@/services/bimbinganService'
 
@@ -163,6 +164,12 @@ export const KelolaBimbingan = () => {
     const [settings, setSettings] = useState<BimbinganSettings | null>(null)
     const [minDospem1Input, setMinDospem1Input] = useState('5')
     const [minDospem2Input, setMinDospem2Input] = useState('5')
+    // Tenggat feedback: override per-mahasiswa (kosong = ikut global) + global default.
+    const [feedbackOverrideInput, setFeedbackOverrideInput] = useState('')
+    const [globalDeadlineInput, setGlobalDeadlineInput] = useState('')
+    const [globalDeadlineDefault, setGlobalDeadlineDefault] = useState<number | null>(null)
+    const [isSavingGlobalDeadline, setIsSavingGlobalDeadline] = useState(false)
+    const [globalDeadlineMessage, setGlobalDeadlineMessage] = useState<string | null>(null)
     const [isFetchingSettings, setIsFetchingSettings] = useState(false)
     const [isSavingSettings, setIsSavingSettings] = useState(false)
     const [settingsMessage, setSettingsMessage] = useState<string | null>(null)
@@ -210,6 +217,7 @@ export const KelolaBimbingan = () => {
             setSettings(null)
             setMinDospem1Input('5')
             setMinDospem2Input('5')
+            setFeedbackOverrideInput('')
             setError(null)
             setSettingsError(null)
             setSettingsMessage(null)
@@ -239,6 +247,7 @@ export const KelolaBimbingan = () => {
                 setSettings(settingsRes.data)
                 setMinDospem1Input(String(settingsRes.data.minBimbinganDospem1 ?? settingsRes.data.minBimbinganSempro))
                 setMinDospem2Input(String(settingsRes.data.minBimbinganDospem2 ?? settingsRes.data.minBimbinganSempro))
+                setFeedbackOverrideInput(settingsRes.data.feedbackDeadlineOverride != null ? String(settingsRes.data.feedbackDeadlineOverride) : '')
             } catch (e: unknown) {
                 console.error('[SIMTA KelolaBimbingan Debug] failed fetching selected mahasiswa data', e)
                 setError(getApiErrorMessage(e, 'Gagal memuat data bimbingan mahasiswa. Silakan coba lagi.'))
@@ -252,6 +261,35 @@ export const KelolaBimbingan = () => {
         }
         fetchSummary()
     }, [selectedMhs])
+
+    // Muat tenggat feedback global sekali saat halaman dibuka.
+    useEffect(() => {
+        getGlobalFeedbackDeadline()
+            .then((res) => {
+                setGlobalDeadlineInput(String(res.data.feedbackDeadlineDays))
+                setGlobalDeadlineDefault(res.data.defaultDays)
+            })
+            .catch(() => { /* diamkan; admin masih bisa set manual */ })
+    }, [])
+
+    const handleSaveGlobalDeadline = async () => {
+        const days = Number(globalDeadlineInput)
+        if (!Number.isInteger(days) || days < 1 || days > 60) {
+            setGlobalDeadlineMessage('Tenggat harus angka 1 sampai 60 hari.')
+            return
+        }
+        try {
+            setIsSavingGlobalDeadline(true)
+            setGlobalDeadlineMessage(null)
+            const res = await updateGlobalFeedbackDeadline(days)
+            setGlobalDeadlineInput(String(res.data.feedbackDeadlineDays))
+            setGlobalDeadlineMessage('Tenggat feedback global tersimpan.')
+        } catch (e) {
+            setGlobalDeadlineMessage(getApiErrorMessage(e, 'Gagal menyimpan tenggat global.'))
+        } finally {
+            setIsSavingGlobalDeadline(false)
+        }
+    }
 
     const handleClear = async () => {
         if (!selectedMhs) return
@@ -325,15 +363,31 @@ export const KelolaBimbingan = () => {
             return
         }
 
+        // Tenggat feedback override (opsional): kosong = ikut global (null), isi = 1..60.
+        let feedbackDeadlineDays: number | null | undefined
+        const trimmedOverride = feedbackOverrideInput.trim()
+        if (trimmedOverride === '') {
+            feedbackDeadlineDays = null
+        } else {
+            const parsed = Number(trimmedOverride)
+            if (!Number.isInteger(parsed) || parsed < 1 || parsed > 60) {
+                setSettingsError('Tenggat feedback override harus angka 1 sampai 60 hari (atau kosongkan untuk ikut global).')
+                setSettingsMessage(null)
+                return
+            }
+            feedbackDeadlineDays = parsed
+        }
+
         try {
             setIsSavingSettings(true)
             setSettingsError(null)
             setSettingsMessage(null)
-            const res = await updateBimbinganSettings(targetMahasiswaId, nextMinDospem1, nextMinDospem2)
+            const res = await updateBimbinganSettings(targetMahasiswaId, nextMinDospem1, nextMinDospem2, feedbackDeadlineDays)
             setSettings(res.data)
             setMinDospem1Input(String(res.data.minBimbinganDospem1 ?? res.data.minBimbinganSempro))
             setMinDospem2Input(String(res.data.minBimbinganDospem2 ?? res.data.minBimbinganSempro))
-            setSettingsMessage(`Setting minimal bimbingan untuk ${res.data.mahasiswa?.name || 'mahasiswa terpilih'} berhasil disimpan.`)
+            setFeedbackOverrideInput(res.data.feedbackDeadlineOverride != null ? String(res.data.feedbackDeadlineOverride) : '')
+            setSettingsMessage(`Setting untuk ${res.data.mahasiswa?.name || 'mahasiswa terpilih'} berhasil disimpan.`)
 
             const refreshRes = await getAdminBimbinganSummary(targetMahasiswaId)
             setSummary(refreshRes.data)
@@ -702,6 +756,51 @@ export const KelolaBimbingan = () => {
                             </div>
                         </motion.div>
 
+                        {/* Tenggat feedback global (berlaku untuk semua mahasiswa tanpa override) */}
+                        <motion.div variants={itemVariants} initial="hidden" animate="visible" className="bg-white rounded-2xl p-6 shadow-sm border border-indigo-100">
+                            <div className="flex items-start gap-3 mb-4">
+                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                                    <Settings className="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-gray-800">Tenggat Feedback Bimbingan (Global)</h3>
+                                    <p className="text-sm text-gray-500">
+                                        Batas hari bimbingan berstatus menunggu sebelum ditandai <span className="font-semibold text-red-600">Expired</span>. Berlaku untuk semua mahasiswa, kecuali yang diberi override khusus.
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex flex-wrap items-end gap-4">
+                                <label className="space-y-1">
+                                    <span className="text-xs font-medium text-gray-500">Tenggat (hari)</span>
+                                    <div className="flex items-center gap-2">
+                                        <Input
+                                            type="number"
+                                            min={1}
+                                            max={60}
+                                            value={globalDeadlineInput}
+                                            onChange={(e) => setGlobalDeadlineInput(e.target.value)}
+                                            disabled={isSavingGlobalDeadline}
+                                            className="h-10 w-24 rounded-lg bg-white text-center font-bold"
+                                        />
+                                        <span className="text-xs text-gray-500">hari</span>
+                                    </div>
+                                </label>
+                                <Button
+                                    onClick={handleSaveGlobalDeadline}
+                                    disabled={isSavingGlobalDeadline}
+                                    className="h-10 bg-gradient-to-r from-indigo-500 to-indigo-600"
+                                >
+                                    {isSavingGlobalDeadline ? 'Menyimpan...' : 'Simpan Global'}
+                                </Button>
+                                {globalDeadlineDefault != null && (
+                                    <span className="pb-2 text-xs text-gray-400">default sistem: {globalDeadlineDefault} hari</span>
+                                )}
+                            </div>
+                            {globalDeadlineMessage && (
+                                <p className="mt-3 text-xs text-gray-500">{globalDeadlineMessage}</p>
+                            )}
+                        </motion.div>
+
                         {(selectedMhs || summary) && (
                             <motion.div variants={itemVariants} initial="hidden" animate="visible" className="bg-white rounded-2xl p-6 shadow-sm border border-orange-100">
                                 <div className="flex items-start gap-3 mb-4">
@@ -748,6 +847,26 @@ export const KelolaBimbingan = () => {
                                                 <span className="text-xs text-gray-500">kali</span>
                                             </div>
                                         </label>
+                                    </div>
+
+                                    <div className="flex items-end gap-4 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                                        <label className="space-y-1">
+                                            <span className="text-xs font-medium text-gray-500">Tenggat feedback (override)</span>
+                                            <div className="flex items-center gap-2">
+                                                <Input
+                                                    type="number"
+                                                    min={1}
+                                                    max={60}
+                                                    placeholder={settings?.feedbackDeadlineGlobal ? String(settings.feedbackDeadlineGlobal) : 'global'}
+                                                    value={feedbackOverrideInput}
+                                                    onChange={(e) => setFeedbackOverrideInput(e.target.value)}
+                                                    disabled={isFetchingSettings || isSavingSettings}
+                                                    className="h-10 w-24 rounded-lg bg-white text-center font-bold"
+                                                />
+                                                <span className="text-xs text-gray-500">hari</span>
+                                            </div>
+                                        </label>
+                                        <span className="pb-2 text-xs text-gray-400">kosong = ikut global</span>
                                     </div>
 
                                     <Button

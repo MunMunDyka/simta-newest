@@ -125,39 +125,67 @@ const syncRevisionDeadlineStatus = async (mahasiswa) => {
 // Tenggat feedback dosen: bimbingan berstatus 'menunggu' yang tidak direview
 // dalam batas hari berikut dianggap gagal dan dihapus, sehingga mahasiswa dapat
 // mengajukan bimbingan baru. Dicek secara lazy setiap kali daftar bimbingan diambil.
-const FEEDBACK_DEADLINE_DAYS = parseInt(process.env.FEEDBACK_DEADLINE_DAYS, 10) || 5;
+// ===== Deadline feedback (global + override per-mahasiswa) =====
+const DEFAULT_FEEDBACK_DEADLINE_DAYS = parseInt(process.env.FEEDBACK_DEADLINE_DAYS, 10) || 5;
+const FEEDBACK_DEADLINE_GLOBAL_KEY = 'feedback_deadline_days';
+const getFeedbackDeadlineKey = (mahasiswaId) => `feedback_deadline_days:${mahasiswaId}`;
 
+const parseDeadlineDays = (value) => {
+    const n = parseInt(value, 10);
+    return Number.isInteger(n) && n >= 1 && n <= 60 ? n : null;
+};
+
+const getGlobalFeedbackDeadlineDays = async () => {
+    const s = await SystemSetting.findOne({ key: FEEDBACK_DEADLINE_GLOBAL_KEY }).lean();
+    return parseDeadlineDays(s?.value) ?? DEFAULT_FEEDBACK_DEADLINE_DAYS;
+};
+
+// Deadline efektif untuk 1 mahasiswa: override per-mahasiswa bila ada, kalau tidak pakai global.
+const getFeedbackDeadlineForMahasiswa = async (mahasiswaId) => {
+    const globalDays = await getGlobalFeedbackDeadlineDays();
+    if (mahasiswaId) {
+        const s = await SystemSetting.findOne({ key: getFeedbackDeadlineKey(mahasiswaId) }).lean();
+        const perMhs = parseDeadlineDays(s?.value);
+        if (perMhs != null) return perMhs;
+    }
+    return globalDays;
+};
+
+/**
+ * Tandai bimbingan "menunggu" yang melewati tenggat sebagai "expired" (TIDAK dihapus).
+ * Tenggat dinilai per-mahasiswa (override) atau global. Record, file, & reply tetap disimpan
+ * agar muncul di riwayat. Bimbingan expired tidak dihitung ke syarat minimal bimbingan.
+ */
 const expireStaleBimbingan = async (scopeQuery = {}) => {
-    const cutoff = new Date(Date.now() - FEEDBACK_DEADLINE_DAYS * 24 * 60 * 60 * 1000);
-    const stale = await Bimbingan.find({
-        ...scopeQuery,
-        status: 'menunggu',
-        createdAt: { $lt: cutoff }
-    }).select('_id filePath feedbackFile');
+    const globalDays = await getGlobalFeedbackDeadlineDays();
 
-    if (!stale.length) return 0;
+    const menunggu = await Bimbingan.find({ ...scopeQuery, status: 'menunggu' }).select('_id createdAt mahasiswa');
+    if (!menunggu.length) return 0;
 
-    const ids = stale.map((b) => b._id);
-
-    // Hapus file terkait agar tidak menumpuk di server
-    stale.forEach((b) => {
-        [b.filePath, b.feedbackFile].forEach((fp) => {
-            if (!fp) return;
-            const abs = path.resolve(fp);
-            if (fs.existsSync(abs)) {
-                try {
-                    fs.unlinkSync(abs);
-                } catch (err) {
-                    console.error(`⚠️ Gagal menghapus file bimbingan kedaluwarsa: ${abs}`, err.message);
-                }
-            }
-        });
+    // Ambil override per-mahasiswa sekali jalan
+    const mhsIds = [...new Set(menunggu.map((b) => String(b.mahasiswa)))];
+    const overrideDocs = await SystemSetting.find({ key: { $in: mhsIds.map(getFeedbackDeadlineKey) } }).lean();
+    const overrideMap = {};
+    overrideDocs.forEach((d) => {
+        const id = d.key.split(':')[1];
+        const days = parseDeadlineDays(d.value);
+        if (days != null) overrideMap[id] = days;
     });
 
-    await Reply.deleteMany({ bimbingan: { $in: ids } });
-    await Bimbingan.deleteMany({ _id: { $in: ids } });
-    console.log(`🗑️ ${ids.length} bimbingan menunggu kedaluwarsa (>${FEEDBACK_DEADLINE_DAYS} hari) dihapus.`);
-    return ids.length;
+    const now = Date.now();
+    const expiredIds = menunggu
+        .filter((b) => {
+            const days = overrideMap[String(b.mahasiswa)] ?? globalDays;
+            const cutoff = now - days * 24 * 60 * 60 * 1000;
+            return new Date(b.createdAt).getTime() < cutoff;
+        })
+        .map((b) => b._id);
+
+    if (!expiredIds.length) return 0;
+
+    await Bimbingan.updateMany({ _id: { $in: expiredIds } }, { $set: { status: 'expired' } });
+    console.log(`⏰ ${expiredIds.length} bimbingan menunggu ditandai "expired" (tak dibalas melewati tenggat).`);
+    return expiredIds.length;
 };
 
 const normalizeMinBimbinganValue = (value) => {
@@ -483,7 +511,8 @@ const giveFeedback = asyncHandler(async (req, res) => {
         const minBimbinganSempro = await getMinBimbinganForDosenType(bimbingan.mahasiswa, bimbingan.dosenType);
         const totalBimbinganDospem = await Bimbingan.countDocuments({
             mahasiswa: bimbingan.mahasiswa,
-            dosenType: bimbingan.dosenType
+            dosenType: bimbingan.dosenType,
+            status: { $ne: 'expired' }
         });
 
         if (totalBimbinganDospem < minBimbinganSempro) {
@@ -889,11 +918,13 @@ const getSemproStatus = asyncHandler(async (req, res) => {
     const [totalDospem1, totalDospem2, accSemproDospem1, accSemproDospem2] = await Promise.all([
         Bimbingan.countDocuments({
             mahasiswa: mahasiswaId,
-            dosenType: 'dospem_1'
+            dosenType: 'dospem_1',
+            status: { $ne: 'expired' }
         }),
         Bimbingan.countDocuments({
             mahasiswa: mahasiswaId,
-            dosenType: 'dospem_2'
+            dosenType: 'dospem_2',
+            status: { $ne: 'expired' }
         }),
         Bimbingan.countDocuments({
             mahasiswa: mahasiswaId,
@@ -995,11 +1026,13 @@ const generateSuratSempro = asyncHandler(async (req, res) => {
     const [totalDospem1, totalDospem2, accSemproDospem1, accSemproDospem2] = await Promise.all([
         Bimbingan.countDocuments({
             mahasiswa: mahasiswaId,
-            dosenType: 'dospem_1'
+            dosenType: 'dospem_1',
+            status: { $ne: 'expired' }
         }),
         Bimbingan.countDocuments({
             mahasiswa: mahasiswaId,
-            dosenType: 'dospem_2'
+            dosenType: 'dospem_2',
+            status: { $ne: 'expired' }
         }),
         Bimbingan.countDocuments({
             mahasiswa: mahasiswaId,
@@ -1326,12 +1359,20 @@ const getBimbinganSettings = asyncHandler(async (req, res) => {
     const setting = await getMinBimbinganSetting(mahasiswaId);
     const minRequirements = getMinBimbinganRequirementsFromSetting(setting);
 
+    // Deadline feedback: global default + override per-mahasiswa (bila ada).
+    const globalDeadline = await getGlobalFeedbackDeadlineDays();
+    const deadlineDoc = await SystemSetting.findOne({ key: getFeedbackDeadlineKey(mahasiswaId) }).lean();
+    const deadlineOverride = parseDeadlineDays(deadlineDoc?.value);
+
     sendSuccess(res, 200, 'Setting bimbingan berhasil diambil', {
         minBimbinganSempro: Math.max(minRequirements.dospem1, minRequirements.dospem2),
         minBimbinganDospem1: minRequirements.dospem1,
         minBimbinganDospem2: minRequirements.dospem2,
         defaultMinBimbinganSempro: DEFAULT_MIN_BIMBINGAN_SEMPRO,
         isCustom: Boolean(setting),
+        feedbackDeadlineGlobal: globalDeadline,
+        feedbackDeadlineOverride: deadlineOverride, // null = ikut global
+        feedbackDeadlineEffective: deadlineOverride ?? globalDeadline,
         mahasiswa: {
             _id: mahasiswa._id,
             name: mahasiswa.name,
@@ -1364,18 +1405,70 @@ const updateBimbinganSettings = asyncHandler(async (req, res) => {
         { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
+    // Override deadline feedback per-mahasiswa (opsional). Kosong/null = hapus override (ikut global).
+    if (req.body.feedbackDeadlineDays !== undefined) {
+        const days = parseDeadlineDays(req.body.feedbackDeadlineDays);
+        if (days == null) {
+            await SystemSetting.deleteOne({ key: getFeedbackDeadlineKey(mahasiswaId) });
+        } else {
+            await SystemSetting.findOneAndUpdate(
+                { key: getFeedbackDeadlineKey(mahasiswaId) },
+                {
+                    value: days,
+                    label: `Tenggat feedback bimbingan - ${mahasiswa.name}`,
+                    description: 'Override tenggat feedback khusus mahasiswa ini (hari). Kosong = ikut global.'
+                },
+                { upsert: true, new: true, setDefaultsOnInsert: true }
+            );
+        }
+    }
+
+    const globalDeadline = await getGlobalFeedbackDeadlineDays();
+    const deadlineDoc = await SystemSetting.findOne({ key: getFeedbackDeadlineKey(mahasiswaId) }).lean();
+    const deadlineOverride = parseDeadlineDays(deadlineDoc?.value);
+
     sendSuccess(res, 200, 'Setting bimbingan berhasil diperbarui', {
         minBimbinganSempro: Math.max(minRequirements.dospem1, minRequirements.dospem2),
         minBimbinganDospem1: minRequirements.dospem1,
         minBimbinganDospem2: minRequirements.dospem2,
         defaultMinBimbinganSempro: DEFAULT_MIN_BIMBINGAN_SEMPRO,
         isCustom: true,
+        feedbackDeadlineGlobal: globalDeadline,
+        feedbackDeadlineOverride: deadlineOverride,
+        feedbackDeadlineEffective: deadlineOverride ?? globalDeadline,
         mahasiswa: {
             _id: mahasiswa._id,
             name: mahasiswa.name,
             nim_nip: mahasiswa.nim_nip
         }
     });
+});
+
+/**
+ * @desc    Get/Update tenggat feedback GLOBAL (default semua mahasiswa)
+ * @route   GET/PUT /api/bimbingan/admin/feedback-deadline
+ * @access  Admin
+ */
+const getGlobalFeedbackDeadline = asyncHandler(async (req, res) => {
+    const days = await getGlobalFeedbackDeadlineDays();
+    sendSuccess(res, 200, 'Tenggat feedback global', { feedbackDeadlineDays: days, defaultDays: DEFAULT_FEEDBACK_DEADLINE_DAYS });
+});
+
+const updateGlobalFeedbackDeadline = asyncHandler(async (req, res) => {
+    const days = parseDeadlineDays(req.body.feedbackDeadlineDays);
+    if (days == null) {
+        throw ApiError.badRequest('Tenggat feedback harus angka 1 sampai 60 (hari).');
+    }
+    await SystemSetting.findOneAndUpdate(
+        { key: FEEDBACK_DEADLINE_GLOBAL_KEY },
+        {
+            value: days,
+            label: 'Tenggat feedback bimbingan (global)',
+            description: 'Batas hari bimbingan menunggu sebelum ditandai expired. Berlaku untuk semua mahasiswa tanpa override.'
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+    sendSuccess(res, 200, 'Tenggat feedback global diperbarui', { feedbackDeadlineDays: days, defaultDays: DEFAULT_FEEDBACK_DEADLINE_DAYS });
 });
 
 /**
@@ -1416,6 +1509,8 @@ const getProgressReport = asyncHandler(async (req, res) => {
 
     // Aggregate bimbingan counts per mahasiswa per dosenType
     const bimbinganAgg = await Bimbingan.aggregate([
+        // Bimbingan expired tidak ikut dihitung di laporan.
+        { $match: { status: { $ne: 'expired' } } },
         {
             $group: {
                 _id: { mahasiswa: '$mahasiswa', dosenType: '$dosenType' },
@@ -1582,6 +1677,8 @@ module.exports = {
     clearAllBimbinganGlobal,
     getBimbinganSettings,
     updateBimbinganSettings,
+    getGlobalFeedbackDeadline,
+    updateGlobalFeedbackDeadline,
     getProgressReport,
     expireStaleBimbingan // diekspos untuk module UAT (tidak mengubah perilaku)
 };

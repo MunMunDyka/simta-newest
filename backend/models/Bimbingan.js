@@ -100,8 +100,8 @@ const bimbinganSchema = new Schema({
     status: {
         type: String,
         enum: {
-            values: ['menunggu', 'revisi', 'acc', 'lanjut_bab', 'acc_sempro'],
-            message: 'Status harus: menunggu, revisi, acc, lanjut_bab, atau acc_sempro'
+            values: ['menunggu', 'revisi', 'acc', 'lanjut_bab', 'acc_sempro', 'expired'],
+            message: 'Status harus: menunggu, revisi, acc, lanjut_bab, acc_sempro, atau expired'
         },
         default: 'menunggu'
     },
