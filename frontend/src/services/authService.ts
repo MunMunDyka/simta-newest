@@ -23,6 +23,7 @@ export interface DokumenWisuda {
     formBimbingan?: FileWisuda;
     transkripNilai?: FileWisuda;
     turnitinFinal?: FileWisuda;
+    listingProgram?: FileWisuda;
     statusVerifikasi: 'belum_upload' | 'menunggu_verifikasi' | 'disetujui' | 'ditolak';
     catatanAdmin?: string;
     verifiedAt?: string;

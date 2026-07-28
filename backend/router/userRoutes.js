@@ -135,8 +135,21 @@ const wisudaUpload = multer({
     storage: wisudaStorage,
     limits: { fileSize: 25 * 1024 * 1024 }, // 25MB limit
     fileFilter: (req, file, cb) => {
-        const allowedTypes = ['application/pdf'];
-        if (allowedTypes.includes(file.mimetype) || path.extname(file.originalname).toLowerCase() === '.pdf') {
+        const ext = path.extname(file.originalname).toLowerCase();
+
+        // Lampiran Listing Program: hanya ZIP/RAR.
+        if (file.fieldname === 'listingProgram') {
+            const zipRarMimes = ['application/zip', 'application/x-zip-compressed', 'application/x-rar-compressed', 'application/vnd.rar'];
+            if (ext === '.zip' || ext === '.rar' || zipRarMimes.includes(file.mimetype)) {
+                cb(null, true);
+            } else {
+                cb(new Error('Lampiran Listing Program harus berupa file ZIP atau RAR'));
+            }
+            return;
+        }
+
+        // Berkas lain: hanya PDF.
+        if (file.mimetype === 'application/pdf' || ext === '.pdf') {
             cb(null, true);
         } else {
             cb(new Error('Hanya file PDF yang diperbolehkan untuk dokumen wisuda'));
@@ -150,7 +163,8 @@ const uploadWisudaFiles = wisudaUpload.fields([
     { name: 'halamanPengesahan', maxCount: 1 },
     { name: 'formBimbingan', maxCount: 1 },
     { name: 'transkripNilai', maxCount: 1 },
-    { name: 'turnitinFinal', maxCount: 1 }
+    { name: 'turnitinFinal', maxCount: 1 },
+    { name: 'listingProgram', maxCount: 1 }
 ]);
 
 const handleWisudaUpload = (req, res, next) => {

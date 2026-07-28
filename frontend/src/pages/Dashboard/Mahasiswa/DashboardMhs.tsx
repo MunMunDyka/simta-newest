@@ -164,6 +164,7 @@ export const DashboardMhs = () => {
     const [formFile, setFormFile] = useState<File | null>(null)
     const [transkripFile, setTranskripFile] = useState<File | null>(null)
     const [turnitinFinalFile, setTurnitinFinalFile] = useState<File | null>(null)
+    const [listingProgramFile, setListingProgramFile] = useState<File | null>(null)
     const [isUploadingWisuda, setIsUploadingWisuda] = useState(false)
     const [uploadWisudaError, setUploadWisudaError] = useState<string | null>(null)
     const [uploadWisudaSuccess, setUploadWisudaSuccess] = useState<string | null>(null)
@@ -292,13 +293,13 @@ export const DashboardMhs = () => {
 
     const handleUploadWisuda = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (!skripsiFullFile && !pptFile && !halamanFile && !formFile && !transkripFile && !turnitinFinalFile) {
-            setUploadWisudaError('Pilih setidaknya satu file PDF untuk diunggah')
+        if (!skripsiFullFile && !pptFile && !halamanFile && !formFile && !transkripFile && !turnitinFinalFile && !listingProgramFile) {
+            setUploadWisudaError('Pilih setidaknya satu berkas untuk diunggah')
             return
         }
 
         if (!isWisudaLengkap) {
-            setUploadWisudaError('Keenam berkas kelulusan wajib dilengkapi sebelum diunggah')
+            setUploadWisudaError('Ketujuh berkas kelulusan wajib dilengkapi sebelum diunggah')
             return
         }
 
@@ -320,6 +321,7 @@ export const DashboardMhs = () => {
             if (formFile) formData.append('formBimbingan', formFile)
             if (transkripFile) formData.append('transkripNilai', transkripFile)
             if (turnitinFinalFile) formData.append('turnitinFinal', turnitinFinalFile)
+            if (listingProgramFile) formData.append('listingProgram', listingProgramFile)
 
             const res = await uploadWisuda(formData)
             if (res.success) {
@@ -330,6 +332,7 @@ export const DashboardMhs = () => {
                 setFormFile(null)
                 setTranskripFile(null)
                 setTurnitinFinalFile(null)
+                setListingProgramFile(null)
                 // Refresh data without full layout spinner
                 fetchData(false)
             }
@@ -362,6 +365,30 @@ export const DashboardMhs = () => {
 
         setUploadWisudaError(null)
         setFile(file)
+    }
+
+    // Lampiran Listing Program: hanya ZIP/RAR.
+    const isZipRarFile = (file: File) => {
+        const name = file.name.toLowerCase()
+        return name.endsWith('.zip') || name.endsWith('.rar')
+            || ['application/zip', 'application/x-zip-compressed', 'application/x-rar-compressed', 'application/vnd.rar'].includes(file.type)
+    }
+
+    const handleListingProgramFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0] || null
+        if (!file) {
+            setListingProgramFile(null)
+            return
+        }
+        setUploadWisudaSuccess(null)
+        if (!isZipRarFile(file)) {
+            setListingProgramFile(null)
+            event.target.value = ''
+            setUploadWisudaError('Lampiran Listing Program harus berupa file ZIP atau RAR')
+            return
+        }
+        setUploadWisudaError(null)
+        setListingProgramFile(file)
     }
 
     const handleDownloadWisudaFile = async (file?: FileWisuda) => {
@@ -610,7 +637,8 @@ export const DashboardMhs = () => {
         wisudaSlotTerisi(halamanFile, mahasiswaData?.dokumenWisuda?.halamanPengesahan) &&
         wisudaSlotTerisi(formFile, mahasiswaData?.dokumenWisuda?.formBimbingan) &&
         wisudaSlotTerisi(transkripFile, mahasiswaData?.dokumenWisuda?.transkripNilai) &&
-        wisudaSlotTerisi(turnitinFinalFile, mahasiswaData?.dokumenWisuda?.turnitinFinal)
+        wisudaSlotTerisi(turnitinFinalFile, mahasiswaData?.dokumenWisuda?.turnitinFinal) &&
+        wisudaSlotTerisi(listingProgramFile, mahasiswaData?.dokumenWisuda?.listingProgram)
 
     const isRevisionPhase = ['revisi_sempro', 'revisi_semhas', 'revisi_sidang'].includes(mahasiswaData?.statusMahasiswa || 'pra_sempro')
     const isAcademicSidangPhase = ['bimbingan_akhir', 'menunggu_sidang'].includes(mahasiswaData?.statusMahasiswa || '')
@@ -1458,6 +1486,47 @@ export const DashboardMhs = () => {
                                                         Pilih File
                                                     </Button>
                                                     {turnitinFinalFile && <span className="text-xs text-green-600 truncate font-semibold">{turnitinFinalFile.name}</span>}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* File 7: Lampiran Listing Program (ZIP/RAR) */}
+                                        <div className="p-4 rounded-xl border border-gray-250 bg-white">
+                                            <label className="block text-sm font-bold text-gray-700 mb-2">7. Lampiran Listing Program (ZIP/RAR)</label>
+                                            {mahasiswaData.dokumenWisuda?.listingProgram?.fileName ? (
+                                                <div className="flex items-center justify-between text-xs bg-gray-55 p-2.5 rounded-lg border border-gray-150 mb-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleDownloadWisudaFile(mahasiswaData.dokumenWisuda?.listingProgram)}
+                                                        className="font-semibold text-blue-600 hover:underline truncate max-w-[200px] text-left"
+                                                    >
+                                                        {mahasiswaData.dokumenWisuda.listingProgram.fileOriginalName}
+                                                    </button>
+                                                    <span className="text-gray-400 font-medium">{mahasiswaData.dokumenWisuda.listingProgram.fileSize}</span>
+                                                </div>
+                                            ) : (
+                                                <p className="text-xs text-gray-400 italic mb-2">Belum ada file diunggah</p>
+                                            )}
+                                            {mahasiswaData.dokumenWisuda?.statusVerifikasi !== 'disetujui' && (
+                                                <div className="mt-2 flex items-center gap-2">
+                                                    <input
+                                                        type="file"
+                                                        accept=".zip,.rar"
+                                                        id="listingProgramInput"
+                                                        className="hidden"
+                                                        onChange={handleListingProgramFileChange}
+                                                    />
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => document.getElementById('listingProgramInput')?.click()}
+                                                        className="text-xs flex items-center gap-1.5 h-8 border-gray-300 hover:bg-gray-50"
+                                                    >
+                                                        <Upload className="w-3.5 h-3.5 text-gray-500" />
+                                                        Pilih File
+                                                    </Button>
+                                                    {listingProgramFile && <span className="text-xs text-green-600 truncate font-semibold">{listingProgramFile.name}</span>}
                                                 </div>
                                             )}
                                         </div>

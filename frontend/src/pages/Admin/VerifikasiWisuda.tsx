@@ -456,7 +456,8 @@ export const VerifikasiWisuda = () => {
                                                 doc?.halamanPengesahan?.fileName,
                                                 doc?.formBimbingan?.fileName,
                                                 doc?.transkripNilai?.fileName,
-                                                doc?.turnitinFinal?.fileName
+                                                doc?.turnitinFinal?.fileName,
+                                                doc?.listingProgram?.fileName
                                             ].filter(Boolean).length
 
                                             return (
@@ -472,7 +473,7 @@ export const VerifikasiWisuda = () => {
                                                     </TableCell>
                                                     <TableCell className="text-center font-bold text-gray-700">
                                                         <Badge variant="outline" className="border-gray-200">
-                                                            {totalFiles}/6 Terunggah
+                                                            {totalFiles}/7 Terunggah
                                                         </Badge>
                                                     </TableCell>
                                                     <TableCell className="text-center">
@@ -719,6 +720,31 @@ export const VerifikasiWisuda = () => {
                                             <button
                                                 type="button"
                                                 onClick={() => handleDownloadFile(selectedStudent.dokumenWisuda?.turnitinFinal)}
+                                                className="bg-gray-50 hover:bg-gray-100 text-gray-600 p-2 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
+                                                title="Unduh File"
+                                            >
+                                                <Download className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* 7. Lampiran Listing Program (ZIP/RAR) */}
+                                <div className="flex items-center justify-between p-3.5 bg-white border border-gray-200 rounded-xl hover:shadow-sm transition-shadow">
+                                    <div className="flex items-center gap-3">
+                                        <FileText className="w-6 h-6 text-amber-500" />
+                                        <div>
+                                            <p className="text-sm font-semibold text-gray-700">7. Lampiran Listing Program</p>
+                                            <p className="text-xs text-gray-400">
+                                                {selectedStudent.dokumenWisuda?.listingProgram?.fileOriginalName || 'Belum diunggah'} &middot; {selectedStudent.dokumenWisuda?.listingProgram?.fileSize || ''}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    {selectedStudent.dokumenWisuda?.listingProgram?.filePath && (
+                                        <div className="flex gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDownloadFile(selectedStudent.dokumenWisuda?.listingProgram)}
                                                 className="bg-gray-50 hover:bg-gray-100 text-gray-600 p-2 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
                                                 title="Unduh File"
                                             >

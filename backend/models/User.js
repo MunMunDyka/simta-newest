@@ -255,6 +255,13 @@ const userSchema = new Schema({
             fileOriginalName: { type: String, default: null },
             uploadedAt: { type: Date, default: null }
         },
+        listingProgram: {
+            fileName: { type: String, default: null },
+            filePath: { type: String, default: null },
+            fileSize: { type: String, default: null },
+            fileOriginalName: { type: String, default: null },
+            uploadedAt: { type: Date, default: null }
+        },
         statusVerifikasi: {
             type: String,
             enum: ['belum_upload', 'menunggu_verifikasi', 'disetujui', 'ditolak'],

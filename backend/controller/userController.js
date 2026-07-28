@@ -19,7 +19,7 @@ const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendSuccess, sendPaginated, sendCreated } = require('../utils/responseHelper');
 
-const wisudaFileFields = ['skripsiFull', 'pptSkripsi', 'halamanPengesahan', 'formBimbingan', 'transkripNilai', 'turnitinFinal'];
+const wisudaFileFields = ['skripsiFull', 'pptSkripsi', 'halamanPengesahan', 'formBimbingan', 'transkripNilai', 'turnitinFinal', 'listingProgram'];
 const REVISION_DEADLINE_STATUSES = ['tidak_aktif', 'aktif', 'lewat', 'selesai'];
 const REVISION_DEADLINE_TYPES = ['revisi_sempro', 'revisi_semhas'];
 
@@ -826,7 +826,8 @@ const uploadWisuda = asyncHandler(async (req, res) => {
         { key: 'halamanPengesahan', label: 'Halaman Pengesahan' },
         { key: 'formBimbingan', label: 'Form/Logbook Bimbingan' },
         { key: 'transkripNilai', label: 'Transkrip Nilai Sementara' },
-        { key: 'turnitinFinal', label: 'Hasil Turnitin' }
+        { key: 'turnitinFinal', label: 'Hasil Turnitin' },
+        { key: 'listingProgram', label: 'Lampiran Listing Program' }
     ];
     const berkasKurang = berkasWajib.filter(item => !doc[item.key] || !doc[item.key].fileName);
 
