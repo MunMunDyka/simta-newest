@@ -63,6 +63,7 @@ import {
     X,
     Shield,
 } from 'lucide-react'
+import { CheckSquare, BarChart3 } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
 import api from '@/lib/api'
@@ -125,11 +126,11 @@ const managementItems = [
     { label: 'Manajemen Dosen', icon: GraduationCap, path: '/admin/plotting' },
     { label: 'Kelola Bimbingan', icon: FileText, path: '/admin/bimbingan' },
     { label: 'Kelola Jadwal', icon: Calendar, path: '/admin/jadwal' },
-    { label: 'Verifikasi Dokumen', icon: GraduationCap, path: '/admin/wisuda' },
+    { label: 'Verifikasi Dokumen', icon: CheckSquare, path: '/admin/wisuda' },
 ]
 
 const reportItems = [
-    { label: 'Laporan', icon: FileText, path: '/admin/laporan' },
+    { label: 'Laporan', icon: BarChart3, path: '/admin/laporan' },
 ]
 
 export const ManajemenUserDosen = () => {

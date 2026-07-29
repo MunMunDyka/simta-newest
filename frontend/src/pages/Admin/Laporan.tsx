@@ -53,6 +53,7 @@ import {
     Download,
     GraduationCap,
 } from 'lucide-react'
+import { CheckSquare } from 'lucide-react'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
 import api from '@/lib/api'
@@ -124,7 +125,7 @@ const managementItems = [
     { label: 'Manajemen Dosen', icon: GraduationCap, path: '/admin/plotting' },
     { label: 'Kelola Bimbingan', icon: FileText, active: false, path: '/admin/bimbingan' },
     { label: 'Kelola Jadwal', icon: Calendar, active: false, path: '/admin/jadwal' },
-    { label: 'Verifikasi Dokumen', icon: GraduationCap, path: '/admin/wisuda' },
+    { label: 'Verifikasi Dokumen', icon: CheckSquare, path: '/admin/wisuda' },
 ]
 
 const reportItems = [
