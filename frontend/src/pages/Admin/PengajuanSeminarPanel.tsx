@@ -73,7 +73,8 @@ export const PengajuanSeminarPanel = () => {
                 jenisPengajuan: jenisFilter,
                 statusVerifikasi: statusFilter,
             })
-            setItems(response.data || [])
+            // Abaikan pengajuan yatim (mahasiswa sudah dihapus) agar tidak crash saat render.
+            setItems((response.data || []).filter((item) => item.mahasiswa))
         } catch (err: unknown) {
             setError(getApiErrorMessage(err, 'Gagal mengambil data pengajuan seminar.'))
         } finally {
@@ -103,7 +104,7 @@ export const PengajuanSeminarPanel = () => {
         setSuccessMessage(null)
         try {
             await verifikasiPengajuanSeminar(selectedPengajuan._id, decision, notes)
-            setSuccessMessage(`Berkas pengajuan ${selectedPengajuan.mahasiswa.name} berhasil diverifikasi.`)
+            setSuccessMessage(`Berkas pengajuan ${selectedPengajuan.mahasiswa?.name || 'mahasiswa'} berhasil diverifikasi.`)
             setSelectedPengajuan(null)
             fetchData()
         } catch (err: unknown) {
@@ -225,8 +226,8 @@ export const PengajuanSeminarPanel = () => {
                                 <TableRow key={item._id} className="hover:bg-gray-50/50">
                                     <TableCell>
                                         <div>
-                                            <p className="font-bold text-gray-800">{item.mahasiswa.name}</p>
-                                            <p className="text-xs text-gray-500">{item.mahasiswa.nim_nip} &middot; {item.mahasiswa.prodi || 'Sistem Informasi'}</p>
+                                            <p className="font-bold text-gray-800">{item.mahasiswa?.name}</p>
+                                            <p className="text-xs text-gray-500">{item.mahasiswa?.nim_nip} &middot; {item.mahasiswa?.prodi || 'Sistem Informasi'}</p>
                                         </div>
                                     </TableCell>
                                     <TableCell>
@@ -318,8 +319,8 @@ export const PengajuanSeminarPanel = () => {
                     {selectedPengajuan && (
                         <div className="space-y-5 my-4">
                             <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
-                                <h4 className="font-bold text-gray-800">{selectedPengajuan.mahasiswa.name}</h4>
-                                <p className="text-xs text-gray-500">{selectedPengajuan.mahasiswa.nim_nip} &middot; {getJenisLabel(selectedPengajuan.jenisPengajuan)}</p>
+                                <h4 className="font-bold text-gray-800">{selectedPengajuan.mahasiswa?.name}</h4>
+                                <p className="text-xs text-gray-500">{selectedPengajuan.mahasiswa?.nim_nip} &middot; {getJenisLabel(selectedPengajuan.jenisPengajuan)}</p>
                                 <button
                                     type="button"
                                     onClick={() => handlePreview(selectedPengajuan)}

@@ -401,10 +401,39 @@ const hardDelete = asyncHandler(async (req, res) => {
         throw ApiError.forbidden('Tidak dapat menghapus akun admin');
     }
 
+    // Bersihkan data terkait agar tidak ada record yatim (mahasiswa/dosen null)
+    // yang bisa membuat halaman admin crash saat me-render.
+    const PengajuanSeminar = require('../models/PengajuanSeminar');
+    const Bimbingan = require('../models/Bimbingan');
+    const Reply = require('../models/Reply');
+    const Jadwal = require('../models/Jadwal');
+    const userId = user._id;
+
+    if (user.role === 'mahasiswa') {
+        await PengajuanSeminar.deleteMany({ mahasiswa: userId });
+        await Jadwal.deleteMany({ mahasiswa: userId });
+    }
+
+    // Bimbingan di mana user berperan sebagai mahasiswa atau dosen (+ balasannya)
+    const bimbinganIds = await Bimbingan.find({ $or: [{ mahasiswa: userId }, { dosen: userId }] }).distinct('_id');
+    if (bimbinganIds.length) {
+        await Reply.deleteMany({ bimbingan: { $in: bimbinganIds } });
+        await Bimbingan.deleteMany({ _id: { $in: bimbinganIds } });
+    }
+
+    // Bila user seorang dosen, lepaskan referensinya dari mahasiswa & jadwal lain.
+    if (user.role === 'dosen') {
+        await User.updateMany({ dospem_1: userId }, { $set: { dospem_1: null } });
+        await User.updateMany({ dospem_2: userId }, { $set: { dospem_2: null } });
+        await User.updateMany({ penguji_1: userId }, { $set: { penguji_1: null } });
+        await User.updateMany({ penguji_2: userId }, { $set: { penguji_2: null } });
+        await Jadwal.updateMany({ penguji: userId }, { $pull: { penguji: userId } });
+    }
+
     // Permanent delete
     await User.findByIdAndDelete(req.params.id);
 
-    console.log(`💀 User PERMANENTLY deleted: ${user.name} by Admin ${req.user.name}`);
+    console.log(`💀 User PERMANENTLY deleted: ${user.name} by Admin ${req.user.name} (data terkait dibersihkan)`);
 
     sendSuccess(res, 200, 'User berhasil dihapus permanen', null);
 });
