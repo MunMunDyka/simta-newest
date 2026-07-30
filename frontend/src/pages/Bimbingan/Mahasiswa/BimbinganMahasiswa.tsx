@@ -194,7 +194,14 @@ export const BimbinganMahasiswa = () => {
                 dosenType: getDosenTypeFromSubTab(activeSubTab),
                 limit: 50
             })
-            setBimbinganList(response.data || [])
+            // Backend mengirim createdAt & feedbackDate (ISO). Petakan ke label
+            // tampilan tanggal dikirim & tanggal feedback yang sudah diformat.
+            const mapped = (response.data || []).map((b) => ({
+                ...b,
+                tanggalKirim: b.createdAt ? formatDeadlineDate(b.createdAt) : '',
+                tanggalFeedback: b.feedbackDate ? formatDeadlineDate(b.feedbackDate) : '',
+            }))
+            setBimbinganList(mapped)
         } catch (err: unknown) {
             const error = err as { response?: { data?: { message?: string } } }
             setError(error.response?.data?.message || 'Gagal memuat data bimbingan')
