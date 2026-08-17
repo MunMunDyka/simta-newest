@@ -96,7 +96,7 @@ export const ListMahasiswaBimbingan = () => {
 
     const [searchQuery, setSearchQuery] = useState('')
     const [mahasiswaList, setMahasiswaList] = useState<MahasiswaWithBimbingan[]>([])
-    const [filterRole, setFilterRole] = useState<'pembimbing' | 'penguji' | 'semua'>('pembimbing')
+    const [filterRole, setFilterRole] = useState<'pembimbing' | 'penguji' | 'semua'>('semua')
     const [filterStatus, setFilterStatus] = useState<StatusFilter>('semua')
     const [isLoading, setIsLoading] = useState(true)
     const [loadError, setLoadError] = useState<string | null>(null)

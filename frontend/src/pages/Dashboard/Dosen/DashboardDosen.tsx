@@ -104,7 +104,7 @@ export const DashboardDosen = () => {
     const [searchQuery, setSearchQuery] = useState('')
     const [entriesPerPage, setEntriesPerPage] = useState('10')
     const [currentPage, setCurrentPage] = useState(1)
-    const [filterRole, setFilterRole] = useState<'pembimbing' | 'penguji' | 'semua'>('pembimbing')
+    const [filterRole, setFilterRole] = useState<'pembimbing' | 'penguji' | 'semua'>('semua')
 
     // Data states
     const [studentsData, setStudentsData] = useState<Student[]>([])
