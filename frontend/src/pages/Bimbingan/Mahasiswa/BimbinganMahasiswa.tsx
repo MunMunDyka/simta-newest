@@ -632,12 +632,14 @@ export const BimbinganMahasiswa = () => {
                                                 </div>
                                             </div>
                                             <div className="flex shrink-0 items-center gap-3 sm:gap-4">
-                                                {item.tanggalFeedback && item.status !== 'menunggu' && (
-                                                    <span className="hidden md:inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs text-gray-500 whitespace-nowrap">
-                                                        Feedback: {item.tanggalFeedback}
-                                                    </span>
-                                                )}
-                                                {getStatusBadge(item.status)}
+                                                <div className="flex flex-col items-end gap-1">
+                                                    {getStatusBadge(item.status)}
+                                                    {item.tanggalFeedback && item.status !== 'menunggu' && (
+                                                        <span className="hidden md:inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs text-gray-500 whitespace-nowrap">
+                                                            Feedback: {item.tanggalFeedback}
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <motion.div animate={{ rotate: expandedId === item._id ? 90 : 0 }}>
                                                     <ChevronRight className="w-5 h-5 text-gray-400" />
                                                 </motion.div>
