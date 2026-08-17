@@ -885,7 +885,7 @@ export const BimbinganMahasiswa = () => {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Catatan Tambahan (Opsional)</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Catatan Tambahan</label>
                                     <Textarea
                                         placeholder="Jelaskan apa saja yang sudah diperbaiki atau ditambahkan..."
                                         value={catatan}
