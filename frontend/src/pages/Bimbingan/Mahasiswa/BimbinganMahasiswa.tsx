@@ -632,7 +632,7 @@ export const BimbinganMahasiswa = () => {
                                                 </div>
                                             </div>
                                             <div className="flex shrink-0 items-center gap-3 sm:gap-4">
-                                                <div className="flex flex-col items-end gap-1">
+                                                <div className="flex flex-col items-center gap-1">
                                                     {getStatusBadge(item.status)}
                                                     {item.tanggalFeedback && item.status !== 'menunggu' && (
                                                         <span className="hidden md:inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs text-gray-500 whitespace-nowrap">
